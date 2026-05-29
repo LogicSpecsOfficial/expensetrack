@@ -13,25 +13,25 @@
     <div class="max-w-md mx-auto p-4 space-y-6">
         <header class="text-center py-4">
             <h1 class="text-2xl font-bold text-indigo-600">Smart Receipt Tracker</h1>
-            <p class="text-xs text-slate-500">100% local & private on your phone</p>
+            <p class="text-xs text-slate-500">Supports English & 中文 • Local Storage</p>
         </header>
 
         <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 space-y-4">
             <h2 class="text-lg font-semibold flex items-center gap-2">
-                <span>📸</span> Scan New Receipt
+                <span>📸</span> Upload Receipt
             </h2>
             
             <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-slate-300 rounded-xl cursor-pointer bg-slate-50 hover:bg-slate-100 transition">
                 <div class="flex flex-col items-center justify-center pt-5 pb-6 text-center px-2">
-                    <span class="text-3xl mb-1">📷</span>
-                    <p class="text-sm font-medium text-slate-600">Tap to snap or upload receipt</p>
-                    <p class="text-xs text-slate-400 mt-1">AI will attempt to read details</p>
+                    <span class="text-3xl mb-1">🖼️</span>
+                    <p class="text-sm font-medium text-slate-600">Tap to select from Album or Camera</p>
+                    <p class="text-xs text-slate-400 mt-1">Reads English & Chinese text automatically</p>
                 </div>
-                <input id="receipt-file" type="file" accept="image/*" capture="environment" class="hidden" onchange="processReceipt(event)" />
+                <input id="receipt-file" type="file" accept="image/*" class="hidden" onchange="processReceipt(event)" />
             </label>
 
-            <div id="loading" class="hidden text-center p-3 bg-indigo-50 rounded-xl text-indigo-700 font-medium text-sm animate-pulse">
-                🤖 AI is reading your receipt... Please wait (~10s)
+            <div id="loading" class="hidden text-center p-4 bg-indigo-50 rounded-xl text-indigo-700 font-medium text-sm animate-pulse">
+                🤖 AI is analyzing mixed text... <br><span class="text-xs text-indigo-500 font-normal">(Downloading language models may take a moment on first run)</span>
             </div>
         </div>
 
@@ -39,16 +39,16 @@
             <h2 class="text-lg font-semibold">Receipt Details</h2>
             <div class="space-y-3">
                 <div>
-                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Restaurant / Merchant</label>
-                    <input id="form-merchant" type="text" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 text-sm" placeholder="e.g., McDonald's">
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Restaurant / Merchant (商户名)</label>
+                    <input id="form-merchant" type="text" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 text-sm" placeholder="e.g., McDonald's / 大快活">
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Total Amount ($)</label>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Total Amount ($ / ¥)</label>
                         <input id="form-amount" type="number" step="0.01" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 text-sm" placeholder="0.00">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Date</label>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Date (日期)</label>
                         <input id="form-date" type="date" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 text-sm">
                     </div>
                 </div>
@@ -87,10 +87,8 @@
     </div>
 
     <script>
-        // State management
         let expenses = JSON.parse(localStorage.getItem('expenses')) || [];
 
-        // App Initializer
         window.onload = function() {
             setDefaultDate();
             populateMonthFilter();
@@ -101,30 +99,22 @@
             document.getElementById('form-date').value = new Date().toISOString().split('T')[0];
         }
 
-        // Populates unique months available in user data
         function populateMonthFilter() {
             const filterSelect = document.getElementById('month-filter');
             filterSelect.innerHTML = '';
-
-            // Generate list of months for the last year as defaults
             const uniqueMonths = new Set();
             
-            // Add months from actual data
             expenses.forEach(exp => {
-                if(exp.date) uniqueMonths.add(exp.date.substring(0, 7)); // Captures YYYY-MM
+                if(exp.date) uniqueMonths.add(exp.date.substring(0, 7));
             });
 
-            // Ensure current month is always an option
             const currentMonth = new Date().toISOString().substring(0, 7);
             uniqueMonths.add(currentMonth);
-
-            // Sort months descending
             const sortedMonths = Array.from(uniqueMonths).sort().reverse();
 
             sortedMonths.forEach(month => {
                 const opt = document.createElement('option');
                 opt.value = month;
-                // Format YYYY-MM into human readable English "Month YYYY"
                 const [year, m] = month.split('-');
                 const dateObj = new Date(year, m - 1, 1);
                 opt.textContent = dateObj.toLocaleString('default', { month: 'long', year: 'numeric' });
@@ -132,7 +122,7 @@
             });
         }
 
-        // Smart OCR processing block
+        // Smart Multi-language OCR processing block
         function processReceipt(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -140,52 +130,61 @@
             const loader = document.getElementById('loading');
             loader.classList.remove('hidden');
 
-            // Use Tesseract.js CDN to decode text from image client-side
-            Tesseract.recognize(file, 'eng')
+            // Initializing Tesseract with English + Simplified Chinese + Traditional Chinese
+            Tesseract.recognize(file, 'eng+chi_sim+chi_tra')
                 .then(({ data: { text } }) => {
                     parseReceiptText(text);
                 })
                 .catch(err => {
                     console.error(err);
-                    alert("AI scanning failed. Don't worry, you can still type it in manually!");
+                    alert("OCR scanning timed out or failed. Please fill it manually!");
                 })
                 .finally(() => {
                     loader.classList.add('hidden');
                 });
         }
 
-        // Clever regex parsing matching User Requirements
+        // Clever regex parsing matching bilingual inputs
         function parseReceiptText(text) {
             console.log("Scanned Text Output:\n", text);
             const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
             
-            // 1. Detect Merchant Name: Usually the very first non-empty line of text on a receipt
-            let merchant = lines[0] ? lines[0].replace(/[^a-zA-Z0-9\s]/g, '') : "Unknown Merchant";
+            // 1. Detect Merchant Name: Grabs first legible text line, stripping odd symbols
+            let merchant = lines[0] ? lines[0].replace(/[^\u4e00-\u9fa5a-zA-Z0-9\s]/g, '') : "Unknown Merchant";
             if(merchant.length > 25) merchant = merchant.substring(0, 25) + "...";
 
-            // 2. Detect Total Amount: Look for currency patterns, find the highest currency number (Total is almost always the max amount)
-            const priceRegex = /\b\d+\.\d{2}\b/g;
+            // 2. Detect Date: Matches YYYY-MM-DD, DD/MM/YYYY, or Chinese format YYYY年MM月DD日
+            const cnDateRegex = /(\d{4})年(\d{1,2})月(\d{1,2})日/;
+            const standardDateRegex = /(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/;
+            let detectedDate = new Date().toISOString().split('T')[0]; 
+            
+            const cnMatch = text.match(cnDateRegex);
+            if (cnMatch) {
+                detectedDate = `${cnMatch[1]}-${cnMatch[2].padStart(2, '0')}-${cnMatch[3].padStart(2, '0')}`;
+            } else {
+                const dateMatch = text.match(standardDateRegex);
+                if (dateMatch) {
+                    let parts = dateMatch[0].split(/[\/\-]/);
+                    if (parts[2] && parts[2].length === 2) parts[2] = "20" + parts[2];
+                    if (parts[0].length === 4) { 
+                        detectedDate = `${parts[0]}-${parts[1].padStart(2,'0')}-${parts[2].padStart(2,'0')}`;
+                    } else {
+                        detectedDate = `${parts[2]}-${parts[0].padStart(2,'0')}-${parts[1].padStart(2,'0')}`;
+                    }
+                }
+            }
+
+            // 3. Detect Total Amount: Matches decimals (10.00) or whole numbers (150) up to 4 digits to find the true max total expense
+            const priceRegex = /\d+(?:\.\d{2})?/g;
             const matches = text.match(priceRegex);
             let totalAmount = 0.00;
             if (matches) {
-                const numericAmounts = matches.map(val => parseFloat(val));
-                totalAmount = Math.max(...numericAmounts); // Smart assumption strategy
-            }
-
-            // 3. Detect Date: Look for typical global formats MM/DD/YYYY, DD/MM/YYYY, or YYYY-MM-DD
-            const dateRegex = /(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/;
-            const dateMatch = text.match(dateRegex);
-            let detectedDate = new Date().toISOString().split('T')[0]; // Default to today
-            
-            if (dateMatch) {
-                let parts = dateMatch[0].split(/[\/\-]/);
-                // Simple cleanup strategy to convert potential 2-digit years to standard 4-digit formatting
-                if (parts[2] && parts[2].length === 2) parts[2] = "20" + parts[2];
-                if (parts[0].length === 4) { // YYYY-MM-DD format already
-                    detectedDate = `${parts[0]}-${parts[1].padStart(2,'0')}-${parts[2].padStart(2,'0')}`;
-                } else {
-                    // Fallback to safe assumption framework standard parsing
-                    detectedDate = `${parts[2]}-${parts[0].padStart(2,'0')}-${parts[1].padStart(2,'0')}`;
+                // Filters out likely years (e.g. 2026) or tiny codes to isolate high confidence prices
+                const numericAmounts = matches
+                    .map(val => parseFloat(val))
+                    .filter(num => num < 5000 && num > 0); 
+                if (numericAmounts.length > 0) {
+                    totalAmount = Math.max(...numericAmounts); 
                 }
             }
 
@@ -195,28 +194,20 @@
             document.getElementById('form-date').value = detectedDate;
         }
 
-        // Save Action Logic
         function saveExpense() {
             const merchant = document.getElementById('form-merchant').value.trim();
             const amount = parseFloat(document.getElementById('form-amount').value);
             const date = document.getElementById('form-date').value;
 
             if (!merchant || isNaN(amount) || !date) {
-                alert("Please fill out all receipt details before saving.");
+                alert("Please complete the details before saving.");
                 return;
             }
 
-            const newExpense = {
-                id: Date.now(),
-                merchant,
-                amount,
-                date
-            };
-
+            const newExpense = { id: Date.now(), merchant, amount, date };
             expenses.push(newExpense);
             localStorage.setItem('expenses', JSON.stringify(expenses));
             
-            // Clear inputs for next scan
             document.getElementById('form-merchant').value = "";
             document.getElementById('form-amount').value = "";
             setDefaultDate();
@@ -225,7 +216,6 @@
             renderExpenses();
         }
 
-        // Delete Individual Row Expense Action
         function deleteExpense(id) {
             expenses = expenses.filter(exp => exp.id !== id);
             localStorage.setItem('expenses', JSON.stringify(expenses));
@@ -233,7 +223,6 @@
             renderExpenses();
         }
 
-        // UI rendering calculation matching Selected Month View state
         function renderExpenses() {
             const selectedMonth = document.getElementById('month-filter').value;
             const expenseList = document.getElementById('expense-list');
@@ -243,12 +232,10 @@
             let totalSum = 0;
 
             if (filtered.length === 0) {
-                expenseList.innerHTML = `<p class="text-center text-slate-400 py-6 text-sm">No recorded expenses found for this month.</p>`;
+                expenseList.innerHTML = `<p class="text-center text-slate-400 py-6 text-sm">No expenses found for this month.</p>`;
             } else {
                 filtered.forEach(exp => {
                     totalSum += exp.amount;
-                    
-                    // Simple, scannable list block row construction
                     const row = document.createElement('div');
                     row.className = "flex justify-between items-center p-3 bg-slate-50 border border-slate-100 rounded-xl text-sm";
                     row.innerHTML = `
@@ -264,28 +251,21 @@
                     expenseList.appendChild(row);
                 });
             }
-
             document.getElementById('monthly-total').textContent = `$${totalSum.toFixed(2)}`;
         }
 
-        // High Quality PDF PDF Engine Block Logic targeting chosen Month 
         function exportToPDF() {
             const filterSelect = document.getElementById('month-filter');
             const selectedMonthText = filterSelect.options[filterSelect.selectedIndex].textContent;
             
-            // Prepare PDF styling layout adjustments safely before capturing snapshot
             const pdfHeader = document.getElementById('pdf-header');
             document.getElementById('pdf-report-month').textContent = selectedMonthText;
             
-            // Temporarily unhide printing headers for document output presentation values
             pdfHeader.classList.remove('hidden');
-            
-            // Remove clear individual element deletion layout tags safely inside generated document logic bounds
             const deleteButtons = document.querySelectorAll('#expense-list button');
             deleteButtons.forEach(btn => btn.classList.add('hidden'));
 
             const element = document.getElementById('pdf-content');
-            
             const options = {
                 margin:       15,
                 filename:     `Expense_Report_${filterSelect.value}.pdf`,
@@ -294,9 +274,7 @@
                 jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
 
-            // Generate Document Download Stream smoothly right onto mobile file directory layouts
             html2pdf().set(options).from(element).save().then(() => {
-                // Return interface view back safely to mobile application responsive defaults
                 pdfHeader.classList.add('hidden');
                 deleteButtons.forEach(btn => btn.classList.remove('hidden'));
             });

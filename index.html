@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pocket Expense Tracker</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans antialiased pb-12">
@@ -13,25 +12,32 @@
     <div class="max-w-md mx-auto p-4 space-y-6">
         <header class="text-center py-4">
             <h1 class="text-2xl font-bold text-indigo-600">Smart Receipt Tracker</h1>
-            <p class="text-xs text-slate-500">Supports English & 中文 • Local Storage</p>
+            <p class="text-xs text-slate-500">Powered by Cloud OCR API • Local Storage</p>
         </header>
 
         <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 space-y-4">
-            <h2 class="text-lg font-semibold flex items-center gap-2">
-                <span>📸</span> Upload Receipt
-            </h2>
+            <div class="flex justify-between items-center">
+                <h2 class="text-lg font-semibold flex items-center gap-2">
+                    <span>📸</span> Upload Receipt
+                </h2>
+                <select id="ocr-language" class="p-1 bg-slate-100 border border-slate-200 rounded-lg text-xs font-medium text-slate-600">
+                    <option value="cht">繁體中文 (Traditional)</option>
+                    <option value="chs">简体中文 (Simplified)</option>
+                    <option value="eng">English Only</option>
+                </select>
+            </div>
             
             <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-slate-300 rounded-xl cursor-pointer bg-slate-50 hover:bg-slate-100 transition">
                 <div class="flex flex-col items-center justify-center pt-5 pb-6 text-center px-2">
                     <span class="text-3xl mb-1">🖼️</span>
                     <p class="text-sm font-medium text-slate-600">Tap to select from Album or Camera</p>
-                    <p class="text-xs text-slate-400 mt-1">Reads English & Chinese text automatically</p>
+                    <p class="text-xs text-slate-400 mt-1">Processes via high-accuracy cloud API</p>
                 </div>
                 <input id="receipt-file" type="file" accept="image/*" class="hidden" onchange="processReceipt(event)" />
             </label>
 
             <div id="loading" class="hidden text-center p-4 bg-indigo-50 rounded-xl text-indigo-700 font-medium text-sm animate-pulse">
-                🤖 AI is analyzing mixed text... <br><span class="text-xs text-indigo-500 font-normal">(Downloading language models may take a moment on first run)</span>
+                🚀 Cloud AI is analyzing your receipt...
             </div>
         </div>
 
@@ -87,6 +93,8 @@
     </div>
 
     <script>
+        // App State & configuration
+        const API_KEY = 'K81043441588957';
         let expenses = JSON.parse(localStorage.getItem('expenses')) || [];
 
         window.onload = function() {
@@ -122,7 +130,7 @@
             });
         }
 
-        // Smart Multi-language OCR processing block
+        // Cloud API Integration block
         function processReceipt(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -130,30 +138,48 @@
             const loader = document.getElementById('loading');
             loader.classList.remove('hidden');
 
-            // Initializing Tesseract with English + Simplified Chinese + Traditional Chinese
-            Tesseract.recognize(file, 'eng+chi_sim+chi_tra')
-                .then(({ data: { text } }) => {
-                    parseReceiptText(text);
-                })
-                .catch(err => {
-                    console.error(err);
-                    alert("OCR scanning timed out or failed. Please fill it manually!");
-                })
-                .finally(() => {
-                    loader.classList.add('hidden');
-                });
+            const selectedLang = document.getElementById('ocr-language').value;
+
+            // Prepare multipart form data payload for the OCR.space API
+            const formData = new FormData();
+            formData.append('apikey', API_KEY);
+            formData.append('file', file);
+            formData.append('language', selectedLang);
+            formData.append('OCREngine', '2'); // Engine 2 excels at tables, mixed text, and receipts
+
+            fetch('https://api.ocr.space/parse/image', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.ParsedResults && result.ParsedResults.length > 0) {
+                    const extractedText = result.ParsedResults[0].ParsedText;
+                    parseReceiptText(extractedText);
+                } else {
+                    throw new Error(result.ErrorMessage || "No text detected.");
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert("Cloud scanning encountered an issue. Please adjust details manually if needed!");
+            })
+            .finally(() => {
+                loader.classList.add('hidden');
+                document.getElementById('receipt-file').value = ""; // Reset file input selector
+            });
         }
 
-        // Clever regex parsing matching bilingual inputs
+        // Regex parsing strategy optimized for Cloud OCR structure outputs
         function parseReceiptText(text) {
             console.log("Scanned Text Output:\n", text);
             const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
             
-            // 1. Detect Merchant Name: Grabs first legible text line, stripping odd symbols
+            // 1. Merchant Name Detection: Target the top available lines, clean punctuation safely
             let merchant = lines[0] ? lines[0].replace(/[^\u4e00-\u9fa5a-zA-Z0-9\s]/g, '') : "Unknown Merchant";
             if(merchant.length > 25) merchant = merchant.substring(0, 25) + "...";
 
-            // 2. Detect Date: Matches YYYY-MM-DD, DD/MM/YYYY, or Chinese format YYYY年MM月DD日
+            // 2. Date Detection: Checks variations of YYYY-MM-DD, DD/MM/YYYY, and Chinese syntax YYYY年MM月DD日
             const cnDateRegex = /(\d{4})年(\d{1,2})月(\d{1,2})日/;
             const standardDateRegex = /(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/;
             let detectedDate = new Date().toISOString().split('T')[0]; 
@@ -174,12 +200,11 @@
                 }
             }
 
-            // 3. Detect Total Amount: Matches decimals (10.00) or whole numbers (150) up to 4 digits to find the true max total expense
+            // 3. Amount Detection: Matches numeric structures, filtering out outliers to pinpoint totals
             const priceRegex = /\d+(?:\.\d{2})?/g;
             const matches = text.match(priceRegex);
             let totalAmount = 0.00;
             if (matches) {
-                // Filters out likely years (e.g. 2026) or tiny codes to isolate high confidence prices
                 const numericAmounts = matches
                     .map(val => parseFloat(val))
                     .filter(num => num < 5000 && num > 0); 
@@ -188,7 +213,7 @@
                 }
             }
 
-            // Autofill the forms seamlessly
+            // Populate fields UI smoothly
             document.getElementById('form-merchant').value = merchant;
             document.getElementById('form-amount').value = totalAmount > 0 ? totalAmount.toFixed(2) : "";
             document.getElementById('form-date').value = detectedDate;
@@ -200,7 +225,7 @@
             const date = document.getElementById('form-date').value;
 
             if (!merchant || isNaN(amount) || !date) {
-                alert("Please complete the details before saving.");
+                alert("Please fill out all receipt fields.");
                 return;
             }
 
@@ -232,7 +257,7 @@
             let totalSum = 0;
 
             if (filtered.length === 0) {
-                expenseList.innerHTML = `<p class="text-center text-slate-400 py-6 text-sm">No expenses found for this month.</p>`;
+                expenseList.innerHTML = `<p class="text-center text-slate-400 py-6 text-sm">No recorded expenses found.</p>`;
             } else {
                 filtered.forEach(exp => {
                     totalSum += exp.amount;

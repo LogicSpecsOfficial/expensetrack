@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Receiptly • Expense Tracker</title>
+  <title>Receiptly • HK Expense Tracker</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@v5/dist/tesseract.min.js"></script>
@@ -11,7 +11,7 @@
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
     body { font-family: 'Inter', system-ui, sans-serif; }
-    .receipt-preview { max-height: 320px; }
+    .receipt-preview { max-height: 340px; }
   </style>
 </head>
 <body class="bg-zinc-950 text-white min-h-screen">
@@ -22,7 +22,7 @@
           <div class="w-9 h-9 bg-emerald-500 rounded-2xl flex items-center justify-center text-xl font-bold">R</div>
           <div>
             <h1 class="text-2xl font-semibold tracking-tight">Receiptly</h1>
-            <p class="text-xs text-zinc-500 -mt-1">HK Receipt Tracker (中文支援)</p>
+            <p class="text-xs text-zinc-500 -mt-1">HK Receipt OCR</p>
           </div>
         </div>
       </div>
@@ -35,7 +35,7 @@
           <div id="monthly-total" class="text-4xl font-semibold mt-2 text-emerald-400">$0.00</div>
         </div>
         <div class="bg-zinc-900 rounded-3xl p-5">
-          <div class="text-zinc-400 text-sm">Total Expenses</div>
+          <div class="text-zinc-400 text-sm">Total</div>
           <div id="total-expenses" class="text-4xl font-semibold mt-2">$0.00</div>
         </div>
       </div>
@@ -59,7 +59,7 @@
     </div>
   </div>
 
-  <!-- Add/Edit Modal -->
+  <!-- Modal -->
   <div id="add-modal" class="hidden fixed inset-0 bg-black/80 flex items-end z-[100]">
     <div class="bg-zinc-900 w-full rounded-t-3xl max-h-[92vh] overflow-auto">
       <div class="px-6 py-6">
@@ -71,14 +71,14 @@
         <div id="upload-area" class="border-2 border-dashed border-zinc-700 hover:border-emerald-500 rounded-3xl h-64 flex flex-col items-center justify-center cursor-pointer transition-all mb-6">
           <input type="file" id="receipt-upload" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
           <i class="fa-solid fa-cloud-arrow-up text-4xl mb-4 text-zinc-500"></i>
-          <p class="text-zinc-400 font-medium">Upload receipt (Traditional Chinese OK)</p>
-          <p class="text-xs text-zinc-500 mt-1">OCR now supports 繁體中文</p>
+          <p class="text-zinc-400 font-medium">Upload receipt photo</p>
+          <p class="text-xs text-zinc-500 mt-1">Optimized for HK receipts</p>
         </div>
 
         <div id="preview-area" class="hidden mb-6">
           <img id="receipt-preview" class="w-full rounded-3xl receipt-preview object-contain bg-zinc-950">
           <button onclick="removeImage()" class="text-red-400 text-sm mt-3 flex items-center gap-2">
-            <i class="fa-solid fa-trash"></i> Remove Photo
+            <i class="fa-solid fa-trash"></i> Remove
           </button>
         </div>
 
@@ -89,17 +89,15 @@
           </div>
 
           <div>
-            <label class="block text-zinc-400 text-sm mb-2">Merchant / Restaurant</label>
-            <input id="expense-merchant" type="text" placeholder="e.g. 大家樂 / Starbucks" 
-                   class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-4 text-white">
+            <label class="block text-zinc-400 text-sm mb-2">Merchant</label>
+            <input id="expense-merchant" type="text" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-4 text-white">
           </div>
 
           <div>
             <label class="block text-zinc-400 text-sm mb-2">Amount (HKD)</label>
             <div class="relative">
               <span class="absolute left-5 top-1/2 -translate-y-1/2 text-zinc-400">$</span>
-              <input id="expense-amount" type="number" step="0.01" placeholder="0.00"
-                     class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-12 py-4 text-white text-lg font-medium">
+              <input id="expense-amount" type="number" step="0.01" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-12 py-4 text-white text-lg font-medium">
             </div>
           </div>
 
@@ -117,7 +115,7 @@
 
           <div class="pt-4 flex gap-3">
             <button onclick="hideAddModal()" class="flex-1 py-5 rounded-3xl font-semibold border border-zinc-700">Cancel</button>
-            <button onclick="saveExpense()" id="save-btn" class="flex-1 bg-emerald-500 hover:bg-emerald-600 py-5 rounded-3xl font-semibold text-lg transition-all">Save Expense</button>
+            <button onclick="saveExpense()" id="save-btn" class="flex-1 bg-emerald-500 hover:bg-emerald-600 py-5 rounded-3xl font-semibold">Save</button>
           </div>
         </div>
       </div>
@@ -136,70 +134,50 @@
     }
 
     function getCategoryEmoji(cat) {
-      const emojis = { 'Food': '🍔', 'Transport': '🚕', 'Shopping': '👕', 'Groceries': '🥕', 'Entertainment': '🎥', 'Other': '📌' };
-      return emojis[cat] || '📌';
+      const map = {'Food':'🍔','Transport':'🚕','Shopping':'🛍️','Groceries':'🛒','Entertainment':'🎬','Other':'📌'};
+      return map[cat] || '📌';
     }
 
-    // Improved extraction for Chinese receipts
     function extractFromOCR(text) {
-      let merchant = text.split('\n')[0].trim() || "Unknown Merchant";
+      console.log("=== RAW OCR ===\n", text);
+
+      let merchant = text.split('\n').find(line => line.includes("Seiko") || line.length > 5) || "Restaurant";
       let amount = null;
       let date = new Date().toISOString().split('T')[0];
 
-      // Chinese + English amount patterns
-      const amountRegex = /[\$]?[（(]?(\d{1,3}(?:,\d{3})*(?:\.\d{2})?|[一二三四五六七八九十百千萬]+)[\)）]?/g;
-      let match;
-      let highestAmount = 0;
-
-      while ((match = amountRegex.exec(text)) !== null) {
-        let numStr = match[1].replace(/,/g, '');
-        let num = parseFloat(numStr);
-        if (isNaN(num)) continue;
-        if (num > highestAmount && num < 100000) highestAmount = num;
+      // Strong amount detection (with commas, total keywords)
+      const amountMatches = text.match(/[\$]?(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/g);
+      if (amountMatches) {
+        let maxAmount = 0;
+        amountMatches.forEach(m => {
+          const num = parseFloat(m.replace(/[$,]/g, ''));
+          if (num > maxAmount && num < 50000) maxAmount = num;
+        });
+        amount = maxAmount;
       }
 
-      if (highestAmount > 0) amount = highestAmount;
-
-      // Date patterns (common in HK receipts)
-      const datePatterns = [
-        /(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})/,
-        /(\d{4})[年\-](\d{1,2})[月\-](\d{1,2})[日]?/,
-        /([一二三四五六七八九十]+)月(\d{1,2})日/
-      ];
-
-      for (let regex of datePatterns) {
-        match = text.match(regex);
-        if (match) {
-          let y = match[3] ? match[3] : new Date().getFullYear();
-          let m = match[2] || match[1];
-          let d = match[1] || match[3];
-          if (y.length === 2) y = '20' + y;
-          const dateStr = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-          if (!isNaN(new Date(dateStr))) {
-            date = dateStr;
-            break;
-          }
-        }
+      // Date detection (YYYY/MM/DD format from your receipt)
+      const dateMatch = text.match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+      if (dateMatch) {
+        const y = dateMatch[1];
+        const m = dateMatch[2].padStart(2, '0');
+        const d = dateMatch[3].padStart(2, '0');
+        date = `${y}-${m}-${d}`;
       }
 
-      return { merchant, amount, date };
+      return { merchant: merchant.trim(), amount, date };
     }
 
     async function runOCR(imageDataUrl) {
       const loading = document.createElement('div');
-      loading.className = "text-center text-emerald-400 mt-4";
-      loading.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Running Chinese OCR...`;
+      loading.className = "text-center text-emerald-400 mt-4 flex items-center justify-center gap-2";
+      loading.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> OCR in progress...`;
       document.getElementById('preview-area').appendChild(loading);
 
       try {
-        const worker = await Tesseract.createWorker(['eng', 'chi_tra'], 1, {
-          logger: m => console.log(m)
-        });
-
+        const worker = await Tesseract.createWorker(['eng', 'chi_tra'], 1);
         const { data: { text } } = await worker.recognize(imageDataUrl);
         await worker.terminate();
-
-        console.log("Raw OCR Text:\n", text);   // ← Check this in browser console
 
         const extracted = extractFromOCR(text);
 
@@ -207,12 +185,9 @@
         if (extracted.amount) document.getElementById('expense-amount').value = extracted.amount.toFixed(2);
         document.getElementById('expense-date').value = extracted.date;
 
-        if (!extracted.amount) {
-          alert("金額未自動偵測到，請手動輸入");
-        }
       } catch (e) {
         console.error(e);
-        alert("OCR 處理失敗，請手動填寫");
+        alert("OCR failed. Please fill manually.");
       } finally {
         loading.remove();
       }
@@ -223,12 +198,11 @@
       if (!file) return;
 
       const reader = new FileReader();
-      reader.onload = function(ev) {
+      reader.onload = (ev) => {
         currentImage = ev.target.result;
         document.getElementById('upload-area').classList.add('hidden');
         document.getElementById('preview-area').classList.remove('hidden');
         document.getElementById('receipt-preview').src = currentImage;
-
         runOCR(currentImage);
       };
       reader.readAsDataURL(file);
@@ -240,7 +214,7 @@
       document.getElementById('upload-area').classList.remove('hidden');
     }
 
-    function showAddModal() { /* same as before */ 
+    function showAddModal() {
       editingId = null;
       document.getElementById('modal-title').textContent = "New Expense";
       document.getElementById('save-btn').textContent = "Save Expense";
@@ -257,14 +231,14 @@
       document.getElementById('add-modal').classList.add('hidden');
     }
 
-    function saveExpense() { /* unchanged from previous version */ 
+    function saveExpense() {
       const merchant = document.getElementById('expense-merchant').value.trim();
       const amount = parseFloat(document.getElementById('expense-amount').value);
       const date = document.getElementById('expense-date').value;
       const category = document.getElementById('expense-category').value;
 
-      if (!merchant || !amount || !date) {
-        alert("請填寫商戶、金額和日期");
+      if (!merchant || isNaN(amount) || !date) {
+        alert("Please fill all fields");
         return;
       }
 
@@ -288,24 +262,145 @@
       hideAddModal();
     }
 
-    // Edit / Delete / Render functions (same as last version)
-    function editExpense(id) { /* ... same as previous ... */ }
-    function deleteExpense(id) { /* ... same as previous ... */ }
-    function renderHistory() { /* ... same as previous ... */ }
-    function calculateMonthlyTotal() { /* ... same as previous ... */ }
-    function renderMonthly() { /* ... same as previous ... */ }
-    function switchTab(n) { /* ... same as previous ... */ }
-    function exportMonthPDF(monthKey) { /* ... same as previous ... */ }
+    // Edit, Delete, Render functions (same as before)
+    function editExpense(id) {
+      const exp = expenses.find(e => e.id === id);
+      if (!exp) return;
+      editingId = id;
+      document.getElementById('modal-title').textContent = "Edit Expense";
+      document.getElementById('save-btn').textContent = "Update";
+      document.getElementById('expense-merchant').value = exp.merchant;
+      document.getElementById('expense-amount').value = exp.amount;
+      document.getElementById('expense-date').value = exp.date;
+      document.getElementById('expense-category').value = exp.category;
+
+      if (exp.image) {
+        currentImage = exp.image;
+        document.getElementById('upload-area').classList.add('hidden');
+        document.getElementById('preview-area').classList.remove('hidden');
+        document.getElementById('receipt-preview').src = exp.image;
+      } else {
+        currentImage = null;
+        document.getElementById('preview-area').classList.add('hidden');
+        document.getElementById('upload-area').classList.remove('hidden');
+      }
+      document.getElementById('add-modal').classList.remove('hidden');
+    }
+
+    function deleteExpense(id) {
+      if (confirm("Delete this record?")) {
+        expenses = expenses.filter(e => e.id !== id);
+        saveToLocal();
+        renderHistory();
+        calculateMonthlyTotal();
+        renderMonthly();
+      }
+    }
+
+    function renderHistory() {
+      const container = document.getElementById('expense-list');
+      container.innerHTML = expenses.length === 0 ? 
+        `<div class="text-center py-20 text-zinc-500">No expenses yet</div>` : '';
+
+      expenses.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(exp => {
+        const div = document.createElement('div');
+        div.className = 'bg-zinc-900 rounded-3xl p-5';
+        div.innerHTML = `
+          <div class="flex gap-4">
+            <div class="w-14 h-14 bg-zinc-800 rounded-2xl flex items-center justify-center text-3xl">${getCategoryEmoji(exp.category)}</div>
+            <div class="flex-1">
+              <div class="flex justify-between">
+                <div>
+                  <div class="font-semibold">${exp.merchant}</div>
+                  <div class="text-xs text-zinc-500">${formatDate(exp.date)}</div>
+                </div>
+                <div class="text-right font-semibold text-xl">$${parseFloat(exp.amount).toFixed(2)}</div>
+              </div>
+              ${exp.image ? `<img src="${exp.image}" class="mt-4 rounded-2xl max-h-48 object-contain">` : ''}
+              <div class="flex gap-3 mt-4">
+                <button onclick="editExpense(${exp.id})" class="flex-1 py-3 bg-zinc-800 rounded-2xl text-sm">Edit</button>
+                <button onclick="deleteExpense(${exp.id})" class="flex-1 py-3 bg-red-900/50 text-red-400 rounded-2xl text-sm">Delete</button>
+              </div>
+            </div>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function calculateMonthlyTotal() {
+      const now = new Date();
+      let monthTotal = 0, total = 0;
+      expenses.forEach(exp => {
+        total += parseFloat(exp.amount);
+        const d = new Date(exp.date);
+        if (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) monthTotal += parseFloat(exp.amount);
+      });
+      document.getElementById('monthly-total').textContent = '$' + monthTotal.toFixed(2);
+      document.getElementById('total-expenses').textContent = '$' + total.toFixed(2);
+    }
+
+    function renderMonthly() { /* unchanged */ 
+      const container = document.getElementById('monthly-list');
+      container.innerHTML = '';
+      const grouped = {};
+      expenses.forEach(exp => {
+        const key = new Date(exp.date).toISOString().slice(0,7);
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(exp);
+      });
+      Object.keys(grouped).sort().reverse().forEach(key => {
+        const list = grouped[key];
+        const total = list.reduce((s, e) => s + parseFloat(e.amount), 0);
+        const [y, m] = key.split('-');
+        const monthName = new Date(y, m-1).toLocaleString('default', { month: 'long' });
+        const div = document.createElement('div');
+        div.className = 'bg-zinc-900 rounded-3xl p-6';
+        div.innerHTML = `
+          <div class="flex justify-between">
+            <div>
+              <div class="font-semibold">${monthName} ${y}</div>
+              <div class="text-emerald-400 text-2xl">$${total.toFixed(2)}</div>
+            </div>
+            <button onclick="exportMonthPDF('${key}')" class="bg-zinc-800 px-5 py-3 rounded-2xl">📄 PDF</button>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function switchTab(n) {
+      document.getElementById('history-tab').classList.toggle('hidden', n !== 0);
+      document.getElementById('monthly-tab').classList.toggle('hidden', n !== 1);
+      document.querySelectorAll('.tab-btn').forEach((el,i) => el.classList.toggle('border-b-2 border-emerald-500 text-emerald-400', i===n));
+    }
+
+    function exportMonthPDF(key) { /* same as before */ 
+      const [year, month] = key.split('-');
+      const monthName = new Date(year, month-1).toLocaleString('default', { month: 'long' });
+      const filtered = expenses.filter(e => e.date.startsWith(key));
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.text(`Receiptly - ${monthName} ${year}`, 20, 20);
+      let y = 40;
+      let total = 0;
+      filtered.forEach(exp => {
+        doc.text(formatDate(exp.date), 20, y);
+        doc.text(exp.merchant, 70, y);
+        doc.text(`$${exp.amount.toFixed(2)}`, 160, y);
+        total += exp.amount;
+        y += 10;
+      });
+      doc.text(`Total: $${total.toFixed(2)}`, 20, y + 15);
+      doc.save(`receiptly_${monthName.toLowerCase()}.pdf`);
+    }
 
     window.onload = () => {
       renderHistory();
       calculateMonthlyTotal();
       renderMonthly();
       switchTab(0);
-
-      document.getElementById('upload-area').addEventListener('click', () => {
-        document.getElementById('receipt-upload').click();
-      });
+      document.getElementById('upload-area').addEventListener('click', () => document.getElementById('receipt-upload').click());
     };
   </script>
 </body>

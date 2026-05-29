@@ -6,11 +6,12 @@
   <title>Receiptly • Expense Tracker</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@v5/dist/tesseract.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
     body { font-family: 'Inter', system-ui, sans-serif; }
-    .receipt-preview { max-height: 300px; }
+    .receipt-preview { max-height: 320px; }
   </style>
 </head>
 <body class="bg-zinc-950 text-white min-h-screen">
@@ -25,15 +26,10 @@
             <p class="text-xs text-zinc-500 -mt-1">Smart Expense Tracker</p>
           </div>
         </div>
-        <div onclick="showAddModal()" 
-             class="w-11 h-11 bg-emerald-600 hover:bg-emerald-500 rounded-2xl flex items-center justify-center cursor-pointer transition-all active:scale-95">
-          <i class="fa-solid fa-plus text-xl"></i>
-        </div>
       </div>
     </header>
 
     <div class="px-6 pt-6 pb-24">
-      <!-- Summary Cards -->
       <div class="grid grid-cols-2 gap-4 mb-8">
         <div class="bg-zinc-900 rounded-3xl p-5">
           <div class="text-zinc-400 text-sm">This Month</div>
@@ -45,69 +41,59 @@
         </div>
       </div>
 
-      <!-- Tabs -->
       <div class="flex border-b border-zinc-800 mb-6">
-        <button onclick="switchTab(0)" id="tab-0"
-                class="tab-btn flex-1 py-4 text-center font-medium border-b-2 border-emerald-500 text-emerald-400">History</button>
-        <button onclick="switchTab(1)" id="tab-1"
-                class="tab-btn flex-1 py-4 text-center font-medium text-zinc-400">Monthly</button>
+        <button onclick="switchTab(0)" id="tab-0" class="tab-btn flex-1 py-4 text-center font-medium border-b-2 border-emerald-500 text-emerald-400">History</button>
+        <button onclick="switchTab(1)" id="tab-1" class="tab-btn flex-1 py-4 text-center font-medium text-zinc-400">Monthly</button>
       </div>
 
-      <!-- History Tab -->
       <div id="history-tab">
         <div id="expense-list" class="space-y-3"></div>
       </div>
 
-      <!-- Monthly Tab -->
       <div id="monthly-tab" class="hidden">
         <div id="monthly-list" class="space-y-4"></div>
       </div>
     </div>
 
     <!-- FAB -->
-    <div onclick="showAddModal()" 
-         class="fixed bottom-8 right-8 w-16 h-16 bg-emerald-500 hover:bg-emerald-600 rounded-3xl flex items-center justify-center shadow-2xl shadow-emerald-500/30 text-3xl active:scale-95 transition-all z-50">
+    <div onclick="showAddModal()" class="fixed bottom-8 right-8 w-16 h-16 bg-emerald-500 hover:bg-emerald-600 rounded-3xl flex items-center justify-center shadow-2xl shadow-emerald-500/30 text-3xl active:scale-95 transition-all z-50">
       <i class="fa-solid fa-camera"></i>
     </div>
   </div>
 
-  <!-- Add Expense Modal -->
+  <!-- Add/Edit Modal -->
   <div id="add-modal" class="hidden fixed inset-0 bg-black/80 flex items-end z-[100]">
-    <div class="bg-zinc-900 w-full rounded-t-3xl max-h-[90vh] overflow-auto">
+    <div class="bg-zinc-900 w-full rounded-t-3xl max-h-[92vh] overflow-auto">
       <div class="px-6 py-6">
         <div class="flex justify-between items-center mb-6">
-          <h2 class="text-2xl font-semibold">New Expense</h2>
+          <h2 id="modal-title" class="text-2xl font-semibold">New Expense</h2>
           <button onclick="hideAddModal()" class="text-zinc-400 text-2xl">✕</button>
         </div>
 
         <!-- Image Upload -->
-        <div id="upload-area" 
-             class="border-2 border-dashed border-zinc-700 hover:border-emerald-500 rounded-3xl h-64 flex flex-col items-center justify-center cursor-pointer transition-all mb-6">
+        <div id="upload-area" class="border-2 border-dashed border-zinc-700 hover:border-emerald-500 rounded-3xl h-64 flex flex-col items-center justify-center cursor-pointer transition-all mb-6">
           <input type="file" id="receipt-upload" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
           <i class="fa-solid fa-cloud-arrow-up text-4xl mb-4 text-zinc-500"></i>
           <p class="text-zinc-400 font-medium">Upload receipt photo</p>
-          <p class="text-xs text-zinc-500 mt-1">or tap to browse</p>
+          <p class="text-xs text-zinc-500 mt-1">OCR will extract details automatically</p>
         </div>
 
         <div id="preview-area" class="hidden mb-6">
           <img id="receipt-preview" class="w-full rounded-3xl receipt-preview object-contain bg-zinc-950">
-          <button onclick="removeImage()" 
-                  class="text-red-400 text-sm mt-3 flex items-center gap-2">
+          <button onclick="removeImage()" class="text-red-400 text-sm mt-3 flex items-center gap-2">
             <i class="fa-solid fa-trash"></i> Remove Photo
           </button>
         </div>
 
-        <!-- Form -->
         <div class="space-y-5">
           <div>
             <label class="block text-zinc-400 text-sm mb-2">Date</label>
-            <input id="expense-date" type="date" 
-                   class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-4 text-white">
+            <input id="expense-date" type="date" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-4 text-white">
           </div>
 
           <div>
-            <label class="block text-zinc-400 text-sm mb-2">Restaurant / Merchant</label>
-            <input id="expense-merchant" type="text" placeholder="e.g. Sushi Express"
+            <label class="block text-zinc-400 text-sm mb-2">Merchant / Restaurant</label>
+            <input id="expense-merchant" type="text" placeholder="e.g. Starbucks" 
                    class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-4 text-white">
           </div>
 
@@ -122,9 +108,8 @@
 
           <div>
             <label class="block text-zinc-400 text-sm mb-2">Category</label>
-            <select id="expense-category" 
-                    class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-4 text-white">
-              <option value="Food">🍽️ Food &amp; Drink</option>
+            <select id="expense-category" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-4 text-white">
+              <option value="Food">🍽️ Food & Drink</option>
               <option value="Transport">🚕 Transport</option>
               <option value="Shopping">🛍️ Shopping</option>
               <option value="Groceries">🛒 Groceries</option>
@@ -133,11 +118,9 @@
             </select>
           </div>
 
-          <div class="pt-4">
-            <button onclick="saveExpense()" 
-                    class="w-full bg-emerald-500 hover:bg-emerald-600 py-5 rounded-3xl font-semibold text-lg transition-all active:scale-95">
-              Save Expense
-            </button>
+          <div class="pt-4 flex gap-3">
+            <button onclick="hideAddModal()" class="flex-1 py-5 rounded-3xl font-semibold border border-zinc-700">Cancel</button>
+            <button onclick="saveExpense()" id="save-btn" class="flex-1 bg-emerald-500 hover:bg-emerald-600 py-5 rounded-3xl font-semibold text-lg transition-all">Save Expense</button>
           </div>
         </div>
       </div>
@@ -146,175 +129,68 @@
 
   <script>
     let expenses = JSON.parse(localStorage.getItem('receiptly_expenses')) || [];
-    
+    let editingId = null;
+
     function saveToLocal() {
       localStorage.setItem('receiptly_expenses', JSON.stringify(expenses));
     }
 
     function formatDate(dateStr) {
-      const date = new Date(dateStr);
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    }
-
-    function renderHistory() {
-      const container = document.getElementById('expense-list');
-      container.innerHTML = '';
-      
-      if (expenses.length === 0) {
-        container.innerHTML = `
-          <div class="text-center py-16 text-zinc-500">
-            <i class="fa-solid fa-receipt text-6xl mb-4 opacity-30"></i>
-            <p>No expenses yet</p>
-          </div>`;
-        return;
-      }
-
-      expenses.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach((exp, i) => {
-        const div = document.createElement('div');
-        div.className = 'bg-zinc-900 rounded-3xl p-5 flex gap-4';
-        div.innerHTML = `
-          <div class="w-16 h-16 bg-zinc-800 rounded-2xl flex-shrink-0 flex items-center justify-center text-3xl">
-            ${getCategoryEmoji(exp.category)}
-          </div>
-          <div class="flex-1">
-            <div class="flex justify-between">
-              <div>
-                <div class="font-semibold">${exp.merchant}</div>
-                <div class="text-xs text-zinc-500">${formatDate(exp.date)}</div>
-              </div>
-              <div class="text-right">
-                <div class="font-semibold text-lg">$${parseFloat(exp.amount).toFixed(2)}</div>
-                <div class="text-xs text-zinc-500">${exp.category}</div>
-              </div>
-            </div>
-            ${exp.image ? `<img src="${exp.image}" class="mt-4 w-full rounded-2xl max-h-48 object-contain">` : ''}
-          </div>
-        `;
-        container.appendChild(div);
-      });
+      return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     }
 
     function getCategoryEmoji(cat) {
-      const emojis = {
-        'Food': '🍔',
-        'Transport': '🚕',
-        'Shopping': '👕',
-        'Groceries': '🥕',
-        'Entertainment': '🎥',
-        'Other': '📌'
-      };
+      const emojis = { 'Food': '🍔', 'Transport': '🚕', 'Shopping': '👕', 'Groceries': '🥕', 'Entertainment': '🎥', 'Other': '📌' };
       return emojis[cat] || '📌';
     }
 
-    function calculateMonthlyTotal() {
-      const now = new Date();
-      const currentMonth = now.getMonth();
-      const currentYear = now.getFullYear();
-      
-      let total = 0;
-      expenses.forEach(exp => {
-        const d = new Date(exp.date);
-        if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
-          total += parseFloat(exp.amount);
-        }
-      });
-      
-      document.getElementById('monthly-total').textContent = '$' + total.toFixed(2);
-      
-      let allTotal = expenses.reduce((sum, exp) => sum + parseFloat(exp.amount), 0);
-      document.getElementById('total-expenses').textContent = '$' + allTotal.toFixed(2);
-    }
+    async function runOCR(imageDataUrl) {
+      const loadingText = document.createElement('div');
+      loadingText.className = "text-center text-emerald-400 mt-4";
+      loadingText.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Running OCR...`;
+      document.getElementById('preview-area').appendChild(loadingText);
 
-    function renderMonthly() {
-      const container = document.getElementById('monthly-list');
-      container.innerHTML = '';
-      
-      const grouped = {};
-      
-      expenses.forEach(exp => {
-        const d = new Date(exp.date);
-        const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2, '0')}`;
-        if (!grouped[key]) grouped[key] = [];
-        grouped[key].push(exp);
-      });
-      
-      Object.keys(grouped).sort().reverse().forEach(monthKey => {
-        const monthExpenses = grouped[monthKey];
-        const total = monthExpenses.reduce((sum, e) => sum + parseFloat(e.amount), 0);
+      try {
+        const { data: { text } } = await Tesseract.recognize(imageDataUrl, 'eng', { logger: m => console.log(m) });
         
-        const [year, month] = monthKey.split('-');
-        const monthName = new Date(year, month-1).toLocaleString('default', { month: 'long' });
+        // Simple extraction logic
+        const amountMatch = text.match(/[\$]?(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/);
+        const amount = amountMatch ? parseFloat(amountMatch[1].replace(/,/g, '')) : null;
+
+        const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 3);
+        const merchant = lines[0] || "Unknown Merchant";
+
+        document.getElementById('expense-merchant').value = merchant;
+        if (amount) document.getElementById('expense-amount').value = amount.toFixed(2);
         
-        const div = document.createElement('div');
-        div.className = 'bg-zinc-900 rounded-3xl p-6';
-        div.innerHTML = `
-          <div class="flex justify-between items-center mb-6">
-            <div>
-              <div class="font-semibold text-lg">${monthName} ${year}</div>
-              <div class="text-emerald-400 text-xl font-medium">$${total.toFixed(2)}</div>
-            </div>
-            <button onclick="exportMonthPDF('${monthKey}')" 
-                    class="bg-zinc-800 hover:bg-zinc-700 px-5 py-3 rounded-2xl text-sm flex items-center gap-2">
-              <i class="fa-solid fa-download"></i> PDF
-            </button>
-          </div>
-          <div class="text-xs text-zinc-500 mb-3">TRANSACTIONS (${monthExpenses.length})</div>
-        `;
-        container.appendChild(div);
-      });
-      
-      if (Object.keys(grouped).length === 0) {
-        container.innerHTML = `<p class="text-center text-zinc-500 py-12">No monthly data yet</p>`;
+      } catch (e) {
+        console.error(e);
+        alert("OCR failed. You can still fill details manually.");
+      } finally {
+        loadingText.remove();
       }
     }
-
-    function switchTab(n) {
-      document.getElementById('history-tab').classList.toggle('hidden', n !== 0);
-      document.getElementById('monthly-tab').classList.toggle('hidden', n !== 1);
-      
-      document.querySelectorAll('.tab-btn').forEach((el, i) => {
-        if (i === n) {
-          el.classList.add('border-b-2', 'border-emerald-500', 'text-emerald-400');
-        } else {
-          el.classList.remove('border-b-2', 'border-emerald-500', 'text-emerald-400');
-        }
-      });
-    }
-
-    let currentImage = null;
 
     function handleImageUpload(e) {
       const file = e.target.files[0];
       if (!file) return;
-      
+
       const reader = new FileReader();
       reader.onload = function(ev) {
-        currentImage = ev.target.result;
+        const imgSrc = ev.target.result;
+        currentImage = imgSrc;
+        
         document.getElementById('upload-area').classList.add('hidden');
         const previewArea = document.getElementById('preview-area');
         previewArea.classList.remove('hidden');
-        document.getElementById('receipt-preview').src = currentImage;
-        
-        // Simulate smart detection
-        simulateDetection();
+        document.getElementById('receipt-preview').src = imgSrc;
+
+        runOCR(imgSrc); // Run OCR
       };
       reader.readAsDataURL(file);
     }
 
-    function simulateDetection() {
-      // Fake AI detection
-      const merchants = ["Sushi Bar", "Starbucks HK", "CitySuper", "Pacific Coffee", "McDonald's", "Haidilao"];
-      const randomMerchant = merchants[Math.floor(Math.random() * merchants.length)];
-      
-      document.getElementById('expense-merchant').value = randomMerchant;
-      
-      const randomAmount = (Math.random() * 450 + 35).toFixed(2);
-      document.getElementById('expense-amount').value = randomAmount;
-      
-      // Set today's date
-      const today = new Date().toISOString().split('T')[0];
-      document.getElementById('expense-date').value = today;
-    }
+    let currentImage = null;
 
     function removeImage() {
       currentImage = null;
@@ -324,15 +200,18 @@
     }
 
     function showAddModal() {
+      editingId = null;
+      document.getElementById('modal-title').textContent = "New Expense";
+      document.getElementById('save-btn').textContent = "Save Expense";
+      
       document.getElementById('add-modal').classList.remove('hidden');
-      currentImage = null;
       document.getElementById('preview-area').classList.add('hidden');
       document.getElementById('upload-area').classList.remove('hidden');
       
-      // Reset form
       document.getElementById('expense-merchant').value = '';
       document.getElementById('expense-amount').value = '';
       document.getElementById('expense-date').value = new Date().toISOString().split('T')[0];
+      document.getElementById('expense-category').value = 'Food';
     }
 
     function hideAddModal() {
@@ -341,24 +220,35 @@
 
     function saveExpense() {
       const merchant = document.getElementById('expense-merchant').value.trim();
-      const amount = document.getElementById('expense-amount').value;
+      const amount = parseFloat(document.getElementById('expense-amount').value);
       const date = document.getElementById('expense-date').value;
       const category = document.getElementById('expense-category').value;
-      
+
       if (!merchant || !amount || !date) {
-        alert("Please fill in merchant, amount and date");
+        alert("Please fill merchant, amount and date");
         return;
       }
-      
-      expenses.push({
-        id: Date.now(),
-        date: date,
-        merchant: merchant,
-        amount: parseFloat(amount),
-        category: category,
-        image: currentImage
-      });
-      
+
+      if (editingId) {
+        const exp = expenses.find(e => e.id === editingId);
+        if (exp) {
+          exp.merchant = merchant;
+          exp.amount = amount;
+          exp.date = date;
+          exp.category = category;
+          exp.image = currentImage || exp.image;
+        }
+      } else {
+        expenses.push({
+          id: Date.now(),
+          date: date,
+          merchant: merchant,
+          amount: amount,
+          category: category,
+          image: currentImage
+        });
+      }
+
       saveToLocal();
       renderHistory();
       calculateMonthlyTotal();
@@ -366,50 +256,179 @@
       hideAddModal();
     }
 
-    function exportMonthPDF(monthKey) {
+    function editExpense(id) {
+      const exp = expenses.find(e => e.id === id);
+      if (!exp) return;
+
+      editingId = id;
+      document.getElementById('modal-title').textContent = "Edit Expense";
+      document.getElementById('save-btn').textContent = "Update Expense";
+
+      document.getElementById('expense-merchant').value = exp.merchant;
+      document.getElementById('expense-amount').value = exp.amount;
+      document.getElementById('expense-date').value = exp.date;
+      document.getElementById('expense-category').value = exp.category;
+
+      if (exp.image) {
+        currentImage = exp.image;
+        document.getElementById('upload-area').classList.add('hidden');
+        document.getElementById('preview-area').classList.remove('hidden');
+        document.getElementById('receipt-preview').src = exp.image;
+      } else {
+        currentImage = null;
+        document.getElementById('preview-area').classList.add('hidden');
+        document.getElementById('upload-area').classList.remove('hidden');
+      }
+
+      document.getElementById('add-modal').classList.remove('hidden');
+    }
+
+    function deleteExpense(id) {
+      if (confirm("Delete this expense?")) {
+        expenses = expenses.filter(e => e.id !== id);
+        saveToLocal();
+        renderHistory();
+        calculateMonthlyTotal();
+        renderMonthly();
+      }
+    }
+
+    function renderHistory() {
+      const container = document.getElementById('expense-list');
+      container.innerHTML = '';
+
+      if (expenses.length === 0) {
+        container.innerHTML = `<div class="text-center py-20 text-zinc-500"><i class="fa-solid fa-receipt text-6xl mb-4 opacity-30"></i><p>No expenses yet</p></div>`;
+        return;
+      }
+
+      expenses.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(exp => {
+        const div = document.createElement('div');
+        div.className = 'bg-zinc-900 rounded-3xl p-5';
+        div.innerHTML = `
+          <div class="flex gap-4">
+            <div class="w-14 h-14 bg-zinc-800 rounded-2xl flex-shrink-0 flex items-center justify-center text-3xl">
+              ${getCategoryEmoji(exp.category)}
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex justify-between">
+                <div class="truncate">
+                  <div class="font-semibold">${exp.merchant}</div>
+                  <div class="text-xs text-zinc-500">${formatDate(exp.date)}</div>
+                </div>
+                <div class="text-right">
+                  <div class="font-semibold text-xl">$${parseFloat(exp.amount).toFixed(2)}</div>
+                </div>
+              </div>
+              ${exp.image ? `<img src="${exp.image}" class="mt-4 w-full rounded-2xl max-h-48 object-contain border border-zinc-800">` : ''}
+              <div class="flex gap-3 mt-4">
+                <button onclick="editExpense(${exp.id})" class="flex-1 text-sm py-3 bg-zinc-800 hover:bg-zinc-700 rounded-2xl">Edit</button>
+                <button onclick="deleteExpense(${exp.id})" class="flex-1 text-sm py-3 bg-red-900/30 hover:bg-red-900/50 text-red-400 rounded-2xl">Delete</button>
+              </div>
+            </div>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function calculateMonthlyTotal() {
+      const now = new Date();
+      let monthTotal = 0, allTotal = 0;
+
+      expenses.forEach(exp => {
+        const d = new Date(exp.date);
+        allTotal += parseFloat(exp.amount);
+        if (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) {
+          monthTotal += parseFloat(exp.amount);
+        }
+      });
+
+      document.getElementById('monthly-total').textContent = '$' + monthTotal.toFixed(2);
+      document.getElementById('total-expenses').textContent = '$' + allTotal.toFixed(2);
+    }
+
+    function renderMonthly() { /* Same as before - unchanged */ 
+      const container = document.getElementById('monthly-list');
+      container.innerHTML = '';
+      const grouped = {};
+
+      expenses.forEach(exp => {
+        const d = new Date(exp.date);
+        const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(exp);
+      });
+
+      Object.keys(grouped).sort().reverse().forEach(key => {
+        const list = grouped[key];
+        const total = list.reduce((sum, e) => sum + parseFloat(e.amount), 0);
+        const [year, month] = key.split('-');
+        const monthName = new Date(year, month-1).toLocaleString('default', { month: 'long' });
+
+        const div = document.createElement('div');
+        div.className = 'bg-zinc-900 rounded-3xl p-6';
+        div.innerHTML = `
+          <div class="flex justify-between items-start">
+            <div>
+              <div class="font-semibold">${monthName} ${year}</div>
+              <div class="text-2xl font-medium text-emerald-400">$${total.toFixed(2)}</div>
+            </div>
+            <button onclick="exportMonthPDF('${key}')" class="bg-zinc-800 px-6 py-3 rounded-2xl text-sm flex items-center gap-2 hover:bg-zinc-700">
+              <i class="fa-solid fa-download"></i> Export PDF
+            </button>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function switchTab(n) {
+      document.getElementById('history-tab').classList.toggle('hidden', n !== 0);
+      document.getElementById('monthly-tab').classList.toggle('hidden', n !== 1);
+      document.querySelectorAll('.tab-btn').forEach((el,i) => {
+        el.classList.toggle('border-b-2', i===n);
+        el.classList.toggle('border-emerald-500', i===n);
+        el.classList.toggle('text-emerald-400', i===n);
+      });
+    }
+
+    function exportMonthPDF(monthKey) { /* Same as previous version */ 
       const [year, month] = monthKey.split('-');
       const monthName = new Date(year, month-1).toLocaleString('default', { month: 'long' });
-      
       const filtered = expenses.filter(exp => {
         const d = new Date(exp.date);
-        return d.getFullYear() === parseInt(year) && d.getMonth() + 1 === parseInt(month);
+        return d.getFullYear() === parseInt(year) && (d.getMonth()+1) === parseInt(month);
       });
-      
+
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
-      
-      doc.setFont("helvetica", "bold");
       doc.setFontSize(20);
-      doc.text(`Expense Report - ${monthName} ${year}`, 20, 25);
-      
-      doc.setFontSize(11);
-      doc.setFont("helvetica", "normal");
+      doc.text(`Receiptly Report - ${monthName} ${year}`, 20, 25);
       
       let y = 45;
       let total = 0;
-      
       filtered.forEach(exp => {
-        doc.text(`${formatDate(exp.date)}`, 20, y);
+        doc.setFontSize(11);
+        doc.text(formatDate(exp.date), 20, y);
         doc.text(exp.merchant, 70, y);
         doc.text(`$${parseFloat(exp.amount).toFixed(2)}`, 160, y);
         total += parseFloat(exp.amount);
-        y += 10;
+        y += 12;
       });
-      
-      doc.setFont("helvetica", "bold");
-      doc.text(`Total: $${total.toFixed(2)}`, 20, y + 15);
-      
+
+      doc.setFontSize(14);
+      doc.text(`Total: $${total.toFixed(2)}`, 20, y + 10);
       doc.save(`receiptly_${monthName.toLowerCase()}_${year}.pdf`);
     }
 
     // Initialize
-    window.onload = function() {
+    window.onload = () => {
       renderHistory();
       calculateMonthlyTotal();
       renderMonthly();
       switchTab(0);
-      
-      // Make upload area clickable
+
       document.getElementById('upload-area').addEventListener('click', () => {
         document.getElementById('receipt-upload').click();
       });

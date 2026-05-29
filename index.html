@@ -1,312 +1,306 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full">
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Receiptly • Smart HK Tracker</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
-    body { font-family: 'Inter', system-ui, sans-serif; }
-    .receipt-preview { max-height: 360px; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pocket Expense Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
-<body class="bg-zinc-950 text-white min-h-screen">
-  <div class="max-w-xl mx-auto">
-    <header class="bg-zinc-900 border-b border-zinc-800 sticky top-0 z-50 px-6 py-5">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <div class="w-9 h-9 bg-emerald-500 rounded-2xl flex items-center justify-center text-xl font-bold">R</div>
-          <div>
-            <h1 class="text-2xl font-semibold tracking-tight">Receiptly</h1>
-            <p class="text-xs text-emerald-400 -mt-1">OCR.space Fixed</p>
-          </div>
-        </div>
-      </div>
-    </header>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased pb-12">
 
-    <div class="px-6 pt-6 pb-24">
-      <div class="grid grid-cols-2 gap-4 mb-8">
-        <div class="bg-zinc-900 rounded-3xl p-5">
-          <div class="text-zinc-400 text-sm">This Month</div>
-          <div id="monthly-total" class="text-4xl font-semibold mt-2 text-emerald-400">$0.00</div>
-        </div>
-        <div class="bg-zinc-900 rounded-3xl p-5">
-          <div class="text-zinc-400 text-sm">Total Expenses</div>
-          <div id="total-expenses" class="text-4xl font-semibold mt-2">$0.00</div>
-        </div>
-      </div>
+    <div class="max-w-md mx-auto p-4 space-y-6">
+        <header class="text-center py-4">
+            <h1 class="text-2xl font-bold text-indigo-600">Smart Receipt Tracker</h1>
+            <p class="text-xs text-slate-500">100% local & private on your phone</p>
+        </header>
 
-      <div class="flex border-b border-zinc-800 mb-6">
-        <button onclick="switchTab(0)" id="tab-0" class="tab-btn flex-1 py-4 text-center font-medium border-b-2 border-emerald-500 text-emerald-400">History</button>
-        <button onclick="switchTab(1)" id="tab-1" class="tab-btn flex-1 py-4 text-center font-medium text-zinc-400">Monthly</button>
-      </div>
-
-      <div id="history-tab">
-        <div id="expense-list" class="space-y-3"></div>
-      </div>
-
-      <div id="monthly-tab" class="hidden">
-        <div id="monthly-list" class="space-y-4"></div>
-      </div>
-    </div>
-
-    <div onclick="showAddModal()" class="fixed bottom-8 right-8 w-16 h-16 bg-emerald-500 hover:bg-emerald-600 rounded-3xl flex items-center justify-center shadow-2xl text-3xl active:scale-95 transition-all z-50">
-      <i class="fa-solid fa-camera"></i>
-    </div>
-  </div>
-
-  <!-- Modal -->
-  <div id="add-modal" class="hidden fixed inset-0 bg-black/80 flex items-end z-[100]">
-    <div class="bg-zinc-900 w-full rounded-t-3xl max-h-[92vh] overflow-auto">
-      <div class="px-6 py-6">
-        <div class="flex justify-between items-center mb-6">
-          <h2 id="modal-title" class="text-2xl font-semibold">New Expense</h2>
-          <button onclick="hideAddModal()" class="text-zinc-400 text-3xl">✕</button>
-        </div>
-
-        <div id="upload-area" class="border-2 border-dashed border-zinc-700 hover:border-emerald-500 rounded-3xl h-64 flex flex-col items-center justify-center cursor-pointer mb-6" onclick="document.getElementById('receipt-upload').click()">
-          <input type="file" id="receipt-upload" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
-          <i class="fa-solid fa-camera text-5xl mb-4 text-emerald-500"></i>
-          <p class="font-medium">Upload Receipt Photo</p>
-          <p class="text-xs text-zinc-500">OCR.space will detect amount, date, merchant</p>
-        </div>
-
-        <div id="preview-area" class="hidden mb-6">
-          <img id="receipt-preview" class="w-full rounded-3xl receipt-preview object-contain bg-zinc-950">
-          <button onclick="removeImage()" class="mt-3 text-red-400 text-sm flex items-center gap-2">
-            <i class="fa-solid fa-trash"></i> Remove Photo
-          </button>
-        </div>
-
-        <div class="space-y-5">
-          <div>
-            <label class="block text-zinc-400 text-sm mb-2">Date</label>
-            <input id="expense-date" type="date" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-4">
-          </div>
-          <div>
-            <label class="block text-zinc-400 text-sm mb-2">Merchant</label>
-            <input id="expense-merchant" type="text" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-4">
-          </div>
-          <div>
-            <label class="block text-zinc-400 text-sm mb-2">Amount (HKD)</label>
-            <div class="relative">
-              <span class="absolute left-5 top-1/2 -translate-y-1/2 text-zinc-400">$</span>
-              <input id="expense-amount" type="number" step="0.01" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-12 py-4 text-lg">
-            </div>
-          </div>
-
-          <div class="pt-4 flex gap-3">
-            <button onclick="hideAddModal()" class="flex-1 py-5 rounded-3xl border border-zinc-700">Cancel</button>
-            <button onclick="saveExpense()" class="flex-1 bg-emerald-500 py-5 rounded-3xl font-semibold">Save Expense</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    const OCR_API_KEY = "K81043441588957";
-
-    let expenses = JSON.parse(localStorage.getItem('receiptly_expenses')) || [];
-    let editingId = null;
-    let currentImage = null;
-
-    function saveToLocal() { localStorage.setItem('receiptly_expenses', JSON.stringify(expenses)); }
-
-    function formatDate(dateStr) {
-      return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    }
-
-    async function handleImageUpload(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = async (ev) => {
-        currentImage = ev.target.result;
-        document.getElementById('upload-area').classList.add('hidden');
-        document.getElementById('preview-area').classList.remove('hidden');
-        document.getElementById('receipt-preview').src = currentImage;
-
-        await runOCR(currentImage);
-      };
-      reader.readAsDataURL(file);
-    }
-
-    async function runOCR(imageDataUrl) {
-      const loading = document.createElement('div');
-      loading.className = "text-center text-emerald-400 mt-4";
-      loading.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Processing with OCR.space...`;
-      document.getElementById('preview-area').appendChild(loading);
-
-      try {
-        const base64 = imageDataUrl.split(',')[1];
-
-        const formData = new FormData();
-        formData.append('base64Image', `data:image/jpeg;base64,${base64}`);
-        formData.append('language', 'chi_tra+eng');
-        formData.append('isTable', 'true');
-        formData.append('OCREngine', '2');
-        formData.append('scale', 'true');
-        formData.append('detectOrientation', 'true');
-
-        const response = await fetch('https://api.ocr.space/parse/image', {
-          method: 'POST',
-          headers: { 'apikey': OCR_API_KEY },
-          body: formData
-        });
-
-        const data = await response.json();
-
-        if (data.IsErroredOnProcessing) {
-          console.error(data);
-          alert("OCR Error: " + (data.ErrorMessage ? data.ErrorMessage[0] : "Unknown error"));
-          return;
-        }
-
-        const rawText = data.ParsedResults[0].ParsedText || "";
-        console.log("Raw OCR Output:", rawText);
-
-        // Improved extraction
-        let amount = null;
-        const totalMatch = rawText.match(/總金額[：\s]*\$?([\d,]+\.?\d*)/i);
-        if (totalMatch) {
-          amount = parseFloat(totalMatch[1].replace(/,/g, ''));
-        } else {
-          const amounts = rawText.match(/\$?(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/g);
-          if (amounts) {
-            let max = 0;
-            amounts.forEach(a => {
-              const num = parseFloat(a.replace(/[$,]/g, ''));
-              if (num > max && num < 100000) max = num;
-            });
-            amount = max;
-          }
-        }
-
-        const dateMatch = rawText.match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
-        let date = new Date().toISOString().split('T')[0];
-        if (dateMatch) {
-          date = `${dateMatch[1]}-${dateMatch[2].padStart(2,'0')}-${dateMatch[3].padStart(2,'0')}`;
-        }
-
-        const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 5);
-        let merchant = lines[0] || "Restaurant";
-
-        document.getElementById('expense-merchant').value = merchant;
-        if (amount) document.getElementById('expense-amount').value = amount.toFixed(2);
-        document.getElementById('expense-date').value = date;
-
-      } catch (err) {
-        console.error(err);
-        alert("Failed to connect to OCR service. Please fill manually.");
-      } finally {
-        loading.remove();
-      }
-    }
-
-    function removeImage() {
-      currentImage = null;
-      document.getElementById('preview-area').classList.add('hidden');
-      document.getElementById('upload-area').classList.remove('hidden');
-    }
-
-    function showAddModal() {
-      editingId = null;
-      document.getElementById('modal-title').textContent = "New Expense";
-      document.getElementById('add-modal').classList.remove('hidden');
-      document.getElementById('preview-area').classList.add('hidden');
-      document.getElementById('upload-area').classList.remove('hidden');
-      document.getElementById('expense-date').value = new Date().toISOString().split('T')[0];
-    }
-
-    function hideAddModal() {
-      document.getElementById('add-modal').classList.add('hidden');
-    }
-
-    function saveExpense() {
-      const merchant = document.getElementById('expense-merchant').value.trim();
-      const amount = parseFloat(document.getElementById('expense-amount').value);
-      const date = document.getElementById('expense-date').value;
-      const category = document.getElementById('expense-category') ? document.getElementById('expense-category').value : 'Food';
-
-      if (!merchant || isNaN(amount) || !date) {
-        alert("Please fill in all fields");
-        return;
-      }
-
-      expenses.push({
-        id: Date.now(),
-        date,
-        merchant,
-        amount,
-        category,
-        image: currentImage
-      });
-
-      saveToLocal();
-      renderHistory();
-      calculateMonthlyTotal();
-      renderMonthly();
-      hideAddModal();
-    }
-
-    // Render functions (same as before)
-    function renderHistory() { /* ... same as previous working version ... */ 
-      const container = document.getElementById('expense-list');
-      container.innerHTML = '';
-      if (expenses.length === 0) {
-        container.innerHTML = `<div class="text-center py-20 text-zinc-500">No expenses yet</div>`;
-        return;
-      }
-      expenses.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(exp => {
-        const div = document.createElement('div');
-        div.className = 'bg-zinc-900 rounded-3xl p-5';
-        div.innerHTML = `
-          <div class="flex gap-4">
-            <div class="text-3xl">🍽️</div>
-            <div class="flex-1">
-              <div class="flex justify-between">
-                <div>
-                  <div class="font-semibold">${exp.merchant}</div>
-                  <div class="text-xs text-zinc-500">${formatDate(exp.date)}</div>
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 space-y-4">
+            <h2 class="text-lg font-semibold flex items-center gap-2">
+                <span>📸</span> Scan New Receipt
+            </h2>
+            
+            <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-slate-300 rounded-xl cursor-pointer bg-slate-50 hover:bg-slate-100 transition">
+                <div class="flex flex-col items-center justify-center pt-5 pb-6 text-center px-2">
+                    <span class="text-3xl mb-1">📷</span>
+                    <p class="text-sm font-medium text-slate-600">Tap to snap or upload receipt</p>
+                    <p class="text-xs text-slate-400 mt-1">AI will attempt to read details</p>
                 </div>
-                <div class="text-xl font-semibold">$${parseFloat(exp.amount).toFixed(2)}</div>
-              </div>
+                <input id="receipt-file" type="file" accept="image/*" capture="environment" class="hidden" onchange="processReceipt(event)" />
+            </label>
+
+            <div id="loading" class="hidden text-center p-3 bg-indigo-50 rounded-xl text-indigo-700 font-medium text-sm animate-pulse">
+                🤖 AI is reading your receipt... Please wait (~10s)
             </div>
-          </div>
-        `;
-        container.appendChild(div);
-      });
-    }
+        </div>
 
-    function calculateMonthlyTotal() {
-      const now = new Date();
-      let month = 0, total = 0;
-      expenses.forEach(exp => {
-        total += parseFloat(exp.amount);
-        const d = new Date(exp.date);
-        if (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) month += parseFloat(exp.amount);
-      });
-      document.getElementById('monthly-total').textContent = '$' + month.toFixed(2);
-      document.getElementById('total-expenses').textContent = '$' + total.toFixed(2);
-    }
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 space-y-4">
+            <h2 class="text-lg font-semibold">Receipt Details</h2>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Restaurant / Merchant</label>
+                    <input id="form-merchant" type="text" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 text-sm" placeholder="e.g., McDonald's">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Total Amount ($)</label>
+                        <input id="form-amount" type="number" step="0.01" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 text-sm" placeholder="0.00">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Date</label>
+                        <input id="form-date" type="date" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 text-sm">
+                    </div>
+                </div>
+                <button onclick="saveExpense()" class="w-full bg-indigo-600 text-white font-semibold p-3 rounded-xl shadow-sm shadow-indigo-200 hover:bg-indigo-700 transition active:scale-95 text-sm mt-2">
+                    Save to History
+                </button>
+            </div>
+        </div>
 
-    function renderMonthly() { /* minimal */ }
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 space-y-4">
+            <div class="flex justify-between items-center">
+                <h2 class="text-lg font-semibold">Expense History</h2>
+                <select id="month-filter" onchange="renderExpenses()" class="p-1.5 bg-slate-100 border border-slate-200 rounded-lg text-sm font-medium text-slate-700">
+                    </select>
+            </div>
 
-    function switchTab(n) {
-      document.getElementById('history-tab').classList.toggle('hidden', n !== 0);
-      document.getElementById('monthly-tab').classList.toggle('hidden', n !== 1);
-    }
+            <div id="pdf-content" class="space-y-3">
+                <div id="pdf-header" class="hidden p-4 border-b border-slate-300 text-center">
+                    <h1 class="text-xl font-bold text-slate-900">Monthly Expense Report</h1>
+                    <p id="pdf-report-month" class="text-sm text-slate-600 font-medium"></p>
+                </div>
 
-    window.onload = () => {
-      renderHistory();
-      calculateMonthlyTotal();
-      switchTab(0);
-    };
-  </script>
+                <div id="expense-list" class="space-y-2 max-h-80 overflow-y-auto pr-1">
+                    </div>
+
+                <div class="pt-3 border-t border-slate-100 flex justify-between items-center font-bold text-slate-900">
+                    <span>Monthly Total:</span>
+                    <span id="monthly-total" class="text-lg text-indigo-600">$0.00</span>
+                </div>
+            </div>
+
+            <button onclick="exportToPDF()" class="w-full bg-emerald-600 text-white font-semibold p-3 rounded-xl shadow-sm shadow-emerald-200 hover:bg-emerald-700 transition active:scale-95 text-sm flex justify-center items-center gap-2">
+                <span>📄</span> Export Selected Month to PDF
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // State management
+        let expenses = JSON.parse(localStorage.getItem('expenses')) || [];
+
+        // App Initializer
+        window.onload = function() {
+            setDefaultDate();
+            populateMonthFilter();
+            renderExpenses();
+        };
+
+        function setDefaultDate() {
+            document.getElementById('form-date').value = new Date().toISOString().split('T')[0];
+        }
+
+        // Populates unique months available in user data
+        function populateMonthFilter() {
+            const filterSelect = document.getElementById('month-filter');
+            filterSelect.innerHTML = '';
+
+            // Generate list of months for the last year as defaults
+            const uniqueMonths = new Set();
+            
+            // Add months from actual data
+            expenses.forEach(exp => {
+                if(exp.date) uniqueMonths.add(exp.date.substring(0, 7)); // Captures YYYY-MM
+            });
+
+            // Ensure current month is always an option
+            const currentMonth = new Date().toISOString().substring(0, 7);
+            uniqueMonths.add(currentMonth);
+
+            // Sort months descending
+            const sortedMonths = Array.from(uniqueMonths).sort().reverse();
+
+            sortedMonths.forEach(month => {
+                const opt = document.createElement('option');
+                opt.value = month;
+                // Format YYYY-MM into human readable English "Month YYYY"
+                const [year, m] = month.split('-');
+                const dateObj = new Date(year, m - 1, 1);
+                opt.textContent = dateObj.toLocaleString('default', { month: 'long', year: 'numeric' });
+                filterSelect.appendChild(opt);
+            });
+        }
+
+        // Smart OCR processing block
+        function processReceipt(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const loader = document.getElementById('loading');
+            loader.classList.remove('hidden');
+
+            // Use Tesseract.js CDN to decode text from image client-side
+            Tesseract.recognize(file, 'eng')
+                .then(({ data: { text } }) => {
+                    parseReceiptText(text);
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert("AI scanning failed. Don't worry, you can still type it in manually!");
+                })
+                .finally(() => {
+                    loader.classList.add('hidden');
+                });
+        }
+
+        // Clever regex parsing matching User Requirements
+        function parseReceiptText(text) {
+            console.log("Scanned Text Output:\n", text);
+            const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+            
+            // 1. Detect Merchant Name: Usually the very first non-empty line of text on a receipt
+            let merchant = lines[0] ? lines[0].replace(/[^a-zA-Z0-9\s]/g, '') : "Unknown Merchant";
+            if(merchant.length > 25) merchant = merchant.substring(0, 25) + "...";
+
+            // 2. Detect Total Amount: Look for currency patterns, find the highest currency number (Total is almost always the max amount)
+            const priceRegex = /\b\d+\.\d{2}\b/g;
+            const matches = text.match(priceRegex);
+            let totalAmount = 0.00;
+            if (matches) {
+                const numericAmounts = matches.map(val => parseFloat(val));
+                totalAmount = Math.max(...numericAmounts); // Smart assumption strategy
+            }
+
+            // 3. Detect Date: Look for typical global formats MM/DD/YYYY, DD/MM/YYYY, or YYYY-MM-DD
+            const dateRegex = /(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/;
+            const dateMatch = text.match(dateRegex);
+            let detectedDate = new Date().toISOString().split('T')[0]; // Default to today
+            
+            if (dateMatch) {
+                let parts = dateMatch[0].split(/[\/\-]/);
+                // Simple cleanup strategy to convert potential 2-digit years to standard 4-digit formatting
+                if (parts[2] && parts[2].length === 2) parts[2] = "20" + parts[2];
+                if (parts[0].length === 4) { // YYYY-MM-DD format already
+                    detectedDate = `${parts[0]}-${parts[1].padStart(2,'0')}-${parts[2].padStart(2,'0')}`;
+                } else {
+                    // Fallback to safe assumption framework standard parsing
+                    detectedDate = `${parts[2]}-${parts[0].padStart(2,'0')}-${parts[1].padStart(2,'0')}`;
+                }
+            }
+
+            // Autofill the forms seamlessly
+            document.getElementById('form-merchant').value = merchant;
+            document.getElementById('form-amount').value = totalAmount > 0 ? totalAmount.toFixed(2) : "";
+            document.getElementById('form-date').value = detectedDate;
+        }
+
+        // Save Action Logic
+        function saveExpense() {
+            const merchant = document.getElementById('form-merchant').value.trim();
+            const amount = parseFloat(document.getElementById('form-amount').value);
+            const date = document.getElementById('form-date').value;
+
+            if (!merchant || isNaN(amount) || !date) {
+                alert("Please fill out all receipt details before saving.");
+                return;
+            }
+
+            const newExpense = {
+                id: Date.now(),
+                merchant,
+                amount,
+                date
+            };
+
+            expenses.push(newExpense);
+            localStorage.setItem('expenses', JSON.stringify(expenses));
+            
+            // Clear inputs for next scan
+            document.getElementById('form-merchant').value = "";
+            document.getElementById('form-amount').value = "";
+            setDefaultDate();
+
+            populateMonthFilter();
+            renderExpenses();
+        }
+
+        // Delete Individual Row Expense Action
+        function deleteExpense(id) {
+            expenses = expenses.filter(exp => exp.id !== id);
+            localStorage.setItem('expenses', JSON.stringify(expenses));
+            populateMonthFilter();
+            renderExpenses();
+        }
+
+        // UI rendering calculation matching Selected Month View state
+        function renderExpenses() {
+            const selectedMonth = document.getElementById('month-filter').value;
+            const expenseList = document.getElementById('expense-list');
+            expenseList.innerHTML = '';
+
+            const filtered = expenses.filter(exp => exp.date.substring(0, 7) === selectedMonth);
+            let totalSum = 0;
+
+            if (filtered.length === 0) {
+                expenseList.innerHTML = `<p class="text-center text-slate-400 py-6 text-sm">No recorded expenses found for this month.</p>`;
+            } else {
+                filtered.forEach(exp => {
+                    totalSum += exp.amount;
+                    
+                    // Simple, scannable list block row construction
+                    const row = document.createElement('div');
+                    row.className = "flex justify-between items-center p-3 bg-slate-50 border border-slate-100 rounded-xl text-sm";
+                    row.innerHTML = `
+                        <div>
+                            <p class="font-semibold text-slate-800">${exp.merchant}</p>
+                            <p class="text-xs text-slate-400">${exp.date}</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="font-bold text-slate-700">$${exp.amount.toFixed(2)}</span>
+                            <button onclick="deleteExpense(${exp.id})" class="text-red-400 hover:text-red-600 p-1 text-xs font-bold">✕</button>
+                        </div>
+                    `;
+                    expenseList.appendChild(row);
+                });
+            }
+
+            document.getElementById('monthly-total').textContent = `$${totalSum.toFixed(2)}`;
+        }
+
+        // High Quality PDF PDF Engine Block Logic targeting chosen Month 
+        function exportToPDF() {
+            const filterSelect = document.getElementById('month-filter');
+            const selectedMonthText = filterSelect.options[filterSelect.selectedIndex].textContent;
+            
+            // Prepare PDF styling layout adjustments safely before capturing snapshot
+            const pdfHeader = document.getElementById('pdf-header');
+            document.getElementById('pdf-report-month').textContent = selectedMonthText;
+            
+            // Temporarily unhide printing headers for document output presentation values
+            pdfHeader.classList.remove('hidden');
+            
+            // Remove clear individual element deletion layout tags safely inside generated document logic bounds
+            const deleteButtons = document.querySelectorAll('#expense-list button');
+            deleteButtons.forEach(btn => btn.classList.add('hidden'));
+
+            const element = document.getElementById('pdf-content');
+            
+            const options = {
+                margin:       15,
+                filename:     `Expense_Report_${filterSelect.value}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2 },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            // Generate Document Download Stream smoothly right onto mobile file directory layouts
+            html2pdf().set(options).from(element).save().then(() => {
+                // Return interface view back safely to mobile application responsive defaults
+                pdfHeader.classList.add('hidden');
+                deleteButtons.forEach(btn => btn.classList.remove('hidden'));
+            });
+        }
+    </script>
 </body>
 </html>

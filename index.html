@@ -71,7 +71,7 @@
           <input type="file" id="receipt-upload" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
           <i class="fa-solid fa-camera text-5xl mb-4 text-emerald-500"></i>
           <p class="font-medium">Upload Receipt Photo</p>
-          <p class="text-xs text-zinc-500">Server-side OCR</p>
+          <p class="text-xs text-zinc-500">Server-side OCR (better accuracy)</p>
         </div>
 
         <div id="preview-area" class="hidden mb-6">
@@ -121,7 +121,6 @@
         document.getElementById('upload-area').classList.add('hidden');
         document.getElementById('preview-area').classList.remove('hidden');
         document.getElementById('receipt-preview').src = currentImage;
-
         await processWithServerOCR(currentImage);
       };
       reader.readAsDataURL(file);
@@ -129,8 +128,8 @@
 
     async function processWithServerOCR(imageDataUrl) {
       const loading = document.createElement('div');
-      loading.className = "text-center text-emerald-400 mt-4";
-      loading.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Server OCR...`;
+      loading.className = "text-center text-emerald-400 mt-4 flex items-center justify-center gap-2";
+      loading.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Server OCR in progress...`;
       document.getElementById('preview-area').appendChild(loading);
 
       try {
@@ -145,7 +144,7 @@
         const data = await res.json();
 
         if (data.error) {
-          alert(data.error);
+          alert("OCR Error: " + data.error);
           return;
         }
 
@@ -154,7 +153,8 @@
         if (data.date) document.getElementById('expense-date').value = data.date;
 
       } catch (err) {
-        alert("Server OCR failed. Please try again.");
+        console.error(err);
+        alert("Server OCR failed. Please fill manually or try again.");
       } finally {
         loading.remove();
       }
@@ -164,15 +164,106 @@
       if (currentImage) processWithServerOCR(currentImage);
     }
 
-    // ... (rest of your functions: saveExpense, renderHistory, etc. - same as before)
-    function saveExpense() { /* your existing save logic */ }
-    function removeImage() { /* your existing */ }
-    function showAddModal() { /* your existing */ }
-    function hideAddModal() { /* your existing */ }
-    function renderHistory() { /* your existing */ }
-    function calculateMonthlyTotal() { /* your existing */ }
-    function renderMonthly() { /* your existing */ }
-    function switchTab(n) { /* your existing */ }
+    function removeImage() {
+      currentImage = null;
+      document.getElementById('preview-area').classList.add('hidden');
+      document.getElementById('upload-area').classList.remove('hidden');
+    }
+
+    function showAddModal() {
+      document.getElementById('add-modal').classList.remove('hidden');
+      document.getElementById('preview-area').classList.add('hidden');
+      document.getElementById('upload-area').classList.remove('hidden');
+      document.getElementById('expense-date').value = new Date().toISOString().split('T')[0];
+    }
+
+    function hideAddModal() {
+      document.getElementById('add-modal').classList.add('hidden');
+    }
+
+    function saveExpense() {
+      const merchant = document.getElementById('expense-merchant').value.trim();
+      const amount = parseFloat(document.getElementById('expense-amount').value);
+      const date = document.getElementById('expense-date').value;
+
+      if (!merchant || isNaN(amount) || !date) {
+        alert("Please fill merchant, amount and date");
+        return;
+      }
+
+      expenses.push({
+        id: Date.now(),
+        date,
+        merchant,
+        amount,
+        category: "Food",
+        image: currentImage
+      });
+
+      saveToLocal();
+      renderHistory();
+      calculateMonthlyTotal();
+      renderMonthly();
+      hideAddModal();
+    }
+
+    function saveToLocal() {
+      localStorage.setItem('receiptly_expenses', JSON.stringify(expenses));
+    }
+
+    function formatDate(dateStr) {
+      return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function renderHistory() {
+      const container = document.getElementById('expense-list');
+      container.innerHTML = expenses.length === 0 
+        ? `<div class="text-center py-20 text-zinc-500">No expenses yet</div>` 
+        : '';
+
+      expenses.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(exp => {
+        const div = document.createElement('div');
+        div.className = 'bg-zinc-900 rounded-3xl p-5';
+        div.innerHTML = `
+          <div class="flex gap-4">
+            <div class="w-14 h-14 bg-zinc-800 rounded-2xl flex items-center justify-center text-3xl">🍽️</div>
+            <div class="flex-1">
+              <div class="flex justify-between">
+                <div>
+                  <div class="font-semibold">${exp.merchant}</div>
+                  <div class="text-xs text-zinc-500">${formatDate(exp.date)}</div>
+                </div>
+                <div class="text-right font-semibold text-xl">$${parseFloat(exp.amount).toFixed(2)}</div>
+              </div>
+            </div>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function calculateMonthlyTotal() {
+      const now = new Date();
+      let monthTotal = 0, allTotal = 0;
+      expenses.forEach(exp => {
+        const amt = parseFloat(exp.amount);
+        allTotal += amt;
+        const d = new Date(exp.date);
+        if (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) monthTotal += amt;
+      });
+      document.getElementById('monthly-total').textContent = '$' + monthTotal.toFixed(2);
+      document.getElementById('total-expenses').textContent = '$' + allTotal.toFixed(2);
+    }
+
+    function renderMonthly() {
+      // Simple version
+      console.log("Monthly rendered");
+    }
+
+    function switchTab(n) {
+      document.getElementById('history-tab').classList.toggle('hidden', n !== 0);
+      document.getElementById('monthly-tab').classList.toggle('hidden', n !== 1);
+    }
 
     window.onload = () => {
       renderHistory();

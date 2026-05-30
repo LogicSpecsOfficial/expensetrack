@@ -3,17 +3,21 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { image } = req.body;
-
   try {
+    const { image } = req.body;
+    if (!image) {
+      return res.status(400).json({ error: 'No image data received' });
+    }
+
     const formData = new FormData();
     formData.append('base64Image', `data:image/jpeg;base64,${image}`);
     formData.append('language', 'chi_tra+eng');
     formData.append('isTable', 'true');
     formData.append('OCREngine', '2');
     formData.append('scale', 'true');
+    formData.append('detectOrientation', 'true');
 
-    const ocrRes = await fetch('https://api.ocr.space/parse/image', {
+    const ocrResponse = await fetch('https://api.ocr.space/parse/image', {
       method: 'POST',
       headers: {
         'apikey': 'K81043441588957'
@@ -21,24 +25,27 @@ export default async function handler(req, res) {
       body: formData
     });
 
-    const data = await ocrRes.json();
+    const data = await ocrResponse.json();
 
     if (data.IsErroredOnProcessing) {
-      return res.status(400).json({ error: data.ErrorMessage?.[0] || 'OCR failed' });
+      console.error("OCR.space Error:", data.ErrorMessage);
+      return res.status(400).json({ 
+        error: data.ErrorMessage ? data.ErrorMessage[0] : 'OCR processing failed' 
+      });
     }
 
-    const text = data.ParsedResults[0].ParsedText || "";
+    const text = data.ParsedResults?.[0]?.ParsedText || "";
 
-    // Strong extraction
+    // Extraction logic
     let amount = null;
     const totalMatch = text.match(/總金額.*?\$?([\d,]+\.?\d*)/i);
     if (totalMatch) {
       amount = parseFloat(totalMatch[1].replace(/,/g, ''));
     } else {
-      const matches = text.match(/\$?(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/g);
-      if (matches) {
+      const amounts = text.match(/\$?(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/g);
+      if (amounts) {
         let max = 0;
-        matches.forEach(m => {
+        amounts.forEach(m => {
           const num = parseFloat(m.replace(/[$,]/g, ''));
           if (num > max && num < 100000) max = num;
         });
@@ -47,14 +54,23 @@ export default async function handler(req, res) {
     }
 
     const dateMatch = text.match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
-    const date = dateMatch ? `${dateMatch[1]}-${dateMatch[2].padStart(2,'0')}-${dateMatch[3].padStart(2,'0')}` : null;
+    const date = dateMatch 
+      ? `${dateMatch[1]}-${dateMatch[2].padStart(2,'0')}-${dateMatch[3].padStart(2,'0')}` 
+      : null;
 
-    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 5);
-    const merchant = lines[0] || "Restaurant";
+    const merchant = text.split('\n').find(line => line.length > 8 && !/^\d+$/.test(line.trim())) || "Restaurant";
 
-    res.status(200).json({ merchant, amount, date, raw: text });
+    return res.status(200).json({
+      merchant: merchant.trim(),
+      amount: amount,
+      date: date,
+      rawText: text.substring(0, 500) // for debugging
+    });
 
   } catch (error) {
-    res.status(500).json({ error: 'Server error' });
+    console.error("Server Error:", error);
+    return res.status(500).json({ 
+      error: "Server error - " + error.message 
+    });
   }
 }

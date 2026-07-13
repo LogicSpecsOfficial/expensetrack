@@ -3,14 +3,21 @@ const CTB_STOPS_API = 'https://rt.data.gov.hk/v2/transport/citybus/stop';
 
 let stopDatabase = [];
 let favoriteStops = [];
+let searchHistory = [];
 
 document.addEventListener('DOMContentLoaded', initApp);
 document.getElementById('btn-gps').addEventListener('click', handleGPS);
-document.getElementById('btn-search').addEventListener('click', handleSearch);
+document.getElementById('btn-search').addEventListener('click', () => {
+    const query = document.getElementById('search-input').value.trim();
+    executeSearch(query);
+});
+document.getElementById('toggle-out-of-service').addEventListener('change', refreshCurrentViews);
 
 async function initApp() {
     loadFavorites();
     renderFavorites();
+    loadSearchHistory();
+    renderSearchHistory();
     
     updateStatus('Loading bus stops into cache...');
     try {
@@ -104,6 +111,39 @@ function renderFavorites() {
     });
 }
 
+function loadSearchHistory() {
+    const cachedHistory = localStorage.getItem('hk_bus_search_history');
+    if (cachedHistory) {
+        searchHistory = JSON.parse(cachedHistory);
+    }
+}
+
+function saveSearchHistory(query) {
+    if (!query) return;
+    searchHistory = searchHistory.filter(h => h !== query);
+    searchHistory.unshift(query);
+    if (searchHistory.length > 5) {
+        searchHistory.pop();
+    }
+    localStorage.setItem('hk_bus_search_history', JSON.stringify(searchHistory));
+    renderSearchHistory();
+}
+
+function renderSearchHistory() {
+    const container = document.getElementById('history-list');
+    container.innerHTML = '';
+    searchHistory.forEach(query => {
+        const tag = document.createElement('span');
+        tag.className = 'history-tag';
+        tag.innerText = query;
+        tag.addEventListener('click', () => {
+            document.getElementById('search-input').value = query;
+            executeSearch(query);
+        });
+        container.appendChild(tag);
+    });
+}
+
 function handleGPS() {
     if (!navigator.geolocation) {
         updateStatus('Geolocation not supported by device.');
@@ -121,8 +161,7 @@ function handleGPS() {
     );
 }
 
-async function handleSearch() {
-    const query = document.getElementById('search-input').value.trim();
+async function executeSearch(query) {
     if (!query) return;
     updateStatus('Searching matching address points...');
     
@@ -132,6 +171,7 @@ async function handleSearch() {
         const data = await res.json();
         
         if (data && data.length > 0) {
+            saveSearchHistory(query);
             const lat = parseFloat(data[0].lat);
             const lon = parseFloat(data[0].lon);
             findNearbyStops(lat, lon);
@@ -141,6 +181,24 @@ async function handleSearch() {
     } catch (err) {
         updateStatus('Search system error occurred.');
     }
+}
+
+let lastCoordinates = null;
+
+function findNearbyStops(lat, lng) {
+    lastCoordinates = { lat, lng };
+    updateStatus('Calculating nearest stations...');
+    
+    const stopsWithDistance = stopDatabase.map(stop => ({
+        ...stop,
+        distance: getDistance(lat, lng, stop.lat, stop.lng)
+    }));
+
+    stopsWithDistance.sort((a, b) => a.distance - b.distance);
+    const closestStops = stopsWithDistance.slice(0, 6);
+
+    document.getElementById('results-section').classList.remove('hidden');
+    renderStops(closestStops);
 }
 
 function getDistance(lat1, lon1, lat2, lon2) {
@@ -157,19 +215,11 @@ function getDistance(lat1, lon1, lat2, lon2) {
     return R * c; 
 }
 
-function findNearbyStops(lat, lng) {
-    updateStatus('Calculating nearest stations...');
-    
-    const stopsWithDistance = stopDatabase.map(stop => ({
-        ...stop,
-        distance: getDistance(lat, lng, stop.lat, stop.lng)
-    }));
-
-    stopsWithDistance.sort((a, b) => a.distance - b.distance);
-    const closestStops = stopsWithDistance.slice(0, 6);
-
-    document.getElementById('results-section').classList.remove('hidden');
-    renderStops(closestStops);
+function refreshCurrentViews() {
+    renderFavorites();
+    if (lastCoordinates) {
+        findNearbyStops(lastCoordinates.lat, lastCoordinates.lng);
+    }
 }
 
 function createStopCard(stop, isFavSection = false) {
@@ -228,49 +278,85 @@ async function fetchETA(company, stopId, isFavSection) {
 
         const res = await fetch(url);
         const json = await res.json();
-        displayGenericEta(listContainer, json.data || []);
+        displayGenericEta(listContainer, json.data || [], company);
     } catch (err) {
         console.error(err);
         listContainer.innerHTML = `<div style="color:#ff3b30; font-size:13px;">ETA breakdown failed to load.</div>`;
     }
 }
 
-function displayGenericEta(container, etaData) {
-    if (etaData.length === 0) {
-        container.innerHTML = `<div style="font-size:13px; color:#86868b;">No scheduled buses active.</div>`;
-        return;
-    }
-
+function displayGenericEta(container, etaData, company) {
+    const hideOutOfService = document.getElementById('toggle-out-of-service').checked;
+    
+    // Group all incoming routes first regardless of ETA status
     const uniqueRoutes = {};
     etaData.forEach(item => {
         const key = `${item.route}_${item.dir}_${item.dest_tc}`;
         if (!uniqueRoutes[key]) uniqueRoutes[key] = [];
-        if (item.eta) uniqueRoutes[key].push(item);
+        uniqueRoutes[key].push(item);
     });
 
+    let renderedCount = 0;
+    let routeColor = '#1d1d1f';
+    if (company === 'KMB') routeColor = '#d9383a';
+    if (company === 'CTB') routeColor = '#0055b3';
+
     container.innerHTML = '';
+
     Object.values(uniqueRoutes).forEach(etags => {
+        // Filter out entries that lack a valid timestamp value
+        const activeEntries = etags.filter(e => e.eta);
+        
+        // If hiding out-of-service routes and there are no active ETAs, skip rendering this route row
+        if (hideOutOfService && activeEntries.length === 0) {
+            return;
+        }
+
+        renderedCount++;
         const primary = etags[0];
         const row = document.createElement('div');
         row.className = 'eta-row';
+        row.style.alignItems = 'flex-start';
         
-        const timesText = etags.slice(0, 3).map(e => calculateMinutes(e.eta)).join(', ');
+        let timesHtml = '';
+        if (activeEntries.length === 0) {
+            timesHtml = `<div style="font-size: 13px; color: #86868b; font-style: italic; padding-top:2px;">No service</div>`;
+        } else {
+            activeEntries.slice(0, 3).forEach((e, idx) => {
+                const formatted = formatEta(e.eta);
+                if (idx === 0) {
+                    timesHtml += `<div style="font-weight: 600; font-size: 16px; color: #00802b;">${formatted}</div>`;
+                } else {
+                    timesHtml += `<div style="font-size: 13px; color: #86868b; margin-top: 4px; padding-top: 4px; border-top: 1px dotted #e8e8ed;">${formatted}</div>`;
+                }
+            });
+        }
 
         row.innerHTML = `
-            <span class="bus-no">${primary.route}</span>
-            <span class="bus-dest">To: ${primary.dest_tc || primary.dest_en}</span>
-            <span class="bus-time">${timesText}</span>
+            <span class="bus-no" style="color: ${routeColor};">${primary.route}</span>
+            <span class="bus-dest" style="padding-top: 2px;">To: ${primary.dest_tc || primary.dest_en}</span>
+            <span class="bus-time" style="line-height: 1.2; text-align: right; min-width: 110px;">${timesHtml}</span>
         `;
         container.appendChild(row);
     });
+
+    if (renderedCount === 0) {
+        container.innerHTML = `<div style="font-size:13px; color:#86868b; padding:4px 0; font-style: italic;">No active routes matching filter preferences.</div>`;
+    }
 }
 
-function calculateMinutes(etaTimestamp) {
-    if (!etaTimestamp) return '-- min';
-    const diffMs = new Date(etaTimestamp) - Date.now();
+function formatEta(etaTimestamp) {
+    if (!etaTimestamp) return '--:--';
+    const etaDate = new Date(etaTimestamp);
+    const diffMs = etaDate - Date.now();
     const diffMins = Math.max(0, Math.floor(diffMs / 60000));
-    if (diffMins <= 0) return 'Arriving';
-    return `${diffMins} min`;
+    
+    const hours = String(etaDate.getHours()).padStart(2, '0');
+    const mins = String(etaDate.getMinutes()).padStart(2, '0');
+    const clockTime = `${hours}:${mins}`;
+
+    if (diffMins <= 0) return `${clockTime} (Arv)`;
+    return `${clockTime} (${diffMins}m)`;
 }
 
 function updateStatus(msg) {

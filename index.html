@@ -33,9 +33,21 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 20px;
+            gap: 10px;
         }
 
-        h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.5px; }
+        h1 { font-size: 1.2rem; font-weight: 700; letter-spacing: -0.5px; white-space: nowrap; }
+
+        select#langSelect {
+            padding: 4px 8px;
+            font-size: 0.8rem;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background-color: var(--surface);
+            color: var(--text-main);
+            width: auto;
+            height: 28px;
+        }
 
         .controls-grid {
             display: grid;
@@ -56,7 +68,7 @@
             color: var(--text-muted);
         }
 
-        select {
+        select.form-select {
             padding: 8px 12px;
             font-size: 0.9rem;
             border-radius: 8px;
@@ -269,7 +281,7 @@
     <div class="controls-grid">
         <div class="control-item">
             <label id="ui-label-limit">顯示數量</label>
-            <select id="limitSelect">
+            <select id="limitSelect" class="form-select">
                 <option value="5">5</option>
                 <option value="10">10</option>
                 <option value="20">20</option>
@@ -278,7 +290,7 @@
         </div>
         <div class="control-item">
             <label id="ui-label-sort">排序方式</label>
-            <select id="sortSelect">
+            <select id="sortSelect" class="form-select">
                 <option value="distance" selected>距離最近</option>
             </select>
         </div>
@@ -552,23 +564,28 @@
             const t = i18n[currentLang];
             const isFav = favorites.includes(park.park_Id);
             
-            let displayAddress = '---';
+            let displayAddress = '';
             if (park.displayAddress) displayAddress = park.displayAddress;
-            else if (park.address) displayAddress = typeof park.address === 'string' ? park.address : (park.address.displayAddress || '---');
+            else if (park.address) displayAddress = typeof park.address === 'string' ? park.address : (park.address.displayAddress || '');
 
             const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(displayAddress + " " + (park.name || ''))}`;
 
-            let heightText = '---';
+            let heightText = '';
             if (park.heightRestrictions && park.heightRestrictions.length > 0) {
-                heightText = park.heightRestrictions.map(h => h.height ? `${h.height}m` : '').filter(Boolean).join(', ') || '---';
+                heightText = park.heightRestrictions.map(h => h.height ? `${h.height}m` : '').filter(Boolean).join(', ');
             }
 
-            let feeText = '---';
-            if (park.parkingFees && park.parkingFees.length > 0) {
-                feeText = park.parkingFees.slice(0, 2).map(f => {
-                    const type = f.chargingType === 'Hourly' ? t.hourly : (f.chargingType || '');
-                    return `${f.dayType || ''}: HK$${f.fee || ''} (${type})`;
-                }).join(' | ');
+            let feeText = '';
+            let feesArray = park.parkingFees || park.parkingFee || park.prices || [];
+            if (feesArray && feesArray.length > 0) {
+                feeText = feesArray.slice(0, 2).map(f => {
+                    const typeRaw = f.chargingType || f.type || '';
+                    const type = typeRaw === 'Hourly' ? t.hourly : typeRaw;
+                    const amt = f.fee !== undefined ? f.fee : (f.price !== undefined ? f.price : '');
+                    const day = f.dayType || '';
+                    if (!amt) return '';
+                    return `${day ? day + ' ' : ''}${type}: HK$${amt}`;
+                }).filter(Boolean).join(' | ');
             }
 
             let vacancyHTML = `<div class="vacancy-box">[!] ${t.noVacancyData}</div>`;
@@ -584,7 +601,7 @@
                 }
             }
 
-            let contactHTML = '---';
+            let contactHTML = '';
             if (park.contactNo) {
                 const cleanPhone = park.contactNo.replace(/\s+/g, '');
                 contactHTML = `<a href="tel:${cleanPhone}" class="phone-link">${park.contactNo}</a>`;
@@ -592,6 +609,31 @@
 
             const distHTML = park.distance !== Infinity ? `<span class="distance">${park.distance.toFixed(2)} ${t.away}</span>` : '';
             const favBtnText = isFav ? t.removeFav : t.addFav;
+
+            let infoGridItems = '';
+            if (displayAddress) {
+                infoGridItems += `<div class="info-label">${t.address}:</div><div><a href="${mapUrl}" target="_blank" class="map-link">${displayAddress}</a></div>`;
+            }
+            if (park.district) {
+                infoGridItems += `<div class="info-label">${t.district}:</div><div>${park.district}</div>`;
+            }
+            if (park.carpark_Type) {
+                infoGridItems += `<div class="info-label">${currentLang === 'zh_TW' ? '類型' : 'Type'}:</div><div>${park.carpark_Type}</div>`;
+            }
+            if (heightText) {
+                infoGridItems += `<div class="info-label">${t.maxHeight}:</div><div>${heightText}</div>`;
+            }
+            if (contactHTML) {
+                infoGridItems += `<div class="info-label">${t.contact}:</div><div>${contactHTML}</div>`;
+            }
+
+            let feeBoxHTML = '';
+            if (feeText) {
+                feeBoxHTML = `
+                    <div class="fee-box">
+                        <strong>${t.fees}:</strong> ${feeText}
+                    </div>`;
+            }
 
             return `
                 <div class="carpark-card">
@@ -603,28 +645,10 @@
                         <span class="badge ${park.nature === 'government' ? 'government' : 'commercial'}">${park.nature || '---'}</span>
                         ${distHTML}
                     </div>
-                    <div class="info-grid">
-                        <div class="info-label">${t.address}:</div>
-                        <div><a href="${mapUrl}" target="_blank" class="map-link">${displayAddress}</a></div>
-                        
-                        <div class="info-label">${t.district}:</div>
-                        <div>${park.district || '---'}</div>
-                        
-                        <div class="info-label">${currentLang === 'zh_TW' ? '類型' : 'Type'}:</div>
-                        <div>${park.carpark_Type || '---'}</div>
-                        
-                        <div class="info-label">${t.maxHeight}:</div>
-                        <div>${heightText}</div>
-                        
-                        <div class="info-label">${t.contact}:</div>
-                        <div>${contactHTML}</div>
-                    </div>
                     
+                    ${infoGridItems ? `<div class="info-grid">${infoGridItems}</div>` : ''}
                     ${vacancyHTML}
-
-                    <div class="fee-box">
-                        <strong>${t.fees}:</strong> ${feeText}
-                    </div>
+                    ${feeBoxHTML}
                 </div>
             `;
         }

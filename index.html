@@ -51,59 +51,6 @@
             flex-shrink: 0;
         }
 
-        .controls-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-
-        .control-item {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .control-item label {
-            font-size: 0.8rem;
-            font-weight: 600;
-            color: var(--text-muted);
-        }
-
-        select.form-select {
-            padding: 8px 12px;
-            font-size: 0.9rem;
-            border-radius: 8px;
-            border: 1px solid var(--border-color);
-            background-color: var(--surface);
-            color: var(--text-main);
-            width: 100%;
-        }
-
-        .filter-container {
-            background-color: var(--surface);
-            border: 1px solid var(--border-color);
-            padding: 12px;
-            border-radius: var(--radius);
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .filter-container input[type="checkbox"] {
-            width: 18px;
-            height: 18px;
-            cursor: pointer;
-        }
-
-        .filter-container label {
-            font-size: 0.9rem;
-            font-weight: 500;
-            cursor: pointer;
-            user-select: none;
-        }
-
         .action-group {
             display: flex;
             flex-direction: column;
@@ -279,29 +226,6 @@
             <option value="en_US">English</option>
         </select>
     </div>
-
-    <div class="controls-grid">
-        <div class="control-item">
-            <label id="ui-label-limit">顯示數量</label>
-            <select id="limitSelect" class="form-select">
-                <option value="5">5</option>
-                <option value="10">10</option>
-                <option value="20">20</option>
-                <option value="30" selected>30</option>
-            </select>
-        </div>
-        <div class="control-item">
-            <label id="ui-label-sort">排序方式</label>
-            <select id="sortSelect" class="form-select">
-                <option value="distance" selected>距離最近</option>
-            </select>
-        </div>
-    </div>
-
-    <div class="filter-container">
-        <input type="checkbox" id="vacancyFilter">
-        <label for="vacancyFilter" id="ui-label-filter">只顯示有即時空位數據的停車場</label>
-    </div>
     
     <div class="action-group">
         <button id="locateBtn" class="main-btn">尋找最近的停車場</button>
@@ -327,15 +251,12 @@
                 btnFavHide: "隱藏我的收藏",
                 favTitle: "我的收藏夾",
                 searchTitle: "搜尋結果",
-                labelLimit: "顯示數量",
-                labelSort: "排序方式",
-                labelFilter: "只顯示有即時空位數據的停車場",
                 gpsLocating: "正在獲取您的位置...",
                 apiFetching: "正在讀取停車場數據...",
                 gpsError: "定位錯誤: ",
                 apiError: "處理數據出錯: ",
                 noSupport: "您的瀏覽器不支援地理定位功能。",
-                showingResults: "顯示相鄰停車場方案：",
+                showingResults: "顯示最近的 30 個停車場：",
                 noRecords: "未找到符合過濾條件的停車場。",
                 noFavs: "暫無收藏的停車場。",
                 away: "公里外",
@@ -348,6 +269,7 @@
                 liveVacancy: "即時空位",
                 spaces: "個空置車位",
                 noVacancyData: "未有提供即時空位數據",
+                noFeeData: "未由營運商提供收費數據",
                 addFav: "收藏",
                 removeFav: "取消收藏"
             },
@@ -358,15 +280,12 @@
                 btnFavHide: "Hide My Favorites",
                 favTitle: "My Favorites",
                 searchTitle: "Search Results",
-                labelLimit: "Max Results",
-                labelSort: "Sort By",
-                labelFilter: "Only show entries with live vacancy",
                 gpsLocating: "Acquiring location...",
                 apiFetching: "Fetching car park data...",
                 gpsError: "Location error: ",
                 apiError: "Error processing data: ",
                 noSupport: "Geolocation is not supported by your browser.",
-                showingResults: "Showing nearby car park options:",
+                showingResults: "Showing the nearest 30 car parks:",
                 noRecords: "No car parks match your filter options.",
                 noFavs: "No favorited car parks yet.",
                 away: "km away",
@@ -379,6 +298,7 @@
                 liveVacancy: "Live Vacancy",
                 spaces: "spaces available",
                 noVacancyData: "No live availability data provided",
+                noFeeData: "Pricing data not provided by operator",
                 addFav: "Favorite",
                 removeFav: "Unfavorite"
             }
@@ -390,14 +310,7 @@
         let favorites = JSON.parse(localStorage.getItem('hk_carpark_favs')) || [];
 
         const langSelect = document.getElementById('langSelect');
-        const limitSelect = document.getElementById('limitSelect');
-        const vacancyFilter = document.getElementById('vacancyFilter');
-        
         const uiTitle = document.getElementById('ui-title');
-        const uiLabelLimit = document.getElementById('ui-label-limit');
-        const uiLabelSort = document.getElementById('ui-label-sort');
-        const uiLabelFilter = document.getElementById('ui-label-filter');
-        
         const locateBtn = document.getElementById('locateBtn');
         const showFavBtn = document.getElementById('showFavBtn');
         const statusText = document.getElementById('status');
@@ -412,26 +325,12 @@
             locateBtn.textContent = i18n[currentLang].btnText;
             uiFavTitle.textContent = i18n[currentLang].favTitle;
             uiSearchTitle.textContent = i18n[currentLang].searchTitle;
-            uiLabelLimit.textContent = i18n[currentLang].labelLimit;
-            uiLabelSort.textContent = i18n[currentLang].labelSort;
-            uiLabelFilter.textContent = i18n[currentLang].labelFilter;
             showFavBtn.textContent = favWrapper.style.display === 'none' ? i18n[currentLang].btnFavShow : i18n[currentLang].btnFavHide;
         }
 
         function filterAndRenderData() {
             if (!userCoordinates || cachedAllParks.length === 0) return;
-
-            let displayList = [...cachedAllParks];
-
-            if (vacancyFilter.checked) {
-                displayList = displayList.filter(park => {
-                    return park.liveInfo && park.liveInfo.privateCar && park.liveInfo.privateCar.length > 0 && park.liveInfo.privateCar[0].vacancy !== undefined && park.liveInfo.privateCar[0].vacancy !== null;
-                });
-            }
-
-            const maxLimit = parseInt(limitSelect.value) || 30;
-            const finalSelection = displayList.slice(0, maxLimit);
-
+            const finalSelection = cachedAllParks.slice(0, 30);
             displayResults(finalSelection);
         }
 
@@ -445,9 +344,6 @@
                 renderFavorites();
             }
         });
-
-        limitSelect.addEventListener('change', filterAndRenderData);
-        vacancyFilter.addEventListener('change', filterAndRenderData);
 
         showFavBtn.addEventListener('click', () => {
             if (favWrapper.style.display === 'none') {
@@ -583,10 +479,7 @@
                 if (park.privateCar.hourlyCharges && park.privateCar.hourlyCharges.length > 0) {
                     park.privateCar.hourlyCharges.forEach(f => {
                         if (f.price !== undefined && f.price !== null) {
-                            let dayStr = '';
-                            if (f.weekdays) {
-                                dayStr = Array.isArray(f.weekdays) ? f.weekdays.join(',') : f.weekdays;
-                            }
+                            let dayStr = f.weekdays ? (Array.isArray(f.weekdays) ? f.weekdays.join(',') : f.weekdays) : '';
                             priceSignals.push(`${dayStr ? dayStr + ' ' : ''}${t.hourly}: HK$${f.price}`);
                         }
                     });
@@ -594,10 +487,7 @@
                 if (park.privateCar.dayNightParks && park.privateCar.dayNightParks.length > 0) {
                     park.privateCar.dayNightParks.forEach(f => {
                         if (f.price !== undefined && f.price !== null) {
-                            let dayStr = '';
-                            if (f.weekdays) {
-                                dayStr = Array.isArray(f.weekdays) ? f.weekdays.join(',') : f.weekdays;
-                            }
+                            let dayStr = f.weekdays ? (Array.isArray(f.weekdays) ? f.weekdays.join(',') : f.weekdays) : '';
                             let typeLabel = f.type || '';
                             priceSignals.push(`${dayStr ? dayStr + ' ' : ''}${typeLabel}: HK$${f.price}`);
                         }
@@ -622,7 +512,7 @@
                 }
             }
 
-            let vacancyHTML = `<div class="vacancy-box">[!] ${t.noVacancyData}</div>`;
+            let vacancyHTML = `<div class="vacancy-box">${t.noVacancyData}</div>`;
             if (park.liveInfo && park.liveInfo.privateCar && park.liveInfo.privateCar.length > 0) {
                 const count = park.liveInfo.privateCar[0].vacancy;
                 if (count !== undefined && count !== null && count >= 0) {
@@ -661,13 +551,10 @@
                 infoGridItems += `<div class="info-label">${t.contact}:</div><div>${contactHTML}</div>`;
             }
 
-            let feeBoxHTML = '';
-            if (feeText && feeText.trim() !== '') {
-                feeBoxHTML = `
-                    <div class="fee-box">
-                        <strong>${t.fees}:</strong> ${feeText}
-                    </div>`;
-            }
+            let feeBoxHTML = `
+                <div class="fee-box">
+                    <strong>${t.fees}:</strong> ${feeText ? feeText : t.noFeeData}
+                </div>`;
 
             return `
                 <div class="carpark-card">

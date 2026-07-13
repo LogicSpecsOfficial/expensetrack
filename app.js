@@ -21,9 +21,9 @@ async function initApp() {
     
     updateStatus('Loading bus stops into cache...');
     try {
-        // Updated unique cache keys to automatically force-clear old data profiles
-        const cached = localStorage.getItem('hk_bus_stops_v3_data');
-        const cacheTime = localStorage.getItem('hk_bus_stops_v3_time');
+        // Updated cache key version to force data recalculations on load
+        const cached = localStorage.getItem('hk_bus_stops_v4_data');
+        const cacheTime = localStorage.getItem('hk_bus_stops_v4_time');
         
         if (cached && cacheTime && (Date.now() - parseInt(cacheTime) < 86400000)) {
             stopDatabase = JSON.parse(cached);
@@ -41,27 +41,21 @@ async function initApp() {
             id: s.stop,
             name: s.name_tc || s.name_en,
             lat: parseFloat(s.lat),
-            lng: parseFloat(s.long) || parseFloat(s.lng),
+            lng: parseFloat(s.long),
             company: 'KMB'
         }));
 
-        // Fallback coordinate mapping strategy to guarantee structural matching accuracy
-        const ctbStops = (ctbRes.data || []).map(s => {
-            const lat = s.lat ? parseFloat(s.lat) : (s.location && s.location.lat ? parseFloat(s.location.lat) : 0);
-            const lng = s.long ? parseFloat(s.long) : (s.lng ? parseFloat(s.lng) : (s.location && s.location.long ? parseFloat(s.location.long) : (s.location && s.location.lng ? parseFloat(s.location.lng) : 0)));
-            
-            return {
-                id: s.stop,
-                name: s.name_tc || s.name_en,
-                lat: lat,
-                lng: lng,
-                company: 'CTB'
-            };
-        });
+        const ctbStops = (ctbRes.data || []).map(s => ({
+            id: s.stop,
+            name: s.name_tc || s.name_en,
+            lat: parseFloat(s.lat) || (s.location ? parseFloat(s.location.lat) : 0),
+            lng: parseFloat(s.long) || parseFloat(s.lng) || (s.location ? parseFloat(s.location.long || s.location.lng) : 0),
+            company: 'CTB'
+        }));
 
         stopDatabase = [...kmbStops, ...ctbStops];
-        localStorage.setItem('hk_bus_stops_v3_data', JSON.stringify(stopDatabase));
-        localStorage.setItem('hk_bus_stops_v3_time', Date.now().toString());
+        localStorage.setItem('hk_bus_stops_v4_data', JSON.stringify(stopDatabase));
+        localStorage.setItem('hk_bus_stops_v4_time', Date.now().toString());
         updateStatus('Ready');
     } catch (err) {
         console.error(err);
@@ -201,11 +195,22 @@ function findNearbyStops(lat, lng) {
         distance: getDistance(lat, lng, stop.lat, stop.lng)
     }));
 
-    stopsWithDistance.sort((a, b) => a.distance - b.distance);
-    const closestStops = stopsWithDistance.slice(0, 6);
+    // Segregate companies to avoid density crowding out
+    const kmbStops = stopsWithDistance.filter(s => s.company === 'KMB' && !isNaN(s.distance));
+    const ctbStops = stopsWithDistance.filter(s => s.company === 'CTB' && !isNaN(s.distance));
+
+    kmbStops.sort((a, b) => a.distance - b.distance);
+    ctbStops.sort((a, b) => a.distance - b.distance);
+
+    // Pick top three closest locations for each company independently
+    const closestKmb = kmbStops.slice(0, 3);
+    const closestCtb = ctbStops.slice(0, 3);
+
+    const combinedStops = [...closestKmb, ...closestCtb];
+    combinedStops.sort((a, b) => a.distance - b.distance);
 
     document.getElementById('results-section').classList.remove('hidden');
-    renderStops(closestStops);
+    renderStops(combinedStops);
 }
 
 function getDistance(lat1, lon1, lat2, lon2) {

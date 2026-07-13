@@ -1,8 +1,5 @@
-// Native government open data streams with cross-domain support enabled
 const KMB_STOPS_API = 'https://data.etabus.gov.hk/v1/transport/kmb/stop';
-const CTB_STOPS_API = 'https://rt.data.gov.hk/v2/transport/citybus/stop';
 const KMB_STOP_ETA = 'https://data.etabus.gov.hk/v1/transport/kmb/stop-eta';
-const CTB_STOP_ETA = 'https://rt.data.gov.hk/v1/transport/batch/stop-eta/CTB';
 
 let stopDatabase = [];
 let favoriteStops = [];
@@ -24,8 +21,8 @@ async function initApp() {
     
     updateStatus('Loading bus stops into cache...');
     try {
-        const cacheKey = 'hk_bus_stops_v8_data';
-        const cacheTimeKey = 'hk_bus_stops_v8_time';
+        const cacheKey = 'hk_bus_stops_v9_data';
+        const cacheTimeKey = 'hk_bus_stops_v9_time';
         
         const cached = localStorage.getItem(cacheKey);
         const cacheTime = localStorage.getItem(cacheTimeKey);
@@ -36,40 +33,61 @@ async function initApp() {
             return;
         }
 
-        updateStatus('Downloading transit databases directly from Gov Data portal...');
-        const [kmbRes, ctbRes] = await Promise.all([
-            fetch(KMB_STOPS_API).then(r => r.json()),
-            fetch(CTB_STOPS_API).then(r => r.json())
-        ]);
-
-        if (!kmbRes || !kmbRes.data || !ctbRes || !ctbRes.data) {
-            updateStatus('Error: Received incomplete data formats from government feeds.');
-            return;
+        updateStatus('Downloading transit databases...');
+        
+        // 1. Fetch KMB data independently
+        let kmbStops = [];
+        try {
+            const res = await fetch(KMB_STOPS_API);
+            const json = await res.json();
+            if (json && json.data) {
+                kmbStops = json.data.map(s => ({
+                    id: s.stop,
+                    name: s.name_tc || s.name_en,
+                    lat: parseFloat(s.lat),
+                    lng: parseFloat(s.long || s.lng),
+                    company: 'KMB'
+                }));
+            }
+        } catch (e) {
+            console.error('KMB fetch failed:', e);
         }
 
-        const kmbStops = kmbRes.data.map(s => ({
-            id: s.stop,
-            name: s.name_tc || s.name_en,
-            lat: parseFloat(s.lat),
-            lng: parseFloat(s.long || s.lng),
-            company: 'KMB'
-        }));
+        // 2. Fetch Citybus data independently using a secure backend text wrapper
+        let ctbStops = [];
+        try {
+            const targetUrl = encodeURIComponent('https://rt.data.gov.hk/v2/transport/citybus/stop');
+            const res = await fetch(`https://api.allorigins.win/get?url=${targetUrl}`);
+            const wrapper = await res.json();
+            if (wrapper && wrapper.contents) {
+                const json = JSON.parse(wrapper.contents);
+                if (json && json.data) {
+                    ctbStops = json.data.map(s => ({
+                        id: s.stop,
+                        name: s.name_tc || s.name_en,
+                        lat: parseFloat(s.lat),
+                        lng: parseFloat(s.long || s.lng),
+                        company: 'CTB'
+                    }));
+                }
+            }
+        } catch (e) {
+            console.error('Citybus fetch failed:', e);
+        }
 
-        const ctbStops = ctbRes.data.map(s => ({
-            id: s.stop,
-            name: s.name_tc || s.name_en,
-            lat: parseFloat(s.lat),
-            lng: parseFloat(s.long || s.lng),
-            company: 'CTB'
-        }));
-
+        // Combine whichever dataset successfully downloaded
         stopDatabase = [...kmbStops, ...ctbStops];
-        localStorage.setItem(cacheKey, JSON.stringify(stopDatabase));
-        localStorage.setItem(cacheTimeKey, Date.now().toString());
-        updateStatus('Ready');
+
+        if (stopDatabase.length > 0) {
+            localStorage.setItem(cacheKey, JSON.stringify(stopDatabase));
+            localStorage.setItem(cacheTimeKey, Date.now().toString());
+            updateStatus(`Ready (${kmbStops.length} KMB, ${ctbStops.length} CTB stops loaded)`);
+        } else {
+            updateStatus('Failed to download transit data. Check network connection.');
+        }
     } catch (err) {
         console.error(err);
-        updateStatus('System initialization failed. Review developer log console.');
+        updateStatus('System initialization failed.');
     }
 }
 
@@ -283,36 +301,27 @@ function renderStops(stops) {
     });
 }
 
-function formatEta(etaTimestamp) {
-    if (!etaTimestamp) return '--:--';
-    const etaDate = new Date(etaTimestamp);
-    const diffMs = etaDate - Date.now();
-    const diffMins = Math.max(0, Math.floor(diffMs / 60000));
-    
-    const hours = String(etaDate.getHours()).padStart(2, '0');
-    const mins = String(etaDate.getMinutes()).padStart(2, '0');
-    const clockTime = `${hours}:${mins}`;
-
-    if (diffMins <= 0) return `${clockTime} (Arv)`;
-    return `${clockTime} (${diffMins}m)`;
-}
-
 async function fetchETA(company, stopId, isFavSection) {
     const prefix = isFavSection ? 'fav' : 'res';
     const listContainer = document.getElementById(`eta-list-${prefix}-${company}-${stopId}`);
     if (!listContainer) return;
 
     try {
-        let url = '';
+        let etaData = [];
         if (company === 'KMB') {
-            url = `${KMB_STOP_ETA}/${stopId}`;
+            const res = await fetch(`${KMB_STOP_ETA}/${stopId}`);
+            const json = await res.json();
+            etaData = json.data || [];
         } else if (company === 'CTB') {
-            url = `${CTB_STOP_ETA}/${stopId}`;
+            const targetUrl = encodeURIComponent(`https://rt.data.gov.hk/v1/transport/batch/stop-eta/CTB/${stopId}`);
+            const res = await fetch(`https://api.allorigins.win/get?url=${targetUrl}`);
+            const wrapper = await res.json();
+            if (wrapper && wrapper.contents) {
+                const json = JSON.parse(wrapper.contents);
+                etaData = json.data || [];
+            }
         }
-
-        const res = await fetch(url);
-        const json = await res.json();
-        displayGenericEta(listContainer, json.data || [], company);
+        displayGenericEta(listContainer, etaData, company);
     } catch (err) {
         console.error(err);
         listContainer.innerHTML = `<div style="color:#ff3b30; font-size:13px;">ETA breakdown failed to load.</div>`;
@@ -374,6 +383,20 @@ function displayGenericEta(container, etaData, company) {
     if (renderedCount === 0) {
         container.innerHTML = `<div style="font-size:13px; color:#86868b; padding:4px 0; font-style: italic;">No active routes matching filter preferences.</div>`;
     }
+}
+
+function formatEta(etaTimestamp) {
+    if (!etaTimestamp) return '--:--';
+    const etaDate = new Date(etaTimestamp);
+    const diffMs = etaDate - Date.now();
+    const diffMins = Math.max(0, Math.floor(diffMs / 60000));
+    
+    const hours = String(etaDate.getHours()).padStart(2, '0');
+    const mins = String(etaDate.getMinutes()).padStart(2, '0');
+    const clockTime = `${hours}:${mins}`;
+
+    if (diffMins <= 0) return `${clockTime} (Arv)`;
+    return `${clockTime} (${diffMins}m)`;
 }
 
 function updateStatus(msg) {

@@ -51,35 +51,6 @@
             flex-shrink: 0;
         }
 
-        .tab-container {
-            display: flex;
-            background-color: #e9ecef;
-            padding: 4px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            gap: 4px;
-        }
-
-        .tab-btn {
-            flex: 1;
-            background: none;
-            border: none;
-            padding: 10px;
-            font-size: 0.9rem;
-            font-weight: 600;
-            border-radius: 6px;
-            cursor: pointer;
-            color: var(--text-muted);
-            text-align: center;
-            transition: background-color 0.15s, color 0.15s;
-        }
-
-        .tab-btn.active {
-            background-color: var(--surface);
-            color: var(--text-main);
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-        }
-
         .action-group {
             display: flex;
             flex-direction: column;
@@ -219,17 +190,6 @@
         .vacancy-num { font-weight: 700; color: var(--success); }
         .vacancy-num.none { color: var(--danger); }
 
-        .ev-box {
-            margin-top: 8px;
-            padding: 10px 12px;
-            border-radius: 8px;
-            font-size: 0.85rem;
-            background-color: #f0f4f8;
-            border-left: 4px solid var(--accent);
-        }
-
-        .ev-num { font-weight: 700; color: var(--accent); }
-
         .empty-notice {
             text-align: center;
             padding: 20px;
@@ -247,11 +207,6 @@
             <option value="zh_TW" selected>繁體中文</option>
             <option value="en_US">English</option>
         </select>
-    </div>
-
-    <div class="tab-container">
-        <button id="tabOffStreet" class="tab-btn active" onclick="switchTab('offstreet')">室內停車場</button>
-        <button id="tabMetered" class="tab-btn" onclick="switchTab('metered')">路邊咪錶位</button>
     </div>
     
     <div class="action-group">
@@ -278,16 +233,14 @@
                 btnFavHide: "隱藏我的收藏",
                 favTitle: "我的收藏夾",
                 searchTitle: "搜尋結果",
-                tabOffStreet: "室內停車場",
-                tabMetered: "路邊咪錶位",
                 gpsLocating: "正在獲取您的位置...",
                 apiFetching: "正在讀取停車場數據...",
                 gpsError: "定位錯誤: ",
                 apiError: "處理數據出錯: ",
                 noSupport: "您的瀏覽器不支援地理定位功能。",
-                showingResults: "顯示最近的 30 個地點：",
-                noRecords: "未找到符合條件的地點紀錄。",
-                noFavs: "暫無收藏的項目。",
+                showingResults: "顯示最近的 30 個停車場：",
+                noRecords: "未找到符合過濾條件的停車場。",
+                noFavs: "暫無收藏的停車場。",
                 away: "公里外",
                 address: "地址",
                 district: "地區",
@@ -296,7 +249,6 @@
                 liveVacancy: "即時空位",
                 spaces: "個空置車位",
                 noVacancyData: "未有提供即時空位數據",
-                evAvailable: "可用電動車充電位",
                 addFav: "收藏",
                 removeFav: "取消收藏"
             },
@@ -307,16 +259,14 @@
                 btnFavHide: "Hide My Favorites",
                 favTitle: "My Favorites",
                 searchTitle: "Search Results",
-                tabOffStreet: "Off-Street Lots",
-                tabMetered: "On-Street Meters",
                 gpsLocating: "Acquiring location...",
                 apiFetching: "Fetching car park data...",
                 gpsError: "Location error: ",
                 apiError: "Error processing data: ",
                 noSupport: "Geolocation is not supported by your browser.",
-                showingResults: "Showing the nearest 30 records:",
-                noRecords: "No matching records found nearby.",
-                noFavs: "No favorited items yet.",
+                showingResults: "Showing the nearest 30 car parks:",
+                noRecords: "No car parks match your filter options.",
+                noFavs: "No favorited car parks yet.",
                 away: "km away",
                 address: "Address",
                 district: "District",
@@ -325,22 +275,18 @@
                 liveVacancy: "Live Vacancy",
                 spaces: "spaces available",
                 noVacancyData: "No live availability data provided",
-                evAvailable: "Available EV Chargers",
                 addFav: "Favorite",
                 removeFav: "Unfavorite"
             }
         };
 
         let currentLang = 'zh_TW';
-        let currentTab = 'offstreet';
         let userCoordinates = null;
         let cachedAllParks = [];
         let favorites = JSON.parse(localStorage.getItem('hk_carpark_favs')) || [];
 
         const langSelect = document.getElementById('langSelect');
         const uiTitle = document.getElementById('ui-title');
-        const tabOffStreet = document.getElementById('tabOffStreet');
-        const tabMetered = document.getElementById('tabMetered');
         const locateBtn = document.getElementById('locateBtn');
         const showFavBtn = document.getElementById('showFavBtn');
         const statusText = document.getElementById('status');
@@ -355,35 +301,12 @@
             locateBtn.textContent = i18n[currentLang].btnText;
             uiFavTitle.textContent = i18n[currentLang].favTitle;
             uiSearchTitle.textContent = i18n[currentLang].searchTitle;
-            tabOffStreet.textContent = i18n[currentLang].tabOffStreet;
-            tabMetered.textContent = i18n[currentLang].tabMetered;
             showFavBtn.textContent = favWrapper.style.display === 'none' ? i18n[currentLang].btnFavShow : i18n[currentLang].btnFavHide;
-        }
-
-        function switchTab(tabName) {
-            currentTab = tabName;
-            if (currentTab === 'offstreet') {
-                tabOffStreet.classList.add('active');
-                tabMetered.classList.remove('active');
-            } else {
-                tabMetered.classList.add('active');
-                tabOffStreet.classList.remove('active');
-            }
-            filterAndRenderData();
         }
 
         function filterAndRenderData() {
             if (!userCoordinates || cachedAllParks.length === 0) return;
-
-            let displayList = [...cachedAllParks];
-
-            if (currentTab === 'offstreet') {
-                displayList = displayList.filter(park => park.carpark_Type !== 'metered');
-            } else {
-                displayList = displayList.filter(park => park.carpark_Type === 'metered');
-            }
-
-            const finalSelection = displayList.slice(0, 30);
+            const finalSelection = cachedAllParks.slice(0, 30);
             displayResults(finalSelection);
         }
 
@@ -527,26 +450,14 @@
             }
 
             let vacancyHTML = `<div class="vacancy-box">Notice: ${t.noVacancyData}</div>`;
-            let evHTML = '';
-
             if (park.liveInfo && park.liveInfo.privateCar && park.liveInfo.privateCar.length > 0) {
-                const pcData = park.liveInfo.privateCar[0];
-                const count = pcData.vacancy;
+                const count = park.liveInfo.privateCar[0].vacancy;
                 if (count !== undefined && count !== null && count >= 0) {
                     const isZero = count === 0;
                     vacancyHTML = `
                         <div class="vacancy-box ${isZero ? 'full' : 'available'}">
                             <strong>${t.liveVacancy}:</strong> 
                             <span class="vacancy-num ${isZero ? 'none' : ''}">${count}</span> ${t.spaces}
-                        </div>`;
-                }
-
-                const evCount = pcData.vacancyEV;
-                if (evCount !== undefined && evCount !== null && evCount >= 0) {
-                    evHTML = `
-                        <div class="ev-box">
-                            <strong>${t.evAvailable}:</strong> 
-                            <span class="ev-num">${evCount}</span>
                         </div>`;
                 }
             }
@@ -567,7 +478,7 @@
             if (park.district && park.district !== '---') {
                 infoGridItems += `<div class="info-label">${t.district}:</div><div>${park.district}</div>`;
             }
-            if (park.carpark_Type && park.carpark_Type !== '---' && park.carpark_Type !== 'metered') {
+            if (park.carpark_Type && park.carpark_Type !== '---') {
                 infoGridItems += `<div class="info-label">${currentLang === 'zh_TW' ? '類型' : 'Type'}:</div><div>${park.carpark_Type}</div>`;
             }
             if (heightText && heightText !== '---') {
@@ -589,7 +500,6 @@
                     
                     ${infoGridItems ? `<div class="info-grid">${infoGridItems}</div>` : ''}
                     ${vacancyHTML}
-                    ${evHTML}
                 </div>
             `;
         }

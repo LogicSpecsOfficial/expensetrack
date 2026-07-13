@@ -1,9 +1,9 @@
 const KMB_STOPS_API = 'https://data.etabus.gov.hk/v1/transport/kmb/stop';
 const KMB_STOP_ETA = 'https://data.etabus.gov.hk/v1/transport/kmb/stop-eta';
 
-// Point Citybus network actions safely to your internal backend proxy endpoints
-const CTB_STOPS_PROXY = '/api/proxy?type=stops';
-const CTB_ETA_PROXY = '/api/proxy?type=eta&id=';
+// Uses a public cross-origin utility to bypass browser restrictions directly in the frontend
+const CTB_STOPS_API = 'https://corsproxy.io/?' + encodeURIComponent('https://rt.data.gov.hk/v2/transport/citybus/stop');
+const CTB_ETA_API_PREFIX = 'https://corsproxy.io/?' + encodeURIComponent('https://rt.data.gov.hk/v1/transport/batch/stop-eta/CTB/');
 
 let stopDatabase = [];
 let favoriteStops = [];
@@ -25,8 +25,8 @@ async function initApp() {
     
     updateStatus('Loading bus stops into cache...');
     try {
-        const cached = localStorage.getItem('hk_bus_stops_v5_data');
-        const cacheTime = localStorage.getItem('hk_bus_stops_v5_time');
+        const cached = localStorage.getItem('hk_bus_stops_v6_data');
+        const cacheTime = localStorage.getItem('hk_bus_stops_v6_time');
         
         if (cached && cacheTime && (Date.now() - parseInt(cacheTime) < 86400000)) {
             stopDatabase = JSON.parse(cached);
@@ -37,7 +37,7 @@ async function initApp() {
         updateStatus('Downloading database (First run takes 5s)...');
         const [kmbRes, ctbRes] = await Promise.all([
             fetch(KMB_STOPS_API).then(r => r.json()),
-            fetch(CTB_STOPS_PROXY).then(r => r.json())
+            fetch(CTB_STOPS_API).then(r => r.json())
         ]);
 
         const kmbStops = (kmbRes.data || []).map(s => ({
@@ -57,8 +57,8 @@ async function initApp() {
         }));
 
         stopDatabase = [...kmbStops, ...ctbStops];
-        localStorage.setItem('hk_bus_stops_v5_data', JSON.stringify(stopDatabase));
-        localStorage.setItem('hk_bus_stops_v5_time', Date.now().toString());
+        localStorage.setItem('hk_bus_stops_v6_data', JSON.stringify(stopDatabase));
+        localStorage.setItem('hk_bus_stops_v6_time', Date.now().toString());
         updateStatus('Ready');
     } catch (err) {
         console.error(err);
@@ -286,7 +286,7 @@ async function fetchETA(company, stopId, isFavSection) {
         if (company === 'KMB') {
             url = `${KMB_STOP_ETA}/${stopId}`;
         } else if (company === 'CTB') {
-            url = `${CTB_ETA_PROXY}${stopId}`;
+            url = `${CTB_ETA_API_PREFIX}${stopId}`;
         }
 
         const res = await fetch(url);

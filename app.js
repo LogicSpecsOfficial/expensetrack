@@ -1,9 +1,9 @@
 const KMB_STOPS_API = 'https://data.etabus.gov.hk/v1/transport/kmb/stop';
 const KMB_STOP_ETA = 'https://data.etabus.gov.hk/v1/transport/kmb/stop-eta';
 
-// Uses a public cross-origin utility to bypass browser restrictions directly in the frontend
-const CTB_STOPS_API = 'https://corsproxy.io/?' + encodeURIComponent('https://rt.data.gov.hk/v2/transport/citybus/stop');
-const CTB_ETA_API_PREFIX = 'https://corsproxy.io/?' + encodeURIComponent('https://rt.data.gov.hk/v1/transport/batch/stop-eta/CTB/');
+// Implements a secondary cloud bypass utility to handle heavy transit payloads securely
+const CTB_STOPS_API = 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://rt.data.gov.hk/v2/transport/citybus/stop');
+const CTB_ETA_API_PREFIX = 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://rt.data.gov.hk/v1/transport/batch/stop-eta/CTB/');
 
 let stopDatabase = [];
 let favoriteStops = [];
@@ -25,8 +25,8 @@ async function initApp() {
     
     updateStatus('Loading bus stops into cache...');
     try {
-        const cached = localStorage.getItem('hk_bus_stops_v6_data');
-        const cacheTime = localStorage.getItem('hk_bus_stops_v6_time');
+        const cached = localStorage.getItem('hk_bus_stops_v7_data');
+        const cacheTime = localStorage.getItem('hk_bus_stops_v7_time');
         
         if (cached && cacheTime && (Date.now() - parseInt(cacheTime) < 86400000)) {
             stopDatabase = JSON.parse(cached);
@@ -34,21 +34,30 @@ async function initApp() {
             return;
         }
 
-        updateStatus('Downloading database (First run takes 5s)...');
-        const [kmbRes, ctbRes] = await Promise.all([
-            fetch(KMB_STOPS_API).then(r => r.json()),
-            fetch(CTB_STOPS_API).then(r => r.json())
-        ]);
+        updateStatus('Downloading KMB database...');
+        const kmbRes = await fetch(KMB_STOPS_API).then(r => r.json());
+        
+        updateStatus('Downloading Citybus database...');
+        const ctbRes = await fetch(CTB_STOPS_API).then(r => r.json());
 
-        const kmbStops = (kmbRes.data || []).map(s => ({
+        if (!kmbRes || !kmbRes.data) {
+            updateStatus('Error: KMB data payload format is invalid.');
+            return;
+        }
+        if (!ctbRes || !ctbRes.data) {
+            updateStatus('Error: Citybus network data failed to load through cloud utility.');
+            return;
+        }
+
+        const kmbStops = kmbRes.data.map(s => ({
             id: s.stop,
             name: s.name_tc || s.name_en,
             lat: parseFloat(s.lat),
-            lng: parseFloat(s.long),
+            lng: parseFloat(s.long || s.lng),
             company: 'KMB'
         }));
 
-        const ctbStops = (ctbRes.data || []).map(s => ({
+        const ctbStops = ctbRes.data.map(s => ({
             id: s.stop,
             name: s.name_tc || s.name_en,
             lat: parseFloat(s.lat),
@@ -57,12 +66,12 @@ async function initApp() {
         }));
 
         stopDatabase = [...kmbStops, ...ctbStops];
-        localStorage.setItem('hk_bus_stops_v6_data', JSON.stringify(stopDatabase));
-        localStorage.setItem('hk_bus_stops_v6_time', Date.now().toString());
+        localStorage.setItem('hk_bus_stops_v7_data', JSON.stringify(stopDatabase));
+        localStorage.setItem('hk_bus_stops_v7_time', Date.now().toString());
         updateStatus('Ready');
     } catch (err) {
         console.error(err);
-        updateStatus('Failed to download stop data. Refresh page to retry.');
+        updateStatus('System initialization failed. Review developer log console.');
     }
 }
 

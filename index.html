@@ -428,6 +428,20 @@
             );
         });
 
+        showFavBtn.addEventListener('click', () => {
+            if (favWrapper.style.display === 'none') {
+                favWrapper.style.display = 'block';
+                if (cachedAllParks.length === 0) {
+                    silentFetchData();
+                } else {
+                    renderFavorites();
+                }
+            } else {
+                favWrapper.style.display = 'none';
+            }
+            updateUIStaticText();
+        });
+
         async function refreshActiveTabData() {
             if (!userCoordinates) return;
             statusText.textContent = i18n[currentLang].apiFetching;

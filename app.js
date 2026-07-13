@@ -1,7 +1,7 @@
 const KMB_STOPS_API = 'https://data.etabus.gov.hk/v1/transport/kmb/stop';
 const CTB_STOPS_API = 'https://rt.data.gov.hk/v2/transport/citybus/stop';
 const KMB_STOP_ETA = 'https://data.etabus.gov.hk/v1/transport/kmb/stop-eta';
-const CTB_ETA_ENDPOINT = 'https://rt.data.gov.hk/v2/transport/citybus/eta/ctb';
+const BATCH_STOP_ETA = 'https://rt.data.gov.hk/v1/transport/batch/stop-eta';
 
 let stopDatabase = [];
 let favoriteStops = [];
@@ -73,7 +73,6 @@ function toggleFavorite(stop) {
     if (index > -1) {
         favoriteStops.splice(index, 1);
     } else {
-        // Store essential stop metadata so it renders immediately on launch without full DB lookups
         favoriteStops.push({
             id: stop.id,
             name: stop.name,
@@ -85,13 +84,8 @@ function toggleFavorite(stop) {
     saveFavorites();
     renderFavorites();
     
-    // Refresh current search/GPS view elements to update star states globally
-    const activeResults = document.querySelectorAll('#stops-container .stop-card');
-    if (activeResults.length > 0) {
-        // Small trick to re-sync search view star buttons without re-fetching live network ETAs
-        const starBtn = document.querySelector(`[data-id="${stop.company}-${stop.id}"]`);
-        if (starBtn) starBtn.classList.toggle('active');
-    }
+    const starBtn = document.querySelector(`#stops-container [data-id="${stop.company}-${stop.id}"]`);
+    if (starBtn) starBtn.classList.toggle('active');
 }
 
 function renderFavorites() {
@@ -176,7 +170,7 @@ function findNearbyStops(lat, lng) {
     stopsWithDistance.sort((a, b) => a.distance - b.distance);
     const closestStops = stopsWithDistance.slice(0, 6);
 
-    document.getElementById('results-title').innerText = "Nearby Stops";
+    document.getElementById('results-section').classList.remove('hidden');
     renderStops(closestStops);
 }
 
@@ -186,7 +180,6 @@ function createStopCard(stop, isFavSection = false) {
     
     const prefix = isFavSection ? 'fav' : 'res';
     const isSaved = favoriteStops.some(f => f.id === stop.id && f.company === stop.company);
-    
     const distanceSpan = stop.distance !== undefined ? `<span class="stop-dist">${Math.round(stop.distance)}m away</span>` : '';
 
     stopEl.innerHTML = `
@@ -212,15 +205,7 @@ function createStopCard(stop, isFavSection = false) {
 
 function renderStops(stops) {
     const container = document.getElementById('stops-container');
-    const section = document.getElementById('results-section');
     container.innerHTML = '';
-    
-    if(stops.length === 0) {
-        section.classList.add('hidden');
-        return;
-    }
-
-    section.classList.remove('hidden');
     updateStatus(`Displaying nearest ${stops.length} stops.`);
 
     stops.forEach(stop => {
@@ -241,11 +226,12 @@ async function fetchETA(company, stopId, isFavSection) {
             const json = await res.json();
             displayGenericEta(listContainer, json.data || []);
         } else if (company === 'CTB') {
-            const res = await fetch(`${CTB_ETA_ENDPOINT}/${stopId}`);
+            const res = await fetch(`${BATCH_STOP_ETA}?company=CTB&stop_id=${stopId}`);
             const json = await res.json();
             displayGenericEta(listContainer, json.data || []);
         }
     } catch (err) {
+        console.error(err);
         listContainer.innerHTML = `<div style="color:#ff3b30; font-size:13px;">ETA breakdown failed to load.</div>`;
     }
 }

@@ -409,16 +409,12 @@
 
             let displayList = [...cachedAllParks];
 
-            // Apply vacancy filter if checked
             if (vacancyFilter.checked) {
                 displayList = displayList.filter(park => {
-                    if (!park.liveInfo || !park.liveInfo.vehicleTypes) return false;
-                    const pcData = park.liveInfo.vehicleTypes.find(v => v.type === 'privateCar');
-                    return pcData && pcData.vacancy !== undefined && pcData.vacancy !== null;
+                    return park.liveInfo && park.liveInfo.privateCar && park.liveInfo.privateCar.length > 0 && park.liveInfo.privateCar[0].vacancy !== undefined && park.liveInfo.privateCar[0].vacancy !== null;
                 });
             }
 
-            // Slice list down to selected limit size
             const maxLimit = parseInt(limitSelect.value) || 30;
             const finalSelection = displayList.slice(0, maxLimit);
 
@@ -575,19 +571,16 @@
                 }).join(' | ');
             }
 
-            let vacancyHTML = `<div class="vacancy-box"> ${t.noVacancyData}</div>`;
-            if (park.liveInfo && park.liveInfo.vehicleTypes) {
-                const privateCarData = park.liveInfo.vehicleTypes.find(v => v.type === 'privateCar');
-                if (privateCarData) {
-                    const count = privateCarData.vacancy;
-                    if (count !== undefined && count !== null && count >= 0) {
-                        const isZero = count === 0;
-                        vacancyHTML = `
-                            <div class="vacancy-box ${isZero ? 'full' : 'available'}">
-                                <strong>${t.liveVacancy}:</strong> 
-                                <span class="vacancy-num ${isZero ? 'none' : ''}">${count}</span> ${t.spaces}
-                            </div>`;
-                    }
+            let vacancyHTML = `<div class="vacancy-box">[!] ${t.noVacancyData}</div>`;
+            if (park.liveInfo && park.liveInfo.privateCar && park.liveInfo.privateCar.length > 0) {
+                const count = park.liveInfo.privateCar[0].vacancy;
+                if (count !== undefined && count !== null && count >= 0) {
+                    const isZero = count === 0;
+                    vacancyHTML = `
+                        <div class="vacancy-box ${isZero ? 'full' : 'available'}">
+                            <strong>${t.liveVacancy}:</strong> 
+                            <span class="vacancy-num ${isZero ? 'none' : ''}">${count}</span> ${t.spaces}
+                        </div>`;
                 }
             }
 

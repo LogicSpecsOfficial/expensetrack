@@ -1,5 +1,9 @@
 const KMB_STOPS_API = 'https://data.etabus.gov.hk/v1/transport/kmb/stop';
-const CTB_STOPS_API = 'https://rt.data.gov.hk/v2/transport/citybus/stop';
+const KMB_STOP_ETA = 'https://data.etabus.gov.hk/v1/transport/kmb/stop-eta';
+
+// Point Citybus network actions safely to your internal backend proxy endpoints
+const CTB_STOPS_PROXY = '/api/proxy?type=stops';
+const CTB_ETA_PROXY = '/api/proxy?type=eta&id=';
 
 let stopDatabase = [];
 let favoriteStops = [];
@@ -21,9 +25,8 @@ async function initApp() {
     
     updateStatus('Loading bus stops into cache...');
     try {
-        // Updated cache key version to force data recalculations on load
-        const cached = localStorage.getItem('hk_bus_stops_v4_data');
-        const cacheTime = localStorage.getItem('hk_bus_stops_v4_time');
+        const cached = localStorage.getItem('hk_bus_stops_v5_data');
+        const cacheTime = localStorage.getItem('hk_bus_stops_v5_time');
         
         if (cached && cacheTime && (Date.now() - parseInt(cacheTime) < 86400000)) {
             stopDatabase = JSON.parse(cached);
@@ -34,7 +37,7 @@ async function initApp() {
         updateStatus('Downloading database (First run takes 5s)...');
         const [kmbRes, ctbRes] = await Promise.all([
             fetch(KMB_STOPS_API).then(r => r.json()),
-            fetch(CTB_STOPS_API).then(r => r.json())
+            fetch(CTB_STOPS_PROXY).then(r => r.json())
         ]);
 
         const kmbStops = (kmbRes.data || []).map(s => ({
@@ -48,14 +51,14 @@ async function initApp() {
         const ctbStops = (ctbRes.data || []).map(s => ({
             id: s.stop,
             name: s.name_tc || s.name_en,
-            lat: parseFloat(s.lat) || (s.location ? parseFloat(s.location.lat) : 0),
-            lng: parseFloat(s.long) || parseFloat(s.lng) || (s.location ? parseFloat(s.location.long || s.location.lng) : 0),
+            lat: parseFloat(s.lat),
+            lng: parseFloat(s.long || s.lng),
             company: 'CTB'
         }));
 
         stopDatabase = [...kmbStops, ...ctbStops];
-        localStorage.setItem('hk_bus_stops_v4_data', JSON.stringify(stopDatabase));
-        localStorage.setItem('hk_bus_stops_v4_time', Date.now().toString());
+        localStorage.setItem('hk_bus_stops_v5_data', JSON.stringify(stopDatabase));
+        localStorage.setItem('hk_bus_stops_v5_time', Date.now().toString());
         updateStatus('Ready');
     } catch (err) {
         console.error(err);
@@ -195,14 +198,12 @@ function findNearbyStops(lat, lng) {
         distance: getDistance(lat, lng, stop.lat, stop.lng)
     }));
 
-    // Segregate companies to avoid density crowding out
     const kmbStops = stopsWithDistance.filter(s => s.company === 'KMB' && !isNaN(s.distance));
     const ctbStops = stopsWithDistance.filter(s => s.company === 'CTB' && !isNaN(s.distance));
 
     kmbStops.sort((a, b) => a.distance - b.distance);
     ctbStops.sort((a, b) => a.distance - b.distance);
 
-    // Pick top three closest locations for each company independently
     const closestKmb = kmbStops.slice(0, 3);
     const closestCtb = ctbStops.slice(0, 3);
 
@@ -283,9 +284,9 @@ async function fetchETA(company, stopId, isFavSection) {
     try {
         let url = '';
         if (company === 'KMB') {
-            url = `https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/${stopId}`;
+            url = `${KMB_STOP_ETA}/${stopId}`;
         } else if (company === 'CTB') {
-            url = `https://rt.data.gov.hk/v1/transport/batch/stop-eta/CTB/${stopId}`;
+            url = `${CTB_ETA_PROXY}${stopId}`;
         }
 
         const res = await fetch(url);

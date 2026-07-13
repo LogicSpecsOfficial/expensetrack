@@ -44,11 +44,12 @@ async function initApp() {
             company: 'KMB'
         }));
 
+        // Corrected mapping logic to safely traverse Citybus's nested location properties
         const ctbStops = (ctbRes.data || []).map(s => ({
             id: s.stop,
             name: s.name_tc || s.name_en,
-            lat: parseFloat(s.lat),
-            lng: parseFloat(s.long),
+            lat: s.location ? parseFloat(s.location.lat) : 0,
+            lng: s.location ? parseFloat(s.location.lng) : 0,
             company: 'CTB'
         }));
 
@@ -288,7 +289,6 @@ async function fetchETA(company, stopId, isFavSection) {
 function displayGenericEta(container, etaData, company) {
     const hideOutOfService = document.getElementById('toggle-out-of-service').checked;
     
-    // Group all incoming routes first regardless of ETA status
     const uniqueRoutes = {};
     etaData.forEach(item => {
         const key = `${item.route}_${item.dir}_${item.dest_tc}`;
@@ -304,10 +304,8 @@ function displayGenericEta(container, etaData, company) {
     container.innerHTML = '';
 
     Object.values(uniqueRoutes).forEach(etags => {
-        // Filter out entries that lack a valid timestamp value
         const activeEntries = etags.filter(e => e.eta);
         
-        // If hiding out-of-service routes and there are no active ETAs, skip rendering this route row
         if (hideOutOfService && activeEntries.length === 0) {
             return;
         }

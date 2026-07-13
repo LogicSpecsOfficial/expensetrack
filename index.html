@@ -353,22 +353,26 @@
             if (currentTab === 'offstreet') {
                 tabOffStreet.classList.add('active');
                 tabMetered.classList.remove('active');
-                if (userCoordinates) {
-                    if (cachedAllParks.length > 0) {
-                        displayResults(cachedAllParks.slice(0, 30), false);
-                    } else {
-                        await refreshActiveTabData();
-                    }
-                }
             } else {
                 tabMetered.classList.add('active');
                 tabOffStreet.classList.remove('active');
-                if (userCoordinates) {
-                    if (cachedAllMeters.length > 0) {
-                        displayResults(cachedAllMeters.slice(0, 30), true);
-                    } else {
-                        await refreshActiveTabData();
-                    }
+            }
+            await renderActiveTabDisplay();
+        }
+
+        async function renderActiveTabDisplay() {
+            if (!userCoordinates) return;
+            if (currentTab === 'offstreet') {
+                if (cachedAllParks.length > 0) {
+                    displayResults(cachedAllParks.slice(0, 30), false);
+                } else {
+                    await refreshActiveTabData();
+                }
+            } else {
+                if (cachedAllMeters.length > 0) {
+                    displayResults(cachedAllMeters.slice(0, 30), true);
+                } else {
+                    await refreshActiveTabData();
                 }
             }
         }
@@ -490,7 +494,7 @@
                 const status = occupancyMap.get(row.ParkingSpaceId) || 'V';
 
                 cachedAllMeters.push({
-                    id: row.ParkingSpaceId,
+                    park_Id: row.ParkingSpaceId,
                     name: currentLang === 'zh_TW' ? `${row.Street_tc || ''} ${row.ParkingSpaceId}` : `${row.Street || ''} ${row.ParkingSpaceId}`,
                     address: currentLang === 'zh_TW' ? `${row.District_tc || ''} ${row.Street_tc || ''}` : `${row.District || ''} ${row.Street || ''}`,
                     district: currentLang === 'zh_TW' ? row.District_tc : row.District,
@@ -503,6 +507,18 @@
 
             cachedAllMeters.sort((a, b) => a.distance - b.distance);
             displayResults(cachedAllMeters.slice(0, 30), true);
+        }
+
+        function toggleFavorite(id) {
+            if (favorites.includes(id)) {
+                favorites = favorites.filter(favId => favId !== id);
+            } else {
+                favorites.push(id);
+            }
+            localStorage.setItem('hk_carpark_favs', JSON.stringify(favorites));
+            
+            renderFavorites();
+            renderActiveTabDisplay();
         }
 
         function generateCardHTML(park) {
@@ -549,25 +565,27 @@
 
         function generateMeterCardHTML(meter) {
             const t = i18n[currentLang];
-            const isFav = favorites.includes(meter.id);
+            const isFav = favorites.includes(meter.park_Id);
             const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(meter.address)}`;
             const isVacant = meter.vacancyStatus === 'V';
-            const statusText = isVacant ? (currentLang === 'zh_TW' ? '空置' : 'Vacant') : (currentLang === 'zh_TW' ? '使用中' : 'Occupied');
+            const statusLabel = isVacant ? (currentLang === 'zh_TW' ? '空置' : 'Vacant') : (currentLang === 'zh_TW' ? '使用中' : 'Occupied');
+
+            const distHTML = meter.distance !== Infinity ? `<span class="distance">${meter.distance.toFixed(2)} ${t.away}</span>` : '';
 
             return `
                 <div class="carpark-card">
                     <div class="card-header">
                         <div class="carpark-name">${meter.name}</div>
-                        <button class="card-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${meter.id}')">${isFav ? t.removeFav : t.addFav}</button>
+                        <button class="card-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${meter.park_Id}')">${isFav ? t.removeFav : t.addFav}</button>
                     </div>
-                    <div class="tags-row"><span class="distance">${meter.distance.toFixed(2)} ${t.away}</span></div>
+                    <div class="tags-row">${distHTML}</div>
                     <div class="info-grid">
                         <div class="info-label">${t.address}:</div><div><a href="${mapUrl}" target="_blank" class="map-link">${meter.address}</a></div>
                         <div class="info-label">${t.district}:</div><div>${meter.district || '---'}</div>
                     </div>
                     <div class="vacancy-box ${isVacant ? 'available' : 'full'}">
                         <strong>${t.liveVacancy}:</strong> 
-                        <span class="vacancy-num ${!isVacant ? 'none' : ''}">${statusText}</span>
+                        <span class="vacancy-num ${!isVacant ? 'none' : ''}">${statusLabel}</span>
                     </div>
                 </div>`;
         }
@@ -587,7 +605,7 @@
                 return;
             }
             const favOffstreet = cachedAllParks.filter(park => favorites.includes(park.park_Id));
-            const favMeters = cachedAllMeters.filter(meter => favorites.includes(meter.id));
+            const favMeters = cachedAllMeters.filter(meter => favorites.includes(meter.park_Id));
             
             let html = '';
             favOffstreet.forEach(p => html += generateCardHTML(p));

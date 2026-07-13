@@ -3,45 +3,230 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>最近的香港停車場</title>
+    <title>HK Car Parks</title>
     <style>
-        body { font-family: sans-serif; margin: 0; padding: 15px; background: #f5f5f5; color: #333; }
-        .header-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        h1 { font-size: 1.3rem; margin: 0; }
-        select { padding: 5px 10px; font-size: 0.9rem; border-radius: 4px; }
-        button { background: #007bff; color: white; border: none; padding: 12px 20px; font-size: 1rem; border-radius: 5px; width: 100%; cursor: pointer; font-weight: bold; margin-bottom: 10px; }
-        button:disabled { background: #aaa; }
-        .fav-toggle-btn { background: #28a745; }
-        #status { margin: 10px 0; font-style: italic; color: #666; }
-        .section-title { font-size: 1.1rem; font-weight: bold; margin-top: 20px; color: #444; border-bottom: 2px solid #ccc; padding-bottom: 5px; }
-        .carpark-card { background: white; padding: 15px; margin-top: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); position: relative; }
-        .carpark-name { font-size: 1.1rem; font-weight: bold; margin-bottom: 5px; padding-right: 90px; }
-        .carpark-meta { font-size: 0.9rem; color: #555; margin-bottom: 8px; }
-        .map-link, .phone-link { color: #007bff; text-decoration: underline; font-weight: 500; }
-        .badge { display: inline-block; padding: 3px 8px; font-size: 0.8rem; font-weight: bold; border-radius: 3px; text-transform: uppercase; }
-        .government { background: #e2f0d9; color: #385723; }
-        .commercial { background: #fff2cc; color: #7f6000; }
-        .distance { font-weight: bold; color: #d9534f; }
-        .fav-action-btn { position: absolute; top: 15px; right: 15px; padding: 4px 8px; font-size: 0.8rem; border-radius: 4px; border: 1px solid #ccc; background: #fff; cursor: pointer; color: #333; }
-        .fav-action-btn.active { background: #dc3545; color: white; border-color: #dc3545; }
-        .vacancy-section { margin-top: 8px; padding-top: 8px; border-top: 1px solid #eee; font-size: 0.9rem; }
-        .vacancy-num { font-weight: bold; color: #28a745; }
-        .vacancy-num.none { color: #dc3545; }
-        .fee-section { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #ddd; font-size: 0.85rem; color: #0056b3; }
+        :root {
+            --bg-primary: #f8f9fa;
+            --surface: #ffffff;
+            --text-main: #212529;
+            --text-muted: #6c757d;
+            --accent: #0d6efd;
+            --accent-hover: #0b5ed7;
+            --success: #198754;
+            --danger: #dc3545;
+            --border-color: #dee2e6;
+            --radius: 12px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-main);
+            padding: 16px;
+            line-height: 1.5;
+        }
+
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.5px; }
+
+        select {
+            padding: 6px 12px;
+            font-size: 0.9rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background-color: var(--surface);
+            color: var(--text-main);
+        }
+
+        .action-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button.main-btn {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            padding: 14px;
+            font-size: 1rem;
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-weight: 600;
+            transition: background-color 0.2s;
+            width: 100%;
+        }
+
+        button.main-btn:active { background-color: var(--accent-hover); }
+        button.main-btn:disabled { background-color: var(--border-color); color: var(--text-muted); }
+
+        button.secondary-btn {
+            background-color: transparent;
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            padding: 12px;
+            font-size: 0.95rem;
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-weight: 500;
+            width: 100%;
+        }
+
+        button.secondary-btn:active { background-color: #e9ecef; }
+
+        #status {
+            margin: 12px 0;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            text-align: center;
+        }
+
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 24px 0 12px 0;
+            color: var(--text-main);
+        }
+
+        .carpark-card {
+            background-color: var(--surface);
+            padding: 16px;
+            margin-bottom: 16px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border-color);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .carpark-name {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .card-fav-btn {
+            background-color: #f1f3f5;
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            padding: 6px 12px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            border-radius: 6px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .card-fav-btn.active {
+            background-color: var(--danger);
+            color: white;
+            border-color: var(--danger);
+        }
+
+        .tags-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            padding: 4px 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border-radius: 4px;
+        }
+
+        .government { background-color: #e2f0d9; color: #385723; }
+        .commercial { background-color: #fff2cc; color: #7f6000; }
+        .distance { font-size: 0.85rem; font-weight: 600; color: var(--danger); }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 6px 12px;
+            font-size: 0.9rem;
+            color: var(--text-main);
+        }
+
+        .info-label { color: var(--text-muted); font-weight: 500; }
+
+        .map-link, .phone-link {
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .vacancy-box {
+            margin-top: 14px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            background-color: #f8f9fa;
+            border-left: 4px solid var(--border-color);
+        }
+
+        .vacancy-box.available {
+            border-left-color: var(--success);
+            background-color: #f4fbf7;
+        }
+
+        .vacancy-box.full {
+            border-left-color: var(--danger);
+            background-color: #fff5f5;
+        }
+
+        .vacancy-num { font-weight: 700; color: var(--success); }
+        .vacancy-num.none { color: var(--danger); }
+
+        .fee-box {
+            margin-top: 10px;
+            font-size: 0.8rem;
+            color: #495057;
+            background-color: #f1f3f5;
+            padding: 8px 12px;
+            border-radius: 8px;
+        }
+
+        .empty-notice {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-muted);
+            font-style: italic;
+            font-size: 0.9rem;
+        }
     </style>
 </head>
 <body>
 
     <div class="header-container">
-        <h1 id="ui-title">最近的 5 個香港停車場</h1>
+        <h1 id="ui-title">最近的香港停車場</h1>
         <select id="langSelect">
             <option value="zh_TW" selected>繁體中文</option>
             <option value="en_US">English</option>
         </select>
     </div>
     
-    <button id="locateBtn">尋找最近的停車場</button>
-    <button id="showFavBtn" class="fav-toggle-btn">顯示我的收藏</button>
+    <div class="action-group">
+        <button id="locateBtn" class="main-btn">尋找最近的停車場</button>
+        <button id="showFavBtn" class="secondary-btn">顯示我的收藏</button>
+    </div>
+
     <p id="status"></p>
     
     <div id="fav-wrapper" style="display:none;">
@@ -55,7 +240,7 @@
     <script>
         const i18n = {
             zh_TW: {
-                title: "最近的 5 個香港停車場",
+                title: "最近的香港停車場",
                 btnText: "尋找最近的停車場",
                 btnFavShow: "顯示我的收藏",
                 btnFavHide: "隱藏我的收藏",
@@ -83,7 +268,7 @@
                 removeFav: "取消收藏"
             },
             en_US: {
-                title: "Nearest 5 HK Car Parks",
+                title: "Nearest HK Car Parks",
                 btnText: "Find Nearest Car Parks",
                 btnFavShow: "Show My Favorites",
                 btnFavHide: "Hide My Favorites",
@@ -288,16 +473,17 @@
                 }).join(' | ');
             }
 
-            let vacancyHTML = `<div class="vacancy-section" style="color: #666;">${t.noVacancyData}</div>`;
+            let vacancyHTML = `<div class="vacancy-box">⚠️ ${t.noVacancyData}</div>`;
             if (park.liveInfo && park.liveInfo.vehicleTypes) {
                 const privateCarData = park.liveInfo.vehicleTypes.find(v => v.type === 'privateCar');
                 if (privateCarData) {
                     const count = privateCarData.vacancy;
                     if (count !== undefined && count !== null && count >= 0) {
+                        const isZero = count === 0;
                         vacancyHTML = `
-                            <div class="vacancy-section">
+                            <div class="vacancy-box ${isZero ? 'full' : 'available'}">
                                 <strong>${t.liveVacancy}:</strong> 
-                                <span class="vacancy-num ${count === 0 ? 'none' : ''}">${count}</span> ${t.spaces}
+                                <span class="vacancy-num ${isZero ? 'none' : ''}">${count}</span> ${t.spaces}
                             </div>`;
                     }
                 }
@@ -309,29 +495,39 @@
                 contactHTML = `<a href="tel:${cleanPhone}" class="phone-link">${park.contactNo}</a>`;
             }
 
-            const distHTML = park.distance !== Infinity ? `• <span class="distance">${park.distance.toFixed(2)} ${t.away}</span>` : '';
+            const distHTML = park.distance !== Infinity ? `<span class="distance">${park.distance.toFixed(2)} ${t.away}</span>` : '';
             const favBtnText = isFav ? t.removeFav : t.addFav;
 
             return `
                 <div class="carpark-card">
-                    <button class="fav-action-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${park.park_Id}')">${favBtnText}</button>
-                    <div class="carpark-name">${park.name || '---'}</div>
-                    <div class="carpark-meta">
+                    <div class="card-header">
+                        <div class="carpark-name">${park.name || '---'}</div>
+                        <button class="card-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${park.park_Id}')">${favBtnText}</button>
+                    </div>
+                    <div class="tags-row">
                         <span class="badge ${park.nature === 'government' ? 'government' : 'commercial'}">${park.nature || '---'}</span>
                         ${distHTML}
                     </div>
-                    <div class="carpark-meta">
-                        <strong>${t.address}:</strong> 
-                        <a href="${mapUrl}" target="_blank" class="map-link">${displayAddress}</a>
+                    <div class="info-grid">
+                        <div class="info-label">${t.address}:</div>
+                        <div><a href="${mapUrl}" target="_blank" class="map-link">${displayAddress}</a></div>
+                        
+                        <div class="info-label">${t.district}:</div>
+                        <div>${park.district || '---'}</div>
+                        
+                        <div class="info-label">${currentLang === 'zh_TW' ? '類型' : 'Type'}:</div>
+                        <div>${park.carpark_Type || '---'}</div>
+                        
+                        <div class="info-label">${t.maxHeight}:</div>
+                        <div>${heightText}</div>
+                        
+                        <div class="info-label">${t.contact}:</div>
+                        <div>${contactHTML}</div>
                     </div>
-                    <div class="carpark-meta"><strong>${t.district}:</strong> ${park.district || '---'}</div>
-                    <div class="carpark-meta"><strong>${currentLang === 'zh_TW' ? '類型' : 'Type'}:</strong> ${park.carpark_Type || '---'}</div>
-                    <div class="carpark-meta"><strong>${t.maxHeight}:</strong> ${heightText}</div>
-                    <div class="carpark-meta"><strong>${t.contact}:</strong> ${contactHTML}</div>
                     
                     ${vacancyHTML}
 
-                    <div class="fee-section">
+                    <div class="fee-box">
                         <strong>${t.fees}:</strong> ${feeText}
                     </div>
                 </div>
@@ -341,7 +537,7 @@
         function displayResults(parks) {
             statusText.textContent = i18n[currentLang].showingResults;
             if (parks.length === 0) {
-                resultsDiv.innerHTML = `<p>${i18n[currentLang].noRecords}</p>`;
+                resultsDiv.innerHTML = `<div class="empty-notice">${i18n[currentLang].noRecords}</div>`;
                 return;
             }
             resultsDiv.innerHTML = parks.map(park => generateCardHTML(park)).join('');
@@ -349,7 +545,7 @@
 
         function renderFavorites() {
             if (favorites.length === 0) {
-                favoritesList.innerHTML = `<p style="font-style:italic; padding: 10px; color: #777;">${i18n[currentLang].noFavs}</p>`;
+                favoritesList.innerHTML = `<div class="empty-notice">${i18n[currentLang].noFavs}</div>`;
                 return;
             }
             const favParks = cachedAllParks.filter(park => favorites.includes(park.park_Id));

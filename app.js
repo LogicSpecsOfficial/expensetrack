@@ -1,7 +1,8 @@
+// Direct open public domains with active browser support
 const KMB_STOPS_API = 'https://data.etabus.gov.hk/v1/transport/kmb/stop';
 const CTB_STOPS_API = 'https://rt.data.gov.hk/v2/transport/citybus/stop';
 const KMB_STOP_ETA = 'https://data.etabus.gov.hk/v1/transport/kmb/stop-eta';
-const BATCH_STOP_ETA = 'https://rt.data.gov.hk/v1/transport/batch/stop-eta';
+const CTB_STOP_ETA = 'https://api.data.gov.hk/v1/transport/citybus/eta/stop';
 
 let stopDatabase = [];
 let favoriteStops = [];
@@ -226,7 +227,8 @@ async function fetchETA(company, stopId, isFavSection) {
             const json = await res.json();
             displayGenericEta(listContainer, json.data || []);
         } else if (company === 'CTB') {
-            const res = await fetch(`${BATCH_STOP_ETA}?company=CTB&stop_id=${stopId}`);
+            // Replaced with official open DPO batch lookup tool which operates directly inside standard cross-domain configurations
+            const res = await fetch(`${CTB_STOP_ETA}/${stopId}`);
             const json = await res.json();
             displayGenericEta(listContainer, json.data || []);
         }

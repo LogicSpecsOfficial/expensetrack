@@ -466,36 +466,36 @@
 
         function calculateOffStreetAIPrediction(currentVacancy) {
             if (currentVacancy === undefined || currentVacancy === null || currentVacancy < 0) return null;
+            if (currentVacancy === 0) return 0;
+
             const now = new Date();
             const hour = now.getHours();
-            const day = now.getDay();
-            let trendFactor = 1.0;
 
-            if (day >= 1 && day <= 5) {
-                if ((hour >= 8 && hour <= 10) || (hour >= 17 && hour <= 19)) {
-                    trendFactor = 0.72;
-                }
-            } else {
-                if (hour >= 12 && hour <= 18) {
-                    trendFactor = 0.65;
-                }
+            if (hour >= 23 || hour < 6) {
+                return 100;
             }
 
-            const baselineCapacity = 250;
-            let currentRatio = currentVacancy / baselineCapacity;
-            if (currentRatio > 1) currentRatio = 1;
+            const day = now.getDay();
+            let trendFactor = 1.0;
+            if (day >= 1 && day <= 5) {
+                if ((hour >= 8 && hour <= 10) || (hour >= 17 && hour <= 19)) trendFactor = 0.75;
+            } else {
+                if (hour >= 12 && hour <= 18) trendFactor = 0.65;
+            }
 
-            let prediction = currentRatio * trendFactor * 100;
-            if (prediction < 5 && currentVacancy > 0) prediction = 8;
-            if (prediction > 100) prediction = 100;
+            let prediction = Math.min(100, Math.max(15, currentVacancy * 4 * trendFactor));
             return Math.round(prediction);
         }
 
         function calculateMeteredAIPrediction(status) {
             const now = new Date();
             const hour = now.getHours();
+            
+            if (hour >= 23 || hour < 6) {
+                return status === 'V' ? 100 : 0;
+            }
+            
             const isPeak = hour >= 8 && hour <= 20;
-
             if (status === 'V') {
                 return isPeak ? 30 : 80;
             } else {

@@ -3,74 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>HK Bus ETA Tracker</title>
+    <title>Simple HK Bus Tracker</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-        body { background-color: #f5f5f7; color: #1d1d1f; padding: 16px; max-width: 600px; margin: 0 auto; padding-bottom: 40px; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+        body { background-color: #f5f5f7; color: #1d1d1f; padding: 16px; max-width: 500px; margin: 0 auto; }
         h1 { font-size: 20px; font-weight: 600; margin-bottom: 16px; text-align: center; }
         .card { background: #ffffff; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .search-box { display: flex; gap: 8px; margin-top: 12px; }
-        input[type="text"] { flex: 1; padding: 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 15px; outline: none; }
-        button { background-color: #0071e3; color: #ffffff; border: none; padding: 12px 16px; border-radius: 8px; font-size: 15px; font-weight: 500; cursor: pointer; transition: background 0.2s; }
+        .search-box { display: flex; gap: 8px; }
+        input { flex: 1; padding: 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 16px; outline: none; }
+        button { background-color: #0071e3; color: #ffffff; border: none; padding: 12px 16px; border-radius: 8px; font-size: 16px; font-weight: 500; cursor: pointer; }
         button:active { background-color: #005bb5; }
-        .btn-full { width: 100%; display: block; margin-bottom: 8px; }
-        .status { font-size: 14px; text-align: center; color: #86868b; margin: 8px 0; }
-        
-        .history-container { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
-        .history-tag { background: #e8e8ed; padding: 6px 12px; border-radius: 16px; font-size: 13px; cursor: pointer; color: #515154; }
-        
-        .toggle-container { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 14px; color: #515154; border-top: 1px solid #f5f5f7; padding-top: 12px; }
-        .toggle-container input { cursor: pointer; width: 16px; height: 16px; }
-
-        .section-title { font-size: 14px; font-weight: 600; color: #86868b; text-transform: uppercase; letter-spacing: 0.5px; margin: 16px 0 8px 4px; }
-        
-        .stop-card { background: #ffffff; border-radius: 12px; padding: 16px; margin-bottom: 12px; border-left: 5px solid #0071e3; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .stop-card.ctb { border-left-color: #ffcc00; }
-        .stop-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #f5f5f7; padding-bottom: 8px; }
-        .stop-info { display: flex; flex-direction: column; flex: 1; }
-        .stop-name { font-weight: 600; font-size: 16px; }
-        .stop-dist { font-size: 12px; color: #86868b; margin-top: 2px; }
-        
-        .btn-fav { background: none; border: none; color: #d2d2d7; font-size: 24px; padding: 0 4px; cursor: pointer; line-height: 1; width: auto; }
-        .btn-fav.active { color: #ffcc00; }
-
-        .eta-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #f5f5f7; }
-        .eta-row:last-child { border-bottom: none; }
-        .bus-no { font-weight: 700; font-size: 18px; color: #1d1d1f; min-width: 60px; }
-        .bus-dest { font-size: 14px; color: #515154; flex: 1; padding: 0 12px; }
-        .bus-time { font-weight: 600; font-size: 16px; color: #00802b; text-align: right; }
-        .hidden { display: none; }
+        .status { font-size: 14px; text-align: center; color: #86868b; margin-bottom: 16px; }
+        .company-badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 12px; font-weight: bold; margin-bottom: 8px; color: #fff; }
+        .kmb-badge { background-color: #d9383a; }
+        .ctb-badge { background-color: #0055b3; }
+        .stop-row { background: #ffffff; border-radius: 8px; padding: 12px; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; }
+        .stop-name { font-weight: 500; font-size: 15px; max-width: 60%; }
+        .eta-container { text-align: right; }
+        .eta-main { font-weight: 600; color: #00802b; font-size: 15px; }
+        .eta-sub { font-size: 12px; color: #86868b; margin-top: 2px; }
     </style>
 </head>
 <body>
 
-    <h1>HK Bus Tracker</h1>
+    <h1>HK Bus Route Tracker</h1>
 
     <div class="card">
-        <button id="btn-gps" class="btn-full">Get Current Location</button>
-        <div style="text-align: center; color: #86868b; font-size: 13px; margin: 4px 0;">— OR —</div>
         <div class="search-box">
-            <input type="text" id="search-input" placeholder="Enter HK address or landmark...">
+            <input type="text" id="route-input" placeholder="Enter Route (e.g., 101, N21, 6)...">
             <button id="btn-search">Search</button>
         </div>
-        <div id="history-list" class="history-container"></div>
-        <div class="toggle-container">
-            <input type="checkbox" id="toggle-out-of-service" checked>
-            <label for="toggle-out-of-service">Hide out-of-service bus routes</label>
-        </div>
     </div>
 
-    <div id="status-msg" class="status">Initializing system database...</div>
-    
-    <div id="fav-section" class="hidden">
-        <div class="section-title">Bookmarked Stops</div>
-        <div id="fav-container"></div>
-    </div>
-
-    <div id="results-section" class="hidden">
-        <div id="results-title" class="section-title">Nearby Stops</div>
-        <div id="stops-container"></div>
-    </div>
+    <div id="status-msg" class="status">Enter a bus route to see live ETAs.</div>
+    <div id="results-container"></div>
 
     <script src="app.js"></script>
 </body>

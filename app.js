@@ -1,9 +1,8 @@
+// Native government open data streams with cross-domain support enabled
 const KMB_STOPS_API = 'https://data.etabus.gov.hk/v1/transport/kmb/stop';
+const CTB_STOPS_API = 'https://rt.data.gov.hk/v2/transport/citybus/stop';
 const KMB_STOP_ETA = 'https://data.etabus.gov.hk/v1/transport/kmb/stop-eta';
-
-// Implements a secondary cloud bypass utility to handle heavy transit payloads securely
-const CTB_STOPS_API = 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://rt.data.gov.hk/v2/transport/citybus/stop');
-const CTB_ETA_API_PREFIX = 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://rt.data.gov.hk/v1/transport/batch/stop-eta/CTB/');
+const CTB_STOP_ETA = 'https://rt.data.gov.hk/v1/transport/batch/stop-eta/CTB';
 
 let stopDatabase = [];
 let favoriteStops = [];
@@ -25,8 +24,11 @@ async function initApp() {
     
     updateStatus('Loading bus stops into cache...');
     try {
-        const cached = localStorage.getItem('hk_bus_stops_v7_data');
-        const cacheTime = localStorage.getItem('hk_bus_stops_v7_time');
+        const cacheKey = 'hk_bus_stops_v8_data';
+        const cacheTimeKey = 'hk_bus_stops_v8_time';
+        
+        const cached = localStorage.getItem(cacheKey);
+        const cacheTime = localStorage.getItem(cacheTimeKey);
         
         if (cached && cacheTime && (Date.now() - parseInt(cacheTime) < 86400000)) {
             stopDatabase = JSON.parse(cached);
@@ -34,18 +36,14 @@ async function initApp() {
             return;
         }
 
-        updateStatus('Downloading KMB database...');
-        const kmbRes = await fetch(KMB_STOPS_API).then(r => r.json());
-        
-        updateStatus('Downloading Citybus database...');
-        const ctbRes = await fetch(CTB_STOPS_API).then(r => r.json());
+        updateStatus('Downloading transit databases directly from Gov Data portal...');
+        const [kmbRes, ctbRes] = await Promise.all([
+            fetch(KMB_STOPS_API).then(r => r.json()),
+            fetch(CTB_STOPS_API).then(r => r.json())
+        ]);
 
-        if (!kmbRes || !kmbRes.data) {
-            updateStatus('Error: KMB data payload format is invalid.');
-            return;
-        }
-        if (!ctbRes || !ctbRes.data) {
-            updateStatus('Error: Citybus network data failed to load through cloud utility.');
+        if (!kmbRes || !kmbRes.data || !ctbRes || !ctbRes.data) {
+            updateStatus('Error: Received incomplete data formats from government feeds.');
             return;
         }
 
@@ -66,8 +64,8 @@ async function initApp() {
         }));
 
         stopDatabase = [...kmbStops, ...ctbStops];
-        localStorage.setItem('hk_bus_stops_v7_data', JSON.stringify(stopDatabase));
-        localStorage.setItem('hk_bus_stops_v7_time', Date.now().toString());
+        localStorage.setItem(cacheKey, JSON.stringify(stopDatabase));
+        localStorage.setItem(cacheTimeKey, Date.now().toString());
         updateStatus('Ready');
     } catch (err) {
         console.error(err);
@@ -285,6 +283,20 @@ function renderStops(stops) {
     });
 }
 
+function formatEta(etaTimestamp) {
+    if (!etaTimestamp) return '--:--';
+    const etaDate = new Date(etaTimestamp);
+    const diffMs = etaDate - Date.now();
+    const diffMins = Math.max(0, Math.floor(diffMs / 60000));
+    
+    const hours = String(etaDate.getHours()).padStart(2, '0');
+    const mins = String(etaDate.getMinutes()).padStart(2, '0');
+    const clockTime = `${hours}:${mins}`;
+
+    if (diffMins <= 0) return `${clockTime} (Arv)`;
+    return `${clockTime} (${diffMins}m)`;
+}
+
 async function fetchETA(company, stopId, isFavSection) {
     const prefix = isFavSection ? 'fav' : 'res';
     const listContainer = document.getElementById(`eta-list-${prefix}-${company}-${stopId}`);
@@ -295,7 +307,7 @@ async function fetchETA(company, stopId, isFavSection) {
         if (company === 'KMB') {
             url = `${KMB_STOP_ETA}/${stopId}`;
         } else if (company === 'CTB') {
-            url = `${CTB_ETA_API_PREFIX}${stopId}`;
+            url = `${CTB_STOP_ETA}/${stopId}`;
         }
 
         const res = await fetch(url);
@@ -362,20 +374,6 @@ function displayGenericEta(container, etaData, company) {
     if (renderedCount === 0) {
         container.innerHTML = `<div style="font-size:13px; color:#86868b; padding:4px 0; font-style: italic;">No active routes matching filter preferences.</div>`;
     }
-}
-
-function formatEta(etaTimestamp) {
-    if (!etaTimestamp) return '--:--';
-    const etaDate = new Date(etaTimestamp);
-    const diffMs = etaDate - Date.now();
-    const diffMins = Math.max(0, Math.floor(diffMs / 60000));
-    
-    const hours = String(etaDate.getHours()).padStart(2, '0');
-    const mins = String(etaDate.getMinutes()).padStart(2, '0');
-    const clockTime = `${hours}:${mins}`;
-
-    if (diffMins <= 0) return `${clockTime} (Arv)`;
-    return `${clockTime} (${diffMins}m)`;
 }
 
 function updateStatus(msg) {

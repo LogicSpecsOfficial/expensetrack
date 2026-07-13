@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nearest HK Car Parks</title>
+    <title>最近的香港停車場</title>
     <style>
         body { font-family: sans-serif; margin: 0; padding: 15px; background: #f5f5f5; color: #333; }
         .header-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
@@ -28,40 +28,19 @@
 <body>
 
     <div class="header-container">
-        <h1 id="ui-title">Nearest 5 HK Car Parks</h1>
+        <h1 id="ui-title">最近的 5 個香港停車場</h1>
         <select id="langSelect">
+            <option value="zh_TW" selected>繁體中文</option>
             <option value="en_US">English</option>
-            <option value="zh_TW">繁體中文</option>
         </select>
     </div>
     
-    <button id="locateBtn">Find Nearest Car Parks</button>
+    <button id="locateBtn">尋找最近的停車場</button>
     <p id="status"></p>
     <div id="results"></div>
 
     <script>
         const i18n = {
-            en_US: {
-                title: "Nearest 5 HK Car Parks",
-                btnText: "Find Nearest Car Parks",
-                gpsLocating: "Acquiring location...",
-                apiFetching: "Fetching car park data...",
-                gpsError: "Location error: ",
-                apiError: "Error processing data: ",
-                noSupport: "Geolocation is not supported by your browser.",
-                showingResults: "Showing the nearest 5 car parks:",
-                noRecords: "No car park records returned.",
-                away: "km away",
-                address: "Address",
-                district: "District",
-                maxHeight: "Max Height",
-                contact: "Contact",
-                fees: "Fees Preview",
-                hourly: "Hourly",
-                liveVacancy: "Live Vacancy",
-                spaces: "spaces available",
-                noVacancyData: "No live availability data provided"
-            },
             zh_TW: {
                 title: "最近的 5 個香港停車場",
                 btnText: "尋找最近的停車場",
@@ -82,10 +61,32 @@
                 liveVacancy: "即時空位",
                 spaces: "個空置車位",
                 noVacancyData: "未有提供即時空位數據"
+            },
+            en_US: {
+                title: "Nearest 5 HK Car Parks",
+                btnText: "Find Nearest Car Parks",
+                gpsLocating: "Acquiring location...",
+                apiFetching: "Fetching car park data...",
+                gpsError: "Location error: ",
+                apiError: "Error processing data: ",
+                noSupport: "Geolocation is not supported by your browser.",
+                showingResults: "Showing the nearest 5 car parks:",
+                noRecords: "No car park records returned.",
+                away: "km away",
+                address: "Address",
+                district: "District",
+                maxHeight: "Max Height",
+                contact: "Contact",
+                fees: "Fees Preview",
+                hourly: "Hourly",
+                liveVacancy: "Live Vacancy",
+                spaces: "spaces available",
+                noVacancyData: "No live availability data provided"
             }
         };
 
-        let currentLang = 'en_US';
+        // Set Traditional Chinese as standard default variable
+        let currentLang = 'zh_TW';
         let userCoordinates = null;
 
         const langSelect = document.getElementById('langSelect');
@@ -148,13 +149,10 @@
 
         async function fetchCarParks(userLat, userLng) {
             try {
-                // Fetch static attributes info
                 const infoUrl = `https://api.data.gov.hk/v1/carpark-info-vacancy?data=info&lang=${currentLang}`;
-                // Fetch live vacancy indicators
                 const vacancyUrl = `https://api.data.gov.hk/v1/carpark-info-vacancy?data=vacancy&lang=${currentLang}`;
 
                 const [infoRes, vacancyRes] = await Promise.all([fetch(infoUrl), fetch(vacancyUrl)]);
-                
                 if (!infoRes.ok || !vacancyRes.ok) throw new Error("API network failure");
                 
                 const infoData = await infoRes.json();
@@ -163,7 +161,6 @@
                 const carparks = infoData.results || [];
                 const vacancies = vacancyData.results || [];
 
-                // Create a Map for quick lookup of real-time vacancy details by car park ID
                 const vacancyMap = new Map();
                 vacancies.forEach(v => vacancyMap.set(v.park_Id, v));
 
@@ -195,28 +192,39 @@
             const t = i18n[currentLang];
 
             resultsDiv.innerHTML = parks.map(park => {
-                // 1. Height limits processing
-                let heightText = '---';
-                if (park.heightRestrictions && park.heightRestrictions.length > 0) {
-                    heightText = park.heightRestrictions.map(h => `${h.height}m`).join(', ');
+                // Correctly fallback address extraction based on direct API schema variants
+                let displayAddress = '---';
+                if (park.displayAddress) {
+                    displayAddress = park.displayAddress;
+                } else if (park.address) {
+                    displayAddress = typeof park.address === 'string' ? park.address : (park.address.displayAddress || '---');
                 }
 
-                // 2. Fee structure mapping
+                // Explicit height limits extraction mapping
+                let heightText = '---';
+                if (park.heightRestrictions && park.heightRestrictions.length > 0) {
+                    heightText = park.heightRestrictions.map(h => h.height ? `${h.height}m` : '').filter(Boolean).join(', ') || '---';
+                }
+
+                // Explicit vehicle type extraction mapping
+                let typeText = park.carpark_Type || '---';
+
+                // Fee structure tracking
                 let feeText = '---';
                 if (park.parkingFees && park.parkingFees.length > 0) {
                     feeText = park.parkingFees.slice(0, 2).map(f => {
-                        const type = f.chargingType === 'Hourly' ? t.hourly : f.chargingType;
-                        return `${f.dayType}: HK$${f.fee} (${type})`;
+                        const type = f.chargingType === 'Hourly' ? t.hourly : (f.chargingType || '');
+                        return `${f.dayType || ''}: HK$${f.fee || ''} (${type})`;
                     }).join(' | ');
                 }
 
-                // 3. Live vacancy counts mapping
+                // Live vacancy status matching
                 let vacancyHTML = `<div class="vacancy-section" style="color: #666;">⚠️ ${t.noVacancyData}</div>`;
                 if (park.liveInfo && park.liveInfo.vehicleTypes) {
                     const privateCarData = park.liveInfo.vehicleTypes.find(v => v.type === 'privateCar');
                     if (privateCarData) {
                         const count = privateCarData.vacancy;
-                        if (count >= 0) {
+                        if (count !== undefined && count !== null && count >= 0) {
                             const isZero = count === 0;
                             vacancyHTML = `
                                 <div class="vacancy-section">
@@ -234,8 +242,9 @@
                             <span class="badge ${park.nature === 'government' ? 'government' : 'commercial'}">${park.nature || '---'}</span>
                             • <span class="distance">${park.distance.toFixed(2)} ${t.away}</span>
                         </div>
-                        <div class="carpark-meta"><strong>${t.address}:</strong> ${park.displayAddress || '---'}</div>
+                        <div class="carpark-meta"><strong>${t.address}:</strong> ${displayAddress}</div>
                         <div class="carpark-meta"><strong>${t.district}:</strong> ${park.district || '---'}</div>
+                        <div class="carpark-meta"><strong>${currentLang === 'zh_TW' ? '類型' : 'Type'}:</strong> ${typeText}</div>
                         <div class="carpark-meta"><strong>${t.maxHeight}:</strong> ${heightText}</div>
                         <div class="carpark-meta"><strong>${t.contact}:</strong> ${park.contactNo || '---'}</div>
                         

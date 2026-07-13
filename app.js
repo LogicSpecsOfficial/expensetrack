@@ -1,8 +1,5 @@
-// Direct open public domains with active browser support
 const KMB_STOPS_API = 'https://data.etabus.gov.hk/v1/transport/kmb/stop';
 const CTB_STOPS_API = 'https://rt.data.gov.hk/v2/transport/citybus/stop';
-const KMB_STOP_ETA = 'https://data.etabus.gov.hk/v1/transport/kmb/stop-eta';
-const CTB_STOP_ETA = 'https://api.data.gov.hk/v1/transport/citybus/eta/stop';
 
 let stopDatabase = [];
 let favoriteStops = [];
@@ -222,16 +219,16 @@ async function fetchETA(company, stopId, isFavSection) {
     if (!listContainer) return;
 
     try {
+        let url = '';
         if (company === 'KMB') {
-            const res = await fetch(`${KMB_STOP_ETA}/${stopId}`);
-            const json = await res.json();
-            displayGenericEta(listContainer, json.data || []);
+            url = `https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/${stopId}`;
         } else if (company === 'CTB') {
-            // Replaced with official open DPO batch lookup tool which operates directly inside standard cross-domain configurations
-            const res = await fetch(`${CTB_STOP_ETA}/${stopId}`);
-            const json = await res.json();
-            displayGenericEta(listContainer, json.data || []);
+            url = `https://rt.data.gov.hk/v1/transport/batch/stop-eta/CTB/${stopId}`;
         }
+
+        const res = await fetch(url);
+        const json = await res.json();
+        displayGenericEta(listContainer, json.data || []);
     } catch (err) {
         console.error(err);
         listContainer.innerHTML = `<div style="color:#ff3b30; font-size:13px;">ETA breakdown failed to load.</div>`;

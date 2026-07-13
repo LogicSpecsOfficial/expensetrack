@@ -1,275 +1,71 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full">
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Receiptly • Smart HK Tracker</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
-    body { font-family: 'Inter', system-ui, sans-serif; }
-    .receipt-preview { max-height: 380px; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>HK Bus ETA Tracker</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        body { background-color: #f5f5f7; color: #1d1d1f; padding: 16px; max-width: 600px; margin: 0 auto; padding-bottom: 40px; }
+        h1 { font-size: 20px; font-weight: 600; margin-bottom: 16px; text-align: center; }
+        .card { background: #ffffff; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .search-box { display: flex; gap: 8px; margin-top: 12px; }
+        input { flex: 1; padding: 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 15px; outline: none; }
+        button { background-color: #0071e3; color: #ffffff; border: none; padding: 12px 16px; border-radius: 8px; font-size: 15px; font-weight: 500; cursor: pointer; transition: background 0.2s; }
+        button:active { background-color: #005bb5; }
+        .btn-full { width: 100%; display: block; margin-bottom: 8px; }
+        .status { font-size: 14px; text-align: center; color: #86868b; margin: 8px 0; }
+        
+        /* Section styling */
+        .section-title { font-size: 14px; font-weight: 600; color: #86868b; text-transform: uppercase; letter-spacing: 0.5px; margin: 16px 0 8px 4px; }
+        
+        .stop-card { background: #ffffff; border-radius: 12px; padding: 16px; margin-bottom: 12px; border-left: 5px solid #0071e3; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .stop-card.ctb { border-left-color: #ffcc00; }
+        .stop-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #f5f5f7; padding-bottom: 8px; }
+        .stop-info { display: flex; flex-direction: column; flex: 1; }
+        .stop-name { font-weight: 600; font-size: 16px; }
+        .stop-dist { font-size: 12px; color: #86868b; margin-top: 2px; }
+        
+        /* Bookmark Star Button */
+        .btn-fav { background: none; border: none; color: #d2d2d7; font-size: 24px; padding: 0 4px; cursor: pointer; line-height: 1; width: auto; }
+        .btn-fav.active { color: #ffcc00; }
+        .btn-fav:active { background: none; transform: scale(1.1); }
+
+        .eta-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #f5f5f7; }
+        .eta-row:last-child { border-bottom: none; }
+        .bus-no { font-weight: 700; font-size: 18px; color: #1d1d1f; min-width: 60px; }
+        .bus-dest { font-size: 14px; color: #515154; flex: 1; padding: 0 12px; }
+        .bus-time { font-weight: 600; font-size: 16px; color: #00802b; text-align: right; }
+        .hidden { display: none; }
+    </style>
 </head>
-<body class="bg-zinc-950 text-white min-h-screen">
-  <div class="max-w-xl mx-auto">
-    <header class="bg-zinc-900 border-b border-zinc-800 sticky top-0 z-50 px-6 py-5">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <div class="w-9 h-9 bg-emerald-500 rounded-2xl flex items-center justify-center text-xl font-bold">R</div>
-          <div>
-            <h1 class="text-2xl font-semibold tracking-tight">Receiptly</h1>
-            <p class="text-xs text-emerald-400 -mt-1">Server OCR</p>
-          </div>
+<body>
+
+    <h1>HK Bus Tracker</h1>
+
+    <div class="card">
+        <button id="btn-gps" class="btn-full">Get Current Location</button>
+        <div style="text-align: center; color: #86868b; font-size: 13px; margin: 4px 0;">— OR —</div>
+        <div class="search-box">
+            <input type="text" id="search-input" placeholder="Enter HK address or landmark...">
+            <button id="btn-search">Search</button>
         </div>
-      </div>
-    </header>
-
-    <div class="px-6 pt-6 pb-24">
-      <div class="grid grid-cols-2 gap-4 mb-8">
-        <div class="bg-zinc-900 rounded-3xl p-5">
-          <div class="text-zinc-400 text-sm">This Month</div>
-          <div id="monthly-total" class="text-4xl font-semibold mt-2 text-emerald-400">$0.00</div>
-        </div>
-        <div class="bg-zinc-900 rounded-3xl p-5">
-          <div class="text-zinc-400 text-sm">Total Expenses</div>
-          <div id="total-expenses" class="text-4xl font-semibold mt-2">$0.00</div>
-        </div>
-      </div>
-
-      <div class="flex border-b border-zinc-800 mb-6">
-        <button onclick="switchTab(0)" id="tab-0" class="tab-btn flex-1 py-4 text-center font-medium border-b-2 border-emerald-500 text-emerald-400">History</button>
-        <button onclick="switchTab(1)" id="tab-1" class="tab-btn flex-1 py-4 text-center font-medium text-zinc-400">Monthly</button>
-      </div>
-
-      <div id="history-tab">
-        <div id="expense-list" class="space-y-3"></div>
-      </div>
-
-      <div id="monthly-tab" class="hidden">
-        <div id="monthly-list" class="space-y-4"></div>
-      </div>
     </div>
 
-    <div onclick="showAddModal()" class="fixed bottom-8 right-8 w-16 h-16 bg-emerald-500 hover:bg-emerald-600 rounded-3xl flex items-center justify-center shadow-2xl text-3xl active:scale-95 transition-all z-50">
-      <i class="fa-solid fa-camera"></i>
+    <div id="status-msg" class="status">Initializing system database...</div>
+    
+    <!-- Favorites Section -->
+    <div id="fav-section" class="hidden">
+        <div class="section-title">Bookmarked Stops</div>
+        <div id="fav-container"></div>
     </div>
-  </div>
 
-  <!-- Modal -->
-  <div id="add-modal" class="hidden fixed inset-0 bg-black/80 flex items-end z-[100]">
-    <div class="bg-zinc-900 w-full rounded-t-3xl max-h-[92vh] overflow-auto">
-      <div class="px-6 py-6">
-        <div class="flex justify-between items-center mb-6">
-          <h2 id="modal-title" class="text-2xl font-semibold">New Expense</h2>
-          <button onclick="hideAddModal()" class="text-3xl text-zinc-400">✕</button>
-        </div>
-
-        <div id="upload-area" class="border-2 border-dashed border-zinc-700 hover:border-emerald-500 rounded-3xl h-64 flex flex-col items-center justify-center cursor-pointer mb-6" onclick="document.getElementById('receipt-upload').click()">
-          <input type="file" id="receipt-upload" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
-          <i class="fa-solid fa-camera text-5xl mb-4 text-emerald-500"></i>
-          <p class="font-medium">Upload Receipt Photo</p>
-          <p class="text-xs text-zinc-500">Server-side OCR (better accuracy)</p>
-        </div>
-
-        <div id="preview-area" class="hidden mb-6">
-          <img id="receipt-preview" class="w-full rounded-3xl receipt-preview object-contain bg-zinc-950">
-          <button onclick="reRunOCR()" class="mt-3 text-emerald-400 flex items-center gap-2 text-sm">
-            <i class="fa-solid fa-redo"></i> Re-run OCR
-          </button>
-        </div>
-
-        <div class="space-y-5">
-          <div>
-            <label class="block text-zinc-400 text-sm mb-2">Date</label>
-            <input id="expense-date" type="date" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-4 text-white">
-          </div>
-          <div>
-            <label class="block text-zinc-400 text-sm mb-2">Merchant</label>
-            <input id="expense-merchant" type="text" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-4 text-white">
-          </div>
-          <div>
-            <label class="block text-zinc-400 text-sm mb-2">Amount (HKD)</label>
-            <div class="relative">
-              <span class="absolute left-5 top-1/2 -translate-y-1/2 text-zinc-400">$</span>
-              <input id="expense-amount" type="number" step="0.01" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-12 py-4 text-white text-lg font-medium">
-            </div>
-          </div>
-
-          <div class="pt-4 flex gap-3">
-            <button onclick="hideAddModal()" class="flex-1 py-5 rounded-3xl border border-zinc-700">Cancel</button>
-            <button onclick="saveExpense()" class="flex-1 bg-emerald-500 py-5 rounded-3xl font-semibold">Save Expense</button>
-          </div>
-        </div>
-      </div>
+    <!-- Nearby / Search Results Section -->
+    <div id="results-section" class="hidden">
+        <div id="results-title" class="section-title">Nearby Stops</div>
+        <div id="stops-container"></div>
     </div>
-  </div>
 
-  <script>
-    let expenses = JSON.parse(localStorage.getItem('receiptly_expenses')) || [];
-    let currentImage = null;
-
-    async function handleImageUpload(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = async (ev) => {
-        currentImage = ev.target.result;
-        document.getElementById('upload-area').classList.add('hidden');
-        document.getElementById('preview-area').classList.remove('hidden');
-        document.getElementById('receipt-preview').src = currentImage;
-        await processWithServerOCR(currentImage);
-      };
-      reader.readAsDataURL(file);
-    }
-
-    async function processWithServerOCR(imageDataUrl) {
-      const loading = document.createElement('div');
-      loading.className = "text-center text-emerald-400 mt-4 flex items-center justify-center gap-2";
-      loading.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Server OCR in progress...`;
-      document.getElementById('preview-area').appendChild(loading);
-
-      try {
-        const base64 = imageDataUrl.split(',')[1];
-
-        const res = await fetch('/api/ocr', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ image: base64 })
-        });
-
-        const data = await res.json();
-
-        if (data.error) {
-          alert("OCR Error: " + data.error);
-          return;
-        }
-
-        document.getElementById('expense-merchant').value = data.merchant || "Restaurant";
-        if (data.amount) document.getElementById('expense-amount').value = data.amount.toFixed(2);
-        if (data.date) document.getElementById('expense-date').value = data.date;
-
-      } catch (err) {
-        console.error(err);
-        alert("Server OCR failed. Please fill manually or try again.");
-      } finally {
-        loading.remove();
-      }
-    }
-
-    function reRunOCR() {
-      if (currentImage) processWithServerOCR(currentImage);
-    }
-
-    function removeImage() {
-      currentImage = null;
-      document.getElementById('preview-area').classList.add('hidden');
-      document.getElementById('upload-area').classList.remove('hidden');
-    }
-
-    function showAddModal() {
-      document.getElementById('add-modal').classList.remove('hidden');
-      document.getElementById('preview-area').classList.add('hidden');
-      document.getElementById('upload-area').classList.remove('hidden');
-      document.getElementById('expense-date').value = new Date().toISOString().split('T')[0];
-    }
-
-    function hideAddModal() {
-      document.getElementById('add-modal').classList.add('hidden');
-    }
-
-    function saveExpense() {
-      const merchant = document.getElementById('expense-merchant').value.trim();
-      const amount = parseFloat(document.getElementById('expense-amount').value);
-      const date = document.getElementById('expense-date').value;
-
-      if (!merchant || isNaN(amount) || !date) {
-        alert("Please fill merchant, amount and date");
-        return;
-      }
-
-      expenses.push({
-        id: Date.now(),
-        date,
-        merchant,
-        amount,
-        category: "Food",
-        image: currentImage
-      });
-
-      saveToLocal();
-      renderHistory();
-      calculateMonthlyTotal();
-      renderMonthly();
-      hideAddModal();
-    }
-
-    function saveToLocal() {
-      localStorage.setItem('receiptly_expenses', JSON.stringify(expenses));
-    }
-
-    function formatDate(dateStr) {
-      return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    }
-
-    function renderHistory() {
-      const container = document.getElementById('expense-list');
-      container.innerHTML = expenses.length === 0 
-        ? `<div class="text-center py-20 text-zinc-500">No expenses yet</div>` 
-        : '';
-
-      expenses.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(exp => {
-        const div = document.createElement('div');
-        div.className = 'bg-zinc-900 rounded-3xl p-5';
-        div.innerHTML = `
-          <div class="flex gap-4">
-            <div class="w-14 h-14 bg-zinc-800 rounded-2xl flex items-center justify-center text-3xl">🍽️</div>
-            <div class="flex-1">
-              <div class="flex justify-between">
-                <div>
-                  <div class="font-semibold">${exp.merchant}</div>
-                  <div class="text-xs text-zinc-500">${formatDate(exp.date)}</div>
-                </div>
-                <div class="text-right font-semibold text-xl">$${parseFloat(exp.amount).toFixed(2)}</div>
-              </div>
-            </div>
-          </div>
-        `;
-        container.appendChild(div);
-      });
-    }
-
-    function calculateMonthlyTotal() {
-      const now = new Date();
-      let monthTotal = 0, allTotal = 0;
-      expenses.forEach(exp => {
-        const amt = parseFloat(exp.amount);
-        allTotal += amt;
-        const d = new Date(exp.date);
-        if (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) monthTotal += amt;
-      });
-      document.getElementById('monthly-total').textContent = '$' + monthTotal.toFixed(2);
-      document.getElementById('total-expenses').textContent = '$' + allTotal.toFixed(2);
-    }
-
-    function renderMonthly() {
-      // Simple version
-      console.log("Monthly rendered");
-    }
-
-    function switchTab(n) {
-      document.getElementById('history-tab').classList.toggle('hidden', n !== 0);
-      document.getElementById('monthly-tab').classList.toggle('hidden', n !== 1);
-    }
-
-    window.onload = () => {
-      renderHistory();
-      calculateMonthlyTotal();
-      switchTab(0);
-    };
-  </script>
+    <script src="app.js"></script>
 </body>
 </html>

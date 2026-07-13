@@ -150,15 +150,6 @@
             flex-wrap: wrap;
         }
 
-        .badge {
-            padding: 4px 8px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            border-radius: 4px;
-        }
-
-        .government { background-color: #e2f0d9; color: #385723; }
-        .commercial { background-color: #fff2cc; color: #7f6000; }
         .distance { font-size: 0.85rem; font-weight: 600; color: var(--danger); }
 
         .info-grid {
@@ -512,7 +503,7 @@
                 }
             }
 
-            let vacancyHTML = `<div class="vacancy-box">${t.noVacancyData}</div>`;
+            let vacancyHTML = `<div class="vacancy-box">Notice: ${t.noVacancyData}</div>`;
             if (park.liveInfo && park.liveInfo.privateCar && park.liveInfo.privateCar.length > 0) {
                 const count = park.liveInfo.privateCar[0].vacancy;
                 if (count !== undefined && count !== null && count >= 0) {
@@ -563,7 +554,6 @@
                         <button class="card-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${park.park_Id}')">${favBtnText}</button>
                     </div>
                     <div class="tags-row">
-                        <span class="badge ${park.nature === 'government' ? 'government' : 'commercial'}">${park.nature || '---'}</span>
                         ${distHTML}
                     </div>
                     

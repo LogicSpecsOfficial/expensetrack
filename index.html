@@ -190,15 +190,6 @@
         .vacancy-num { font-weight: 700; color: var(--success); }
         .vacancy-num.none { color: var(--danger); }
 
-        .fee-box {
-            margin-top: 10px;
-            font-size: 0.8rem;
-            color: #495057;
-            background-color: #f1f3f5;
-            padding: 8px 12px;
-            border-radius: 8px;
-        }
-
         .empty-notice {
             text-align: center;
             padding: 20px;
@@ -248,19 +239,16 @@
                 apiError: "處理數據出錯: ",
                 noSupport: "您的瀏覽器不支援地理定位功能。",
                 showingResults: "顯示最近的 30 個停車場：",
-                noRecords: "未找到符合過濾條件的停車場。",
+                noRecords: "未找到符合條件的停車場。",
                 noFavs: "暫無收藏的停車場。",
                 away: "公里外",
                 address: "地址",
                 district: "地區",
                 maxHeight: "最高限高",
                 contact: "聯絡電話",
-                fees: "收費參考",
-                hourly: "每小時",
                 liveVacancy: "即時空位",
                 spaces: "個空置車位",
                 noVacancyData: "未有提供即時空位數據",
-                noFeeData: "未由營運商提供收費數據",
                 addFav: "收藏",
                 removeFav: "取消收藏"
             },
@@ -277,19 +265,16 @@
                 apiError: "Error processing data: ",
                 noSupport: "Geolocation is not supported by your browser.",
                 showingResults: "Showing the nearest 30 car parks:",
-                noRecords: "No car parks match your filter options.",
+                noRecords: "No car parks match your coordinates.",
                 noFavs: "No favorited car parks yet.",
                 away: "km away",
                 address: "Address",
                 district: "District",
                 maxHeight: "Max Height",
                 contact: "Contact",
-                fees: "Fees Preview",
-                hourly: "Hourly",
                 liveVacancy: "Live Vacancy",
                 spaces: "spaces available",
                 noVacancyData: "No live availability data provided",
-                noFeeData: "Pricing data not provided by operator",
                 addFav: "Favorite",
                 removeFav: "Unfavorite"
             }
@@ -464,45 +449,6 @@
                 heightText = park.heightRestrictions.map(h => h.height ? `${h.height}m` : '').filter(Boolean).join(', ');
             }
 
-            let feeText = '';
-            if (park.privateCar) {
-                let priceSignals = [];
-                if (park.privateCar.hourlyCharges && park.privateCar.hourlyCharges.length > 0) {
-                    park.privateCar.hourlyCharges.forEach(f => {
-                        if (f.price !== undefined && f.price !== null) {
-                            let dayStr = f.weekdays ? (Array.isArray(f.weekdays) ? f.weekdays.join(',') : f.weekdays) : '';
-                            priceSignals.push(`${dayStr ? dayStr + ' ' : ''}${t.hourly}: HK$${f.price}`);
-                        }
-                    });
-                }
-                if (park.privateCar.dayNightParks && park.privateCar.dayNightParks.length > 0) {
-                    park.privateCar.dayNightParks.forEach(f => {
-                        if (f.price !== undefined && f.price !== null) {
-                            let dayStr = f.weekdays ? (Array.isArray(f.weekdays) ? f.weekdays.join(',') : f.weekdays) : '';
-                            let typeLabel = f.type || '';
-                            priceSignals.push(`${dayStr ? dayStr + ' ' : ''}${typeLabel}: HK$${f.price}`);
-                        }
-                    });
-                }
-                if (priceSignals.length > 0) {
-                    feeText = priceSignals.slice(0, 3).join(' | ');
-                }
-            }
-
-            if (!feeText) {
-                let feesArray = park.parkingFees || park.parkingFee || park.prices || [];
-                if (feesArray && feesArray.length > 0) {
-                    feeText = feesArray.slice(0, 2).map(f => {
-                        const typeRaw = f.chargingType || f.type || '';
-                        const type = typeRaw === 'Hourly' ? t.hourly : typeRaw;
-                        const amt = f.fee !== undefined ? f.fee : (f.price !== undefined ? f.price : '');
-                        const day = f.dayType || '';
-                        if (!amt) return '';
-                        return `${day ? day + ' ' : ''}${type}: HK$${amt}`;
-                    }).filter(Boolean).join(' | ');
-                }
-            }
-
             let vacancyHTML = `<div class="vacancy-box">Notice: ${t.noVacancyData}</div>`;
             if (park.liveInfo && park.liveInfo.privateCar && park.liveInfo.privateCar.length > 0) {
                 const count = park.liveInfo.privateCar[0].vacancy;
@@ -542,11 +488,6 @@
                 infoGridItems += `<div class="info-label">${t.contact}:</div><div>${contactHTML}</div>`;
             }
 
-            let feeBoxHTML = `
-                <div class="fee-box">
-                    <strong>${t.fees}:</strong> ${feeText ? feeText : t.noFeeData}
-                </div>`;
-
             return `
                 <div class="carpark-card">
                     <div class="card-header">
@@ -559,7 +500,6 @@
                     
                     ${infoGridItems ? `<div class="info-grid">${infoGridItems}</div>` : ''}
                     ${vacancyHTML}
-                    ${feeBoxHTML}
                 </div>
             `;
         }

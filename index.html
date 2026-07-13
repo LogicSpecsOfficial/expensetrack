@@ -39,14 +39,16 @@
         h1 { font-size: 1.2rem; font-weight: 700; letter-spacing: -0.5px; white-space: nowrap; }
 
         select#langSelect {
-            padding: 4px 8px;
-            font-size: 0.8rem;
+            padding: 2px 6px;
+            font-size: 0.75rem;
             border-radius: 6px;
             border: 1px solid var(--border-color);
             background-color: var(--surface);
             color: var(--text-main);
             width: auto;
-            height: 28px;
+            max-width: 90px;
+            height: 26px;
+            flex-shrink: 0;
         }
 
         .controls-grid {
@@ -576,16 +578,48 @@
             }
 
             let feeText = '';
-            let feesArray = park.parkingFees || park.parkingFee || park.prices || [];
-            if (feesArray && feesArray.length > 0) {
-                feeText = feesArray.slice(0, 2).map(f => {
-                    const typeRaw = f.chargingType || f.type || '';
-                    const type = typeRaw === 'Hourly' ? t.hourly : typeRaw;
-                    const amt = f.fee !== undefined ? f.fee : (f.price !== undefined ? f.price : '');
-                    const day = f.dayType || '';
-                    if (!amt) return '';
-                    return `${day ? day + ' ' : ''}${type}: HK$${amt}`;
-                }).filter(Boolean).join(' | ');
+            if (park.privateCar) {
+                let priceSignals = [];
+                if (park.privateCar.hourlyCharges && park.privateCar.hourlyCharges.length > 0) {
+                    park.privateCar.hourlyCharges.forEach(f => {
+                        if (f.price !== undefined && f.price !== null) {
+                            let dayStr = '';
+                            if (f.weekdays) {
+                                dayStr = Array.isArray(f.weekdays) ? f.weekdays.join(',') : f.weekdays;
+                            }
+                            priceSignals.push(`${dayStr ? dayStr + ' ' : ''}${t.hourly}: HK$${f.price}`);
+                        }
+                    });
+                }
+                if (park.privateCar.dayNightParks && park.privateCar.dayNightParks.length > 0) {
+                    park.privateCar.dayNightParks.forEach(f => {
+                        if (f.price !== undefined && f.price !== null) {
+                            let dayStr = '';
+                            if (f.weekdays) {
+                                dayStr = Array.isArray(f.weekdays) ? f.weekdays.join(',') : f.weekdays;
+                            }
+                            let typeLabel = f.type || '';
+                            priceSignals.push(`${dayStr ? dayStr + ' ' : ''}${typeLabel}: HK$${f.price}`);
+                        }
+                    });
+                }
+                if (priceSignals.length > 0) {
+                    feeText = priceSignals.slice(0, 3).join(' | ');
+                }
+            }
+
+            if (!feeText) {
+                let feesArray = park.parkingFees || park.parkingFee || park.prices || [];
+                if (feesArray && feesArray.length > 0) {
+                    feeText = feesArray.slice(0, 2).map(f => {
+                        const typeRaw = f.chargingType || f.type || '';
+                        const type = typeRaw === 'Hourly' ? t.hourly : typeRaw;
+                        const amt = f.fee !== undefined ? f.fee : (f.price !== undefined ? f.price : '');
+                        const day = f.dayType || '';
+                        if (!amt) return '';
+                        return `${day ? day + ' ' : ''}${type}: HK$${amt}`;
+                    }).filter(Boolean).join(' | ');
+                }
             }
 
             let vacancyHTML = `<div class="vacancy-box">[!] ${t.noVacancyData}</div>`;
@@ -611,24 +645,24 @@
             const favBtnText = isFav ? t.removeFav : t.addFav;
 
             let infoGridItems = '';
-            if (displayAddress) {
+            if (displayAddress && displayAddress !== '---') {
                 infoGridItems += `<div class="info-label">${t.address}:</div><div><a href="${mapUrl}" target="_blank" class="map-link">${displayAddress}</a></div>`;
             }
-            if (park.district) {
+            if (park.district && park.district !== '---') {
                 infoGridItems += `<div class="info-label">${t.district}:</div><div>${park.district}</div>`;
             }
-            if (park.carpark_Type) {
+            if (park.carpark_Type && park.carpark_Type !== '---') {
                 infoGridItems += `<div class="info-label">${currentLang === 'zh_TW' ? '類型' : 'Type'}:</div><div>${park.carpark_Type}</div>`;
             }
-            if (heightText) {
+            if (heightText && heightText !== '---') {
                 infoGridItems += `<div class="info-label">${t.maxHeight}:</div><div>${heightText}</div>`;
             }
-            if (contactHTML) {
+            if (contactHTML && contactHTML !== '---') {
                 infoGridItems += `<div class="info-label">${t.contact}:</div><div>${contactHTML}</div>`;
             }
 
             let feeBoxHTML = '';
-            if (feeText) {
+            if (feeText && feeText.trim() !== '') {
                 feeBoxHTML = `
                     <div class="fee-box">
                         <strong>${t.fees}:</strong> ${feeText}

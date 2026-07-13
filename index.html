@@ -19,6 +19,10 @@
         .government { background: #e2f0d9; color: #385723; }
         .commercial { background: #fff2cc; color: #7f6000; }
         .distance { font-weight: bold; color: #d9534f; }
+        .vacancy-section { margin-top: 8px; padding-top: 8px; border-top: 1px solid #eee; font-size: 0.9rem; }
+        .vacancy-num { font-weight: bold; color: #28a745; }
+        .vacancy-num.none { color: #dc3545; }
+        .fee-section { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #ddd; font-size: 0.85rem; color: #0056b3; }
     </style>
 </head>
 <body>
@@ -36,7 +40,6 @@
     <div id="results"></div>
 
     <script>
-        // UI Translations Dictionary
         const i18n = {
             en_US: {
                 title: "Nearest 5 HK Car Parks",
@@ -51,7 +54,13 @@
                 away: "km away",
                 address: "Address",
                 district: "District",
-                type: "Type"
+                maxHeight: "Max Height",
+                contact: "Contact",
+                fees: "Fees Preview",
+                hourly: "Hourly",
+                liveVacancy: "Live Vacancy",
+                spaces: "spaces available",
+                noVacancyData: "No live availability data provided"
             },
             zh_TW: {
                 title: "最近的 5 個香港停車場",
@@ -66,7 +75,13 @@
                 away: "公里外",
                 address: "地址",
                 district: "地區",
-                type: "類型"
+                maxHeight: "最高限高",
+                contact: "聯絡電話",
+                fees: "收費參考",
+                hourly: "每小時",
+                liveVacancy: "即時空位",
+                spaces: "個空置車位",
+                noVacancyData: "未有提供即時空位數據"
             }
         };
 
@@ -79,17 +94,14 @@
         const statusText = document.getElementById('status');
         const resultsDiv = document.getElementById('results');
 
-        // Function to update static text on the screen
         function updateUIStaticText() {
             uiTitle.textContent = i18n[currentLang].title;
             locateBtn.textContent = i18n[currentLang].btnText;
         }
 
-        // Change language event listener
         langSelect.addEventListener('change', (e) => {
             currentLang = e.target.value;
             updateUIStaticText();
-            // If the user already pulled locations, re-fetch the API to get translations for the addresses
             if (userCoordinates) {
                 statusText.textContent = i18n[currentLang].apiFetching;
                 fetchCarParks(userCoordinates.lat, userCoordinates.lng);
@@ -136,16 +148,29 @@
 
         async function fetchCarParks(userLat, userLng) {
             try {
-                // Dynamically append the requested language parameter to the API URL
-                const response = await fetch(`https://api.data.gov.hk/v1/carpark-info-vacancy?data=info&lang=${currentLang}`);
-                if (!response.ok) throw new Error("API network failure");
+                // Fetch static attributes info
+                const infoUrl = `https://api.data.gov.hk/v1/carpark-info-vacancy?data=info&lang=${currentLang}`;
+                // Fetch live vacancy indicators
+                const vacancyUrl = `https://api.data.gov.hk/v1/carpark-info-vacancy?data=vacancy&lang=${currentLang}`;
+
+                const [infoRes, vacancyRes] = await Promise.all([fetch(infoUrl), fetch(vacancyUrl)]);
                 
-                const data = await response.json();
-                const carparks = data.results || [];
+                if (!infoRes.ok || !vacancyRes.ok) throw new Error("API network failure");
+                
+                const infoData = await infoRes.json();
+                const vacancyData = await vacancyRes.json();
+
+                const carparks = infoData.results || [];
+                const vacancies = vacancyData.results || [];
+
+                // Create a Map for quick lookup of real-time vacancy details by car park ID
+                const vacancyMap = new Map();
+                vacancies.forEach(v => vacancyMap.set(v.park_Id, v));
 
                 const processed = carparks.map(park => {
                     const distance = calculateDistance(userLat, userLng, park.latitude, park.longitude);
-                    return { ...park, distance };
+                    const liveInfo = vacancyMap.get(park.park_Id);
+                    return { ...park, distance, liveInfo };
                 });
 
                 processed.sort((a, b) => a.distance - b.distance);
@@ -169,21 +194,61 @@
 
             const t = i18n[currentLang];
 
-            resultsDiv.innerHTML = parks.map(park => `
-                <div class="carpark-card">
-                    <div class="carpark-name">${park.name || '---'}</div>
-                    <div class="carpark-meta">
-                        <span class="badge ${park.nature === 'government' ? 'government' : 'commercial'}">${park.nature || '---'}</span>
-                        • <span class="distance">${park.distance.toFixed(2)} ${t.away}</span>
+            resultsDiv.innerHTML = parks.map(park => {
+                // 1. Height limits processing
+                let heightText = '---';
+                if (park.heightRestrictions && park.heightRestrictions.length > 0) {
+                    heightText = park.heightRestrictions.map(h => `${h.height}m`).join(', ');
+                }
+
+                // 2. Fee structure mapping
+                let feeText = '---';
+                if (park.parkingFees && park.parkingFees.length > 0) {
+                    feeText = park.parkingFees.slice(0, 2).map(f => {
+                        const type = f.chargingType === 'Hourly' ? t.hourly : f.chargingType;
+                        return `${f.dayType}: HK$${f.fee} (${type})`;
+                    }).join(' | ');
+                }
+
+                // 3. Live vacancy counts mapping
+                let vacancyHTML = `<div class="vacancy-section" style="color: #666;">⚠️ ${t.noVacancyData}</div>`;
+                if (park.liveInfo && park.liveInfo.vehicleTypes) {
+                    const privateCarData = park.liveInfo.vehicleTypes.find(v => v.type === 'privateCar');
+                    if (privateCarData) {
+                        const count = privateCarData.vacancy;
+                        if (count >= 0) {
+                            const isZero = count === 0;
+                            vacancyHTML = `
+                                <div class="vacancy-section">
+                                    <strong>${t.liveVacancy}:</strong> 
+                                    <span class="vacancy-num ${isZero ? 'none' : ''}">${count}</span> ${t.spaces}
+                                </div>`;
+                        }
+                    }
+                }
+
+                return `
+                    <div class="carpark-card">
+                        <div class="carpark-name">${park.name || '---'}</div>
+                        <div class="carpark-meta">
+                            <span class="badge ${park.nature === 'government' ? 'government' : 'commercial'}">${park.nature || '---'}</span>
+                            • <span class="distance">${park.distance.toFixed(2)} ${t.away}</span>
+                        </div>
+                        <div class="carpark-meta"><strong>${t.address}:</strong> ${park.displayAddress || '---'}</div>
+                        <div class="carpark-meta"><strong>${t.district}:</strong> ${park.district || '---'}</div>
+                        <div class="carpark-meta"><strong>${t.maxHeight}:</strong> ${heightText}</div>
+                        <div class="carpark-meta"><strong>${t.contact}:</strong> ${park.contactNo || '---'}</div>
+                        
+                        ${vacancyHTML}
+
+                        <div class="fee-section">
+                            <strong>${t.fees}:</strong> ${feeText}
+                        </div>
                     </div>
-                    <div class="carpark-meta"><strong>${t.address}:</strong> ${park.displayAddress || '---'}</div>
-                    <div class="carpark-meta"><strong>${t.district}:</strong> ${park.district || '---'}</div>
-                    <div class="carpark-meta"><strong>${t.type}:</strong> ${park.carpark_Type || '---'}</div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
-        // Run initialization
         updateUIStaticText();
     </script>
 </body>

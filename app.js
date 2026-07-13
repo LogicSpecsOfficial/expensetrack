@@ -21,8 +21,9 @@ async function initApp() {
     
     updateStatus('Loading bus stops into cache...');
     try {
-        const cached = localStorage.getItem('hk_bus_stops_data');
-        const cacheTime = localStorage.getItem('hk_bus_stops_time');
+        // Updated unique cache keys to automatically force-clear old data profiles
+        const cached = localStorage.getItem('hk_bus_stops_v3_data');
+        const cacheTime = localStorage.getItem('hk_bus_stops_v3_time');
         
         if (cached && cacheTime && (Date.now() - parseInt(cacheTime) < 86400000)) {
             stopDatabase = JSON.parse(cached);
@@ -40,22 +41,27 @@ async function initApp() {
             id: s.stop,
             name: s.name_tc || s.name_en,
             lat: parseFloat(s.lat),
-            lng: parseFloat(s.long),
+            lng: parseFloat(s.long) || parseFloat(s.lng),
             company: 'KMB'
         }));
 
-        // Corrected mapping logic to safely traverse Citybus's nested location properties
-        const ctbStops = (ctbRes.data || []).map(s => ({
-            id: s.stop,
-            name: s.name_tc || s.name_en,
-            lat: s.location ? parseFloat(s.location.lat) : 0,
-            lng: s.location ? parseFloat(s.location.lng) : 0,
-            company: 'CTB'
-        }));
+        // Fallback coordinate mapping strategy to guarantee structural matching accuracy
+        const ctbStops = (ctbRes.data || []).map(s => {
+            const lat = s.lat ? parseFloat(s.lat) : (s.location && s.location.lat ? parseFloat(s.location.lat) : 0);
+            const lng = s.long ? parseFloat(s.long) : (s.lng ? parseFloat(s.lng) : (s.location && s.location.long ? parseFloat(s.location.long) : (s.location && s.location.lng ? parseFloat(s.location.lng) : 0)));
+            
+            return {
+                id: s.stop,
+                name: s.name_tc || s.name_en,
+                lat: lat,
+                lng: lng,
+                company: 'CTB'
+            };
+        });
 
         stopDatabase = [...kmbStops, ...ctbStops];
-        localStorage.setItem('hk_bus_stops_data', JSON.stringify(stopDatabase));
-        localStorage.setItem('hk_bus_stops_time', Date.now().toString());
+        localStorage.setItem('hk_bus_stops_v3_data', JSON.stringify(stopDatabase));
+        localStorage.setItem('hk_bus_stops_v3_time', Date.now().toString());
         updateStatus('Ready');
     } catch (err) {
         console.error(err);

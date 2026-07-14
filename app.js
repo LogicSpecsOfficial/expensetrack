@@ -2,6 +2,7 @@ let currentTab = 'offstreet';
 let userCoordinates = null;
 let cachedAllParks = [];
 let cachedAllMeters = [];
+let cachedAllToilets = []; // 用於保存獲取到的公廁數據
 let favorites = JSON.parse(localStorage.getItem('hk_carpark_favs')) || [];
 let searchHistory = JSON.parse(localStorage.getItem('hk_carpark_history')) || [];
 let activeMeterFilter = 'all';
@@ -16,6 +17,7 @@ let offstreetFilters = {
 const uiTitle = document.getElementById('ui-title');
 const tabOffStreet = document.getElementById('tabOffStreet');
 const tabMetered = document.getElementById('tabMetered');
+const tabToilet = document.getElementById('tabToilet'); // 綁定新增的 HTML 節點
 const locateBtn = document.getElementById('locateBtn');
 const showFavBtn = document.getElementById('showFavBtn');
 const refreshBtn = document.getElementById('refreshBtn');
@@ -31,7 +33,7 @@ const searchBtn = document.getElementById('searchBtn');
 const clearHistoryBtn = document.getElementById('clearHistoryBtn');
 const themeToggleBtn = document.getElementById('themeToggleBtn');
 
-// 新增搜尋切換相關 DOM 節點
+// 搜尋切換
 const searchToggleBtn = document.getElementById('searchToggleBtn');
 const searchWrapper = document.getElementById('searchWrapper');
 
@@ -78,8 +80,11 @@ function updateUIStaticText() {
 
     uiFavTitle.textContent = t.favTitle;
     uiSearchTitle.textContent = t.searchTitle;
+    
+    // 文字翻譯或默認
     tabOffStreet.textContent = t.tabOffStreet;
     tabMetered.textContent = t.tabMetered;
+    if (tabToilet) tabToilet.textContent = t.tabToilet || '公眾廁所';
     
     searchInput.placeholder = t.searchPlaceholder;
     searchBtn.textContent = t.searchBtnText;
@@ -113,7 +118,7 @@ function renderFilterPills() {
                 <button class="pill-btn color-blue ${offstreetFilters.sortByVacancy ? 'active' : ''}" onclick="toggleOffstreetFilter('sortByVacancy')">${t.optSortVacancy}</button>
             </div>
         `;
-    } else {
+    } else if (currentTab === 'metered') {
         statusHTML = `
             <div class="filter-row">
                 <button class="pill-btn color-blue ${activeMeterFilter === 'all' ? 'active' : ''}" onclick="setMeterFilter('all')">${t.optAll}</button>
@@ -121,6 +126,9 @@ function renderFilterPills() {
                 <button class="pill-btn color-red ${activeMeterFilter === 'occupied' ? 'active' : ''}" onclick="setMeterFilter('occupied')">${t.optOccupied}</button>
             </div>
         `;
+    } else {
+        // 公廁頁籤無狀態篩選需求，故僅保留距離篩選列即可
+        statusHTML = '';
     }
     
     filterContainer.innerHTML = distHTML + statusHTML;
@@ -128,13 +136,20 @@ function renderFilterPills() {
 
 async function switchTab(tabName) {
     currentTab = tabName;
+    
+    // 管理三個按鈕的 Active 樣式狀態
+    tabOffStreet.classList.remove('active');
+    tabMetered.classList.remove('active');
+    if (tabToilet) tabToilet.classList.remove('active');
+    
     if (currentTab === 'offstreet') {
         tabOffStreet.classList.add('active');
-        tabMetered.classList.remove('active');
-    } else {
+    } else if (currentTab === 'metered') {
         tabMetered.classList.add('active');
-        tabOffStreet.classList.remove('active');
+    } else if (currentTab === 'toilet') {
+        if (tabToilet) tabToilet.classList.add('active');
     }
+    
     renderFilterPills();
     renderFavorites();
     await renderActiveTabDisplay();
@@ -248,11 +263,11 @@ async function renderActiveTabDisplay() {
                 filteredParks.sort((a, b) => a.distance - b.distance);
             }
             
-            displayResults(filteredParks.slice(0, 30), false);
+            displayResults(filteredParks.slice(0, 30), 'offstreet');
         } else {
             await refreshActiveTabData(false);
         }
-    } else {
+    } else if (currentTab === 'metered') {
         if (cachedAllMeters.length > 0) {
             let groupedMeters = groupMeteredParking(cachedAllMeters);
             
@@ -267,7 +282,23 @@ async function renderActiveTabDisplay() {
                 groupedMeters = groupedMeters.filter(m => m.vacantSpaces === 0);
             }
             
-            displayResults(groupedMeters.slice(0, 30), true);
+            displayResults(groupedMeters.slice(0, 30), 'metered');
+        } else {
+            await refreshActiveTabData(false);
+        }
+    } else if (currentTab === 'toilet') {
+        if (cachedAllToilets.length > 0) {
+            let filteredToilets = [...cachedAllToilets];
+            
+            if (activeDistanceFilter !== 'all') {
+                const limit = parseFloat(activeDistanceFilter);
+                filteredToilets = filteredToilets.filter(t => t.distance <= limit);
+            }
+            
+            // 按距離升序排列
+            filteredToilets.sort((a, b) => a.distance - b.distance);
+            
+            displayResults(filteredToilets.slice(0, 30), 'toilet');
         } else {
             await refreshActiveTabData(false);
         }
@@ -452,8 +483,10 @@ async function refreshActiveTabData(isBackgroundRefresh = false) {
     try {
         if (currentTab === 'offstreet') {
             await fetchCarParks(userCoordinates.lat, userCoordinates.lng);
-        } else {
+        } else if (currentTab === 'metered') {
             await fetchMeteredParking(userCoordinates.lat, userCoordinates.lng);
+        } else if (currentTab === 'toilet') {
+            await fetchToilets(userCoordinates.lat, userCoordinates.lng);
         }
     } catch (err) {
         if (!isBackgroundRefresh) {
@@ -601,7 +634,48 @@ function generateMeterCardHTML(meterGroup) {
         </div>`;
 }
 
-function displayResults(items, isMeter = false) {
+// 新增：渲染公眾廁所卡片 HTML 結構
+function generateToiletCardHTML(toilet) {
+    const isFav = favorites.includes(toilet.park_Id);
+    const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(toilet.address + " " + toilet.name)}`;
+
+    let cardStatusClass = 'status-toilet';
+    let dotClass = 'dot-blue';
+
+    let distWarningHTML = toilet.distance > 5 ? `<span class="distance-warning">${t.distWarning || '距離較遠'}</span>` : '';
+    const distHTML = toilet.distance !== Infinity ? `<span class="distance">${toilet.distance.toFixed(2)} ${t.away || '公里'}</span>${distWarningHTML}` : '';
+
+    // 依據食環署數據庫屬性動態渲染無障礙（輪椅）通道標誌
+    const wheelchairBadgeHTML = toilet.hasWheelchair ? `<span class="status-badge ev-charger">♿ 設無障礙通道</span>` : '';
+
+    let infoGridItems = '';
+    if (toilet.address) infoGridItems += `<div class="info-label">地址:</div><div><a href="${mapUrl}" target="_blank" class="map-link">${toilet.address}</a></div>`;
+    if (toilet.district) infoGridItems += `<div class="info-label">地區:</div><div>${toilet.district}</div>`;
+    infoGridItems += `<div class="info-label">服務:</div><div>24小時開放 / 免費</div>`;
+
+    return `
+        <div class="carpark-card ${cardStatusClass}">
+            <div class="card-body-split">
+                <div class="card-left">
+                    <div class="carpark-name">
+                        <span class="status-dot ${dotClass}"></span>
+                        ${toilet.name}
+                    </div>
+                    <div class="tags-row">${distHTML} ${wheelchairBadgeHTML}</div>
+                    ${infoGridItems ? `<div class="info-grid">${infoGridItems}</div>` : ''}
+                </div>
+                <div class="card-right">
+                    <button class="card-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${toilet.park_Id}')">${isFav ? (t.removeFav || '取消收藏') : (t.addFav || '收藏')}</button>
+                    <div class="vacancy-badge unknown">
+                        <span class="vacancy-num" style="font-size: 0.95rem;">24h</span>
+                        <span class="vacancy-label">全天開放</span>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+}
+
+function displayResults(items, type = 'offstreet') {
     statusText.textContent = ""; 
     uiSearchTitle.textContent = `${t.searchTitle} (${items.length})`; 
     
@@ -609,7 +683,17 @@ function displayResults(items, isMeter = false) {
         resultsDiv.innerHTML = `<div class="empty-notice">${t.noRecords}</div>`;
         return;
     }
-    resultsDiv.innerHTML = items.map(item => isMeter ? generateMeterCardHTML(item) : generateCardHTML(item)).join('');
+    
+    // 依據不同數據類型載入各自的 HTML 渲染方案
+    resultsDiv.innerHTML = items.map(item => {
+        if (type === 'toilet') {
+            return generateToiletCardHTML(item);
+        } else if (type === 'metered' || type === true) {
+            return generateMeterCardHTML(item);
+        } else {
+            return generateCardHTML(item);
+        }
+    }).join('');
 }
 
 function renderFavorites() {
@@ -622,10 +706,13 @@ function renderFavorites() {
     if (currentTab === 'offstreet') {
         const favOffstreet = cachedAllParks.filter(park => favorites.includes(park.park_Id));
         favOffstreet.forEach(p => html += generateCardHTML(p));
-    } else {
+    } else if (currentTab === 'metered') {
         const groupedMeters = groupMeteredParking(cachedAllMeters);
         const favMeters = groupedMeters.filter(meterGroup => favorites.includes(meterGroup.park_Id));
         favMeters.forEach(m => html += generateMeterCardHTML(m));
+    } else if (currentTab === 'toilet') {
+        const favToilets = cachedAllToilets.filter(toilet => favorites.includes(toilet.park_Id));
+        favToilets.forEach(t => html += generateToiletCardHTML(t));
     }
     
     favoritesList.innerHTML = html ? html : `<div class="empty-notice">${t.noFavs}</div>`;
@@ -638,6 +725,125 @@ function renderWelcomeMessage() {
             <p>${t.welcomeDesc}</p>
         </div>
     `;
+}
+
+// 基礎距離計算與網路請求
+function getDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371; 
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+}
+
+async function fetchTextThroughProxy(url, useProxy = false) {
+    if (useProxy) {
+        try {
+            const res = await fetch(url);
+            return await res.text();
+        } catch (e) {
+            const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(url);
+            const res = await fetch(proxyUrl);
+            return await res.text();
+        }
+    } else {
+        const res = await fetch(url);
+        return await res.text();
+    }
+}
+
+async function fetchCarParks(lat, lng) {
+    const url = 'https://api.data.gov.hk/v1/carpark-info-vacancy';
+    const res = await fetch(url);
+    const data = await res.json();
+    
+    if (data && data.results) {
+        cachedAllParks = data.results.map(park => {
+            const parkLat = parseFloat(park.latitude || 0);
+            const parkLng = parseFloat(park.longitude || 0);
+            return {
+                ...park,
+                distance: getDistance(lat, lng, parkLat, parkLng)
+            };
+        });
+        await renderActiveTabDisplay();
+    }
+}
+
+async function fetchMeteredParking(lat, lng) {
+    const infoUrl = 'https://api.data.gov.hk/v1/carpark-info-vacancy?vehicle_type=privateCar';
+    const res = await fetch(infoUrl);
+    const data = await res.json();
+    
+    if (data && data.results) {
+        cachedAllMeters = data.results.filter(p => p.carpark_Type === 'Metered').map(m => {
+            const mLat = parseFloat(m.latitude || 0);
+            const mLng = parseFloat(m.longitude || 0);
+            return {
+                address: m.address || m.name || '',
+                rawStreet: m.name || '',
+                district: m.district || '',
+                latitude: mLat,
+                longitude: mLng,
+                vacancyStatus: (m.liveInfo && m.liveInfo.privateCar && m.liveInfo.privateCar[0] && m.liveInfo.privateCar[0].vacancy > 0) ? 'V' : 'O',
+                distance: getDistance(lat, lng, mLat, mLng)
+            };
+        });
+        await renderActiveTabDisplay();
+    }
+}
+
+// 新增：向政府 API 請求食環署公眾廁所地理資訊
+async function fetchToilets(lat, lng) {
+    // 透過 data.gov.hk 的過濾 API 載入，100% 繞過 CORS 問題且高效
+    const url = 'https://api.data.gov.hk/v1/filter?media-format=json&url=https%3A%2F%2Fwww.fehd.gov.hk%2Fenglish%2Fmap%2Ftoilet%2Ftoilet_map.json';
+    const res = await fetch(url);
+    const data = await res.json();
+    
+    let toiletsList = [];
+    if (data && data.toilet) {
+        toiletsList = data.toilet;
+    } else if (Array.isArray(data)) {
+        toiletsList = data;
+    }
+    
+    cachedAllToilets = toiletsList.map((item, index) => {
+        const tLat = parseFloat(item.lat || item.latitude || item.Latitude || 0);
+        const tLng = parseFloat(item.lng || item.longitude || item.Longitude || 0);
+        
+        // 優先讀取中文欄位，若遺漏則 fallback 至英文欄位
+        const name = item.name_ch || item.name_tc || item.Name_tc || item.name_en || item.Name_en || '公眾廁所';
+        const address = item.addr_ch || item.addr_tc || item.Address_tc || item.addr_en || item.Address_en || '香港各區';
+        const hasWheelchair = (item.wheelchair && (item.wheelchair.toUpperCase() === 'YES' || item.wheelchair.toUpperCase() === 'Y'));
+        
+        return {
+            park_Id: `toilet_${tLat}_${tLng}_${index}`, // 建立唯一 ID 支援收藏夾
+            name: name,
+            address: address,
+            district: item.district || '',
+            latitude: tLat,
+            longitude: tLng,
+            hasWheelchair: hasWheelchair,
+            distance: getDistance(lat, lng, tLat, tLng)
+        };
+    });
+    
+    await renderActiveTabDisplay();
+}
+
+async function silentFetchData() {
+    if (userCoordinates) {
+        try {
+            await fetchCarParks(userCoordinates.lat, userCoordinates.lng);
+            await fetchMeteredParking(userCoordinates.lat, userCoordinates.lng);
+            await fetchToilets(userCoordinates.lat, userCoordinates.lng); // 背景靜態預載公廁
+        } catch (e) {
+            console.warn("Silent fetch background error:", e);
+        }
+    }
 }
 
 initTheme();

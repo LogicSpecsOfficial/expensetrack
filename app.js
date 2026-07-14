@@ -1,6 +1,5 @@
 let currentTab = 'offstreet';
 let userCoordinates = null;
-let currentSearchLocationName = ''; // 用於持久儲存當前定位點名稱
 let cachedAllParks = [];
 let cachedAllMeters = [];
 let favorites = JSON.parse(localStorage.getItem('hk_carpark_favs')) || [];
@@ -283,101 +282,6 @@ function saveSearch(query) {
     renderSearchHistory();
 }
 
-// 輔助函數：清除 JSON/XML 殘留程式碼雜訊，完整保留中英文地名與地址
-function cleanAddressText(str) {
-    if (!str) return "";
-    let clean = str.replace(/[\[\]\{\}\"\<\>\/]/g, ""); // 移除 JSON/XML 結構符號
-    clean = clean.replace(/,+/g, ","); // 合併重複的逗號
-    clean = clean.replace(/^[\s,]+|[\s,]+$/g, ""); // 去除開頭與結尾的空白與逗號
-    clean = clean.replace(/\s*,\s*/g, ", "); // 標準化逗號後的空格
-    return clean.trim();
-}
-
-// 輔助解析政府 ALS 複雜地址結構的函數
-function extractAddress(responseText, defaultVal) {
-    try {
-        const data = JSON.parse(responseText);
-        if (data && data.SuggestedAddress && data.SuggestedAddress.length > 0) {
-            const premises = data.SuggestedAddress[0].Address.PremisesAddress;
-            if (premises && premises.ChiPremisesAddress) {
-                const chi = premises.ChiPremisesAddress;
-                let addr = "";
-                if (chi.Region && chi.Region !== "香港特別行政區") addr += chi.Region;
-                if (chi.ChiDistrict && chi.ChiDistrict["Sub-district"]) addr += chi.ChiDistrict["Sub-district"];
-                if (chi.ChiEstate && chi.ChiEstate.EstateName) addr += chi.ChiEstate.EstateName;
-                if (chi.ChiStreet && chi.ChiStreet.StreetName) {
-                    addr += chi.ChiStreet.StreetName;
-                    if (chi.ChiStreet.BuildingNoFrom) addr += chi.ChiStreet.BuildingNoFrom + "號";
-                }
-                if (chi.BuildingName) addr += chi.BuildingName;
-                
-                const cleanAddr = cleanAddressText(addr);
-                if (cleanAddr) return cleanAddr;
-            }
-            if (premises && premises.EngPremisesAddress) {
-                const eng = premises.EngPremisesAddress;
-                let addr = "";
-                if (eng.BuildingName) addr += eng.BuildingName + ", ";
-                if (eng.EngStreet && eng.EngStreet.StreetName) {
-                    if (eng.EngStreet.BuildingNoFrom) addr += eng.EngStreet.BuildingNoFrom + " ";
-                    addr += eng.EngStreet.StreetName + ", ";
-                }
-                if (eng.EngDistrict && eng.EngDistrict["Sub-district"]) addr += eng.EngDistrict["Sub-district"];
-                
-                const cleanAddr = cleanAddressText(addr);
-                if (cleanAddr) return cleanAddr;
-            }
-        }
-    } catch (e) {
-        // parsing error fallback
-    }
-
-    // XML 正則表達式解析備用方案
-    let region = responseText.match(/<Region>([^<]+)<\/Region>/i);
-    region = region ? region[1] : "";
-    if (region === "香港特別行政區") region = "";
-
-    let subDistrict = responseText.match(/<Sub-district>([^<]+)<\/Sub-district>/i);
-    subDistrict = subDistrict ? subDistrict[1] : "";
-
-    let streetName = responseText.match(/<StreetName>([^<]+)<\/StreetName>/i);
-    streetName = streetName ? streetName[1] : "";
-    let buildingNo = responseText.match(/<BuildingNoFrom>([^<]+)<\/BuildingNoFrom>/i);
-    buildingNo = buildingNo ? buildingNo[1] + "號" : "";
-
-    let buildingName = responseText.match(/<BuildingName>([^<]+)<\/BuildingName>/i);
-    buildingName = buildingName ? buildingName[1] : "";
-
-    let combined = region + subDistrict + streetName + buildingNo + buildingName;
-    const cleanCombined = cleanAddressText(combined);
-    if (cleanCombined) return cleanCombined;
-
-    return defaultVal;
-}
-
-// 輔助將 Nominatim 地址結構重組為乾淨中英文地址的函數
-function buildAddressFromOSM(addressObj, displayName, defaultVal) {
-    if (!addressObj) {
-        return cleanAddressText(displayName) || defaultVal;
-    }
-    
-    const landmark = addressObj.amenity || addressObj.attraction || addressObj.shop || addressObj.building || addressObj.supermarket || addressObj.mall || addressObj.tourism || addressObj.place || addressObj.hotel || "";
-    const road = addressObj.road || "";
-    const houseNumber = addressObj.house_number ? addressObj.house_number + "號" : "";
-    const suburb = addressObj.suburb || addressObj.neighbourhood || addressObj.quarter || addressObj.development || "";
-    
-    let addrParts = [];
-    if (suburb) addrParts.push(suburb);
-    if (road) addrParts.push(road + (houseNumber ? " " + houseNumber : ""));
-    if (landmark) addrParts.push(landmark);
-    
-    if (addrParts.length > 0) {
-        return cleanAddressText(addrParts.join(", "));
-    }
-    
-    return cleanAddressText(displayName) || defaultVal;
-}
-
 async function triggerAddressSearch(forcedQuery = null) {
     const inputVal = typeof forcedQuery === 'string' ? forcedQuery : searchInput.value.trim();
     if (!inputVal) return;
@@ -400,10 +304,6 @@ async function triggerAddressSearch(forcedQuery = null) {
     refreshBtn.disabled = true;
 
     try {
-        let lat = null;
-        let lng = null;
-        let locationName = ""; 
-
         // 引擎 1：嘗試官方政府 ALS 服務
         const searchUrl = `https://www.als.gov.hk/lookup?q=${encodeURIComponent(query)}`;
         const responseText = await fetchTextThroughProxy(searchUrl, true);
@@ -411,59 +311,29 @@ async function triggerAddressSearch(forcedQuery = null) {
         let latMatch = responseText.match(/"Latitude"\s*:\s*"?([0-9.]+)"?/i) || responseText.match(/<Latitude>([0-9.]+)<\/Latitude>/i);
         let lngMatch = responseText.match(/"Longitude"\s*:\s*"?([0-9.]+)"?/i) || responseText.match(/<Longitude>([0-9.]+)<\/Longitude>/i);
 
+        let lat = null;
+        let lng = null;
+
         if (latMatch && lngMatch) {
             lat = parseFloat(latMatch[1]);
             lng = parseFloat(lngMatch[1]);
-            locationName = extractAddress(responseText, inputVal);
         } else {
-            // 引擎 2：政府無結果，背景靜默啟用 OSM Nominatim API (強制請求繁體中文)
-            try {
-                const osmUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1&accept-language=zh-HK&addressdetails=1`;
-                const osmRes = await fetch(osmUrl);
-                const osmData = await osmRes.json();
-                
-                if (osmData && osmData.length > 0) {
-                    lat = parseFloat(osmData[0].lat);
-                    lng = parseFloat(osmData[0].lon);
-                    locationName = buildAddressFromOSM(osmData[0].address, osmData[0].display_name, inputVal);
-                }
-            } catch (osmErr) {
-                console.warn("OSM Nominatim failed, falling back to Photon:", osmErr);
-            }
+            // 引擎 2：政府無結果，背景靜默啟用 Photon API 智慧搜尋
+            const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=1`;
+            const photonRes = await fetch(photonUrl);
+            const photonData = await photonRes.json();
             
-            // 引擎 3：如果 Nominatim 依然失敗，降級使用 Photon API
-            if (!lat || !lng) {
-                const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=1`;
-                const photonRes = await fetch(photonUrl);
-                const photonData = await photonRes.json();
-                
-                if (photonData.features && photonData.features.length > 0) {
-                    const coordinates = photonData.features[0].geometry.coordinates;
-                    lng = coordinates[0];
-                    lat = coordinates[1];
-                    
-                    const prop = photonData.features[0].properties;
-                    const addressParts = [];
-                    if (prop.name) addressParts.push(prop.name);
-                    if (prop.street) {
-                        let streetStr = prop.street;
-                        if (prop.housenumber) streetStr = prop.housenumber + " " + streetStr;
-                        addressParts.push(streetStr);
-                    }
-                    if (prop.district) addressParts.push(prop.district);
-                    
-                    locationName = cleanAddressText(addressParts.filter(Boolean).join(', '));
-                    if (!locationName) locationName = inputVal;
-                }
+            if (photonData.features && photonData.features.length > 0) {
+                const coordinates = photonData.features[0].geometry.coordinates;
+                lng = coordinates[0];
+                lat = coordinates[1];
             }
         }
 
         if (lat && lng) {
             userCoordinates = { lat, lng };
-            currentSearchLocationName = locationName; 
             saveSearch(inputVal); 
             renderFilterPills();
-            
             await refreshActiveTabData(false);
             if (document.activeElement) document.activeElement.blur(); 
         } else {
@@ -505,14 +375,12 @@ locateBtn.addEventListener('click', () => {
     navigator.geolocation.getCurrentPosition(
         async (position) => {
             userCoordinates = { lat: position.coords.latitude, lng: position.coords.longitude };
-            currentSearchLocationName = "您的位置"; 
             renderFilterPills();
             await refreshActiveTabData(false);
         },
         async (error) => {
             console.warn("GPS tracking failed, falling back to Kowloon center coordinates.", error);
             userCoordinates = { lat: 22.3193, lng: 114.1694 };
-            currentSearchLocationName = "九龍中心"; 
             renderFilterPills();
             statusText.textContent = "定位未開啟，已顯示九龍中心數據";
             await refreshActiveTabData(false);
@@ -704,12 +572,7 @@ function generateMeterCardHTML(meterGroup) {
 
 function displayResults(items, isMeter = false) {
     statusText.textContent = ""; 
-    
-    if (currentSearchLocationName) {
-        uiSearchTitle.textContent = `${t.searchTitle} (${items.length}) - 近 ${currentSearchLocationName}`; 
-    } else {
-        uiSearchTitle.textContent = `${t.searchTitle} (${items.length})`; 
-    }
+    uiSearchTitle.textContent = `${t.searchTitle} (${items.length})`; 
     
     if (items.length === 0) {
         resultsDiv.innerHTML = `<div class="empty-notice">${t.noRecords}</div>`;
@@ -744,90 +607,6 @@ function renderWelcomeMessage() {
             <p>${t.welcomeDesc}</p>
         </div>
     `;
-}
-
-// Haversine 距離計算公式
-function getDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371; 
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-}
-
-// 數據請求：CORS 代理方案
-async function fetchTextThroughProxy(url, useProxy = false) {
-    if (useProxy) {
-        try {
-            const res = await fetch(url);
-            return await res.text();
-        } catch (e) {
-            const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(url);
-            const res = await fetch(proxyUrl);
-            return await res.text();
-        }
-    } else {
-        const res = await fetch(url);
-        return await res.text();
-    }
-}
-
-// 請求室內停車場資料
-async function fetchCarParks(lat, lng) {
-    const url = 'https://api.data.gov.hk/v1/carpark-info-vacancy';
-    const res = await fetch(url);
-    const data = await res.json();
-    
-    if (data && data.results) {
-        cachedAllParks = data.results.map(park => {
-            const parkLat = parseFloat(park.latitude || 0);
-            const parkLng = parseFloat(park.longitude || 0);
-            return {
-                ...park,
-                distance: getDistance(lat, lng, parkLat, parkLng)
-            };
-        });
-        await renderActiveTabDisplay();
-    }
-}
-
-// 請求咪錶位資料
-async function fetchMeteredParking(lat, lng) {
-    const infoUrl = 'https://api.data.gov.hk/v1/carpark-info-vacancy?vehicle_type=privateCar';
-    const res = await fetch(infoUrl);
-    const data = await res.json();
-    
-    if (data && data.results) {
-        cachedAllMeters = data.results.filter(p => p.carpark_Type === 'Metered').map(m => {
-            const mLat = parseFloat(m.latitude || 0);
-            const mLng = parseFloat(m.longitude || 0);
-            return {
-                address: m.address || m.name || '',
-                rawStreet: m.name || '',
-                district: m.district || '',
-                latitude: mLat,
-                longitude: mLng,
-                vacancyStatus: (m.liveInfo && m.liveInfo.privateCar && m.liveInfo.privateCar[0] && m.liveInfo.privateCar[0].vacancy > 0) ? 'V' : 'O',
-                distance: getDistance(lat, lng, mLat, mLng)
-            };
-        });
-        await renderActiveTabDisplay();
-    }
-}
-
-// 背景靜態獲取預載
-async function silentFetchData() {
-    if (userCoordinates) {
-        try {
-            await fetchCarParks(userCoordinates.lat, userCoordinates.lng);
-            await fetchMeteredParking(userCoordinates.lat, userCoordinates.lng);
-        } catch (e) {
-            console.warn("Silent fetch background error:", e);
-        }
-    }
 }
 
 initTheme();

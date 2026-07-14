@@ -51,7 +51,7 @@ h1 { font-size: 1.15rem; font-weight: 700; letter-spacing: -0.5px; white-space: 
     align-items: center;
 }
 
-/* 延用您原本 theme-toggle-btn 的簡潔正方形外框 */
+/* 延用原本的簡潔外框樣式 */
 .icon-btn {
     background-color: transparent;
     color: var(--text-main);
@@ -127,7 +127,7 @@ body.dark-theme .tab-container {
     text-align: center;
 }
 
-/* 搜尋框平滑過渡容器 */
+/* 搜尋框平滑過渡 */
 .search-dropdown {
     max-height: 0;
     overflow: hidden;
@@ -138,7 +138,7 @@ body.dark-theme .tab-container {
 }
 
 .search-dropdown.open {
-    max-height: 60px; /* 預留高度給搜尋輸入框與外框陰影 */
+    max-height: 60px;
     opacity: 1;
     margin-bottom: 12px;
 }
@@ -311,8 +311,6 @@ body.dark-theme .clear-btn:active {
 .carpark-card.status-medium { border-left-color: var(--warning); }
 .carpark-card.status-empty { border-left-color: var(--danger); }
 .carpark-card.status-unknown { border-left-color: var(--border-color); }
-
-/* 公廁專用左邊框配色 (使用主題色/藍色) */
 .carpark-card.status-toilet { border-left-color: var(--accent); }
 
 .card-body-split {
@@ -359,8 +357,6 @@ body.dark-theme .clear-btn:active {
 .dot-orange { background-color: var(--warning); }
 .dot-red { background-color: var(--danger); }
 .dot-grey { background-color: var(--text-muted); }
-
-/* 藍色狀態圓點 */
 .dot-blue { background-color: var(--accent); }
 
 .card-fav-btn {

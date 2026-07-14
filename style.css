@@ -318,22 +318,6 @@ button.search-action-btn:active {
 .distance { font-size: 0.85rem; font-weight: 600; color: var(--danger); }
 .distance-warning { font-size: 0.8rem; font-weight: bold; color: var(--danger); margin-left: 4px; }
 
-.status-badge {
-    display: inline-block;
-    padding: 4px 8px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    border-radius: 6px;
-    text-transform: uppercase;
-    margin-left: 4px;
-}
-
-.status-badge.closed {
-    background-color: #fff5f5;
-    color: var(--danger);
-    border: 1px solid var(--danger);
-}
-
 .info-grid {
     display: grid;
     grid-template-columns: auto 1fr;
@@ -343,11 +327,6 @@ button.search-action-btn:active {
 }
 
 .info-label { color: var(--text-muted); font-weight: 500; }
-
-.warning-hours {
-    color: var(--danger) !important;
-    font-weight: 600;
-}
 
 .map-link, .phone-link {
     color: var(--accent);

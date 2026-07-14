@@ -125,6 +125,27 @@ button.secondary-btn:active { background-color: #e9ecef; }
     font-weight: 500;
 }
 
+.search-bar-container {
+    margin-bottom: 16px;
+    width: 100%;
+}
+
+input#searchInput {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 0.95rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--border-color);
+    background-color: var(--surface);
+    color: var(--text-main);
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+input#searchInput:focus {
+    border-color: var(--accent);
+}
+
 #filter-container {
     display: none;
     gap: 8px;

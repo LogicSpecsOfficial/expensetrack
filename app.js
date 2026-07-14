@@ -1,99 +1,50 @@
-const i18n = {
-    zh_TW: {
-        title: "最近的香港停車場",
-        btnText: "GPS 定位",
-        btnFavShow: "我的收藏",
-        btnFavHide: "隱藏收藏",
-        favTitle: "我的收藏夾",
-        searchTitle: "搜尋結果",
-        tabOffStreet: "室內停車場",
-        tabMetered: "路邊咪錶位",
-        gpsLocating: "正在獲取您的位置...",
-        apiFetching: "正在讀取停車場數據...",
-        addressSearching: "正在搜尋該地址...",
-        addressError: "找不到該地址，請嘗試輸入其他關鍵字。",
-        gpsError: "定位錯誤: ",
-        apiError: "處理數據出錯: ",
-        noSupport: "您的瀏覽器不支援地理定位功能。",
-        noRecords: "未找到符合條件的地點紀錄。",
-        noFavs: "此分類暫無收藏項目。",
-        away: "公里外",
-        address: "地址",
-        district: "地區",
-        maxHeight: "最高限高",
-        contact: "聯絡電話",
-        liveVacancy: "即時空位",
-        spaces: "個空置車位",
-        noVacancyData: "未有提供即時空位數據",
-        distWarning: "[提示: 距離較遠]",
-        addFav: "收藏",
-        removeFav: "取消收藏",
-        optAll: "全部",
-        optHideFull: "隱藏已滿車位",
-        optEVOnly: "僅顯示充電位",
-        optSortVacancy: "空置優先",
-        optVacant: "僅顯示空置",
-        optOccupied: "僅顯示使用中",
-        searchPlaceholder: "搜尋香港地址、大廈、商場或街道...",
-        searchBtnText: "搜尋",
-        clearBtnText: "清除",
-        evBadge: "設有充電設備",
-        refreshBtnText: "更新數據",
-        dist500m: "500米",
-        dist1km: "1公里",
-        dist2km: "2公里",
-        distAll: "不限距離",
-        vacantMeters: "空置咪錶位"
-    },
-    en_US: {
-        title: "Nearest HK Car Parks",
-        btnText: "GPS Locate",
-        btnFavShow: "Favorites",
-        btnFavHide: "Hide Favs",
-        favTitle: "My Favorites",
-        searchTitle: "Search Results",
-        tabOffStreet: "Off-Street Lots",
-        tabMetered: "On-Street Meters",
-        gpsLocating: "Acquiring location...",
-        apiFetching: "Fetching car park data...",
-        addressSearching: "Searching address...",
-        addressError: "Address not found. Please try other keywords.",
-        gpsError: "Location error: ",
-        apiError: "Error processing data: ",
-        noSupport: "Geolocation is not supported by your browser.",
-        noRecords: "No matching records found nearby.",
-        noFavs: "No favorited items in this tab.",
-        away: "km away",
-        address: "Address",
-        district: "District",
-        maxHeight: "Max Height",
-        contact: "Contact",
-        liveVacancy: "Live Vacancy",
-        spaces: "spaces available",
-        noVacancyData: "No live availability data provided",
-        distWarning: "[Notice: Far Distance]",
-        addFav: "Favorite",
-        removeFav: "Unfavorite",
-        optAll: "All",
-        optHideFull: "Hide Full Lots",
-        optEVOnly: "EV Charging Only",
-        optSortVacancy: "Sort by Vacancy",
-        optVacant: "Vacant Only",
-        optOccupied: "Occupied Only",
-        searchPlaceholder: "Search HK address, building, mall, or street...",
-        searchBtnText: "Search",
-        clearBtnText: "Clear",
-        evBadge: "EV Charger",
-        refreshBtnText: "Refresh",
-        dist500m: "500m",
-        dist1km: "1km",
-        dist2km: "2km",
-        distAll: "Any Dist",
-        vacantMeters: "Vacant Meters"
-    }
+const t = {
+    title: "最近的香港停車場",
+    btnText: "GPS 定位",
+    btnFavShow: "我的收藏",
+    btnFavHide: "隱藏收藏",
+    favTitle: "我的收藏夾",
+    searchTitle: "搜尋結果",
+    tabOffStreet: "室內停車場",
+    tabMetered: "路邊咪錶位",
+    gpsLocating: "正在獲取您的位置...",
+    apiFetching: "正在讀取停車場數據...",
+    addressSearching: "正在搜尋該地址...",
+    addressError: "找不到該地址，請嘗試輸入其他關鍵字。",
+    gpsError: "定位錯誤: ",
+    apiError: "處理數據出錯: ",
+    noSupport: "您的瀏覽器不支援地理定位功能。",
+    noRecords: "未找到符合條件的地點紀錄。",
+    noFavs: "此分類暫無收藏項目。",
+    away: "公里外",
+    address: "地址",
+    district: "地區",
+    maxHeight: "最高限高",
+    contact: "聯絡電話",
+    liveVacancy: "即時空位",
+    spaces: "個空置車位",
+    noVacancyData: "未有提供即時空位數據",
+    distWarning: "[提示: 距離較遠]",
+    addFav: "收藏",
+    removeFav: "取消收藏",
+    optAll: "全部",
+    optHideFull: "隱藏已滿車位",
+    optEVOnly: "僅顯示充電位",
+    optSortVacancy: "空置優先",
+    optVacant: "僅顯示空置",
+    optOccupied: "僅顯示使用中",
+    searchPlaceholder: "搜尋香港地址、大廈、商場或街道...",
+    searchBtnText: "搜尋",
+    clearBtnText: "清除",
+    evBadge: "設有充電設備",
+    refreshBtnText: "更新數據",
+    dist500m: "500米",
+    dist1km: "1公里",
+    dist2km: "2公里",
+    distAll: "不限距離",
+    vacantMeters: "空置咪錶位"
 };
 
-let currentLang = 'zh_TW';
 let currentTab = 'offstreet';
 let userCoordinates = null;
 let cachedAllParks = [];
@@ -109,7 +60,6 @@ let offstreetFilters = {
     sortByVacancy: false
 };
 
-const langSelect = document.getElementById('langSelect');
 const uiTitle = document.getElementById('ui-title');
 const tabOffStreet = document.getElementById('tabOffStreet');
 const tabMetered = document.getElementById('tabMetered');
@@ -128,18 +78,18 @@ const searchBtn = document.getElementById('searchBtn');
 const clearHistoryBtn = document.getElementById('clearHistoryBtn');
 
 function updateUIStaticText() {
-    uiTitle.textContent = i18n[currentLang].title;
-    locateBtn.textContent = i18n[currentLang].btnText;
-    refreshBtn.textContent = i18n[currentLang].refreshBtnText;
-    uiFavTitle.textContent = i18n[currentLang].favTitle;
-    uiSearchTitle.textContent = i18n[currentLang].searchTitle;
-    tabOffStreet.textContent = i18n[currentLang].tabOffStreet;
-    tabMetered.textContent = i18n[currentLang].tabMetered;
-    showFavBtn.textContent = favWrapper.style.display === 'none' ? i18n[currentLang].btnFavShow : i18n[currentLang].btnFavHide;
+    uiTitle.textContent = t.title;
+    locateBtn.textContent = t.btnText;
+    refreshBtn.textContent = t.refreshBtnText;
+    uiFavTitle.textContent = t.favTitle;
+    uiSearchTitle.textContent = t.searchTitle;
+    tabOffStreet.textContent = t.tabOffStreet;
+    tabMetered.textContent = t.tabMetered;
+    showFavBtn.textContent = favWrapper.style.display === 'none' ? t.btnFavShow : t.btnFavHide;
     
-    searchInput.placeholder = i18n[currentLang].searchPlaceholder;
-    searchBtn.textContent = i18n[currentLang].searchBtnText;
-    clearHistoryBtn.textContent = i18n[currentLang].clearBtnText;
+    searchInput.placeholder = t.searchPlaceholder;
+    searchBtn.textContent = t.searchBtnText;
+    clearHistoryBtn.textContent = t.clearBtnText;
     
     renderFilterPills();
 }
@@ -153,10 +103,10 @@ function renderFilterPills() {
     
     let distHTML = `
         <div class="filter-row">
-            <button class="pill-btn color-blue ${activeDistanceFilter === '0.5' ? 'active' : ''}" onclick="setDistanceFilter('0.5')">${i18n[currentLang].dist500m}</button>
-            <button class="pill-btn color-blue ${activeDistanceFilter === '1' ? 'active' : ''}" onclick="setDistanceFilter('1')">${i18n[currentLang].dist1km}</button>
-            <button class="pill-btn color-blue ${activeDistanceFilter === '2' ? 'active' : ''}" onclick="setDistanceFilter('2')">${i18n[currentLang].dist2km}</button>
-            <button class="pill-btn color-blue ${activeDistanceFilter === 'all' ? 'active' : ''}" onclick="setDistanceFilter('all')">${i18n[currentLang].distAll}</button>
+            <button class="pill-btn color-blue ${activeDistanceFilter === '0.5' ? 'active' : ''}" onclick="setDistanceFilter('0.5')">${t.dist500m}</button>
+            <button class="pill-btn color-blue ${activeDistanceFilter === '1' ? 'active' : ''}" onclick="setDistanceFilter('1')">${t.dist1km}</button>
+            <button class="pill-btn color-blue ${activeDistanceFilter === '2' ? 'active' : ''}" onclick="setDistanceFilter('2')">${t.dist2km}</button>
+            <button class="pill-btn color-blue ${activeDistanceFilter === 'all' ? 'active' : ''}" onclick="setDistanceFilter('all')">${t.distAll}</button>
         </div>
     `;
     
@@ -164,17 +114,17 @@ function renderFilterPills() {
     if (currentTab === 'offstreet') {
         statusHTML = `
             <div class="filter-row">
-                <button class="pill-btn color-red ${offstreetFilters.hideFull ? 'active' : ''}" onclick="toggleOffstreetFilter('hideFull')">${i18n[currentLang].optHideFull}</button>
-                <button class="pill-btn color-green ${offstreetFilters.evOnly ? 'active' : ''}" onclick="toggleOffstreetFilter('evOnly')">${i18n[currentLang].optEVOnly}</button>
-                <button class="pill-btn color-blue ${offstreetFilters.sortByVacancy ? 'active' : ''}" onclick="toggleOffstreetFilter('sortByVacancy')">${i18n[currentLang].optSortVacancy}</button>
+                <button class="pill-btn color-red ${offstreetFilters.hideFull ? 'active' : ''}" onclick="toggleOffstreetFilter('hideFull')">${t.optHideFull}</button>
+                <button class="pill-btn color-green ${offstreetFilters.evOnly ? 'active' : ''}" onclick="toggleOffstreetFilter('evOnly')">${t.optEVOnly}</button>
+                <button class="pill-btn color-blue ${offstreetFilters.sortByVacancy ? 'active' : ''}" onclick="toggleOffstreetFilter('sortByVacancy')">${t.optSortVacancy}</button>
             </div>
         `;
     } else {
         statusHTML = `
             <div class="filter-row">
-                <button class="pill-btn color-blue ${activeMeterFilter === 'all' ? 'active' : ''}" onclick="setMeterFilter('all')">${i18n[currentLang].optAll}</button>
-                <button class="pill-btn color-green ${activeMeterFilter === 'vacant' ? 'active' : ''}" onclick="setMeterFilter('vacant')">${i18n[currentLang].optVacant}</button>
-                <button class="pill-btn color-red ${activeMeterFilter === 'occupied' ? 'active' : ''}" onclick="setMeterFilter('occupied')">${i18n[currentLang].optOccupied}</button>
+                <button class="pill-btn color-blue ${activeMeterFilter === 'all' ? 'active' : ''}" onclick="setMeterFilter('all')">${t.optAll}</button>
+                <button class="pill-btn color-green ${activeMeterFilter === 'vacant' ? 'active' : ''}" onclick="setMeterFilter('vacant')">${t.optVacant}</button>
+                <button class="pill-btn color-red ${activeMeterFilter === 'occupied' ? 'active' : ''}" onclick="setMeterFilter('occupied')">${t.optOccupied}</button>
             </div>
         `;
     }
@@ -465,7 +415,7 @@ async function triggerAddressSearch(forcedQuery = null) {
         searchInput.value = query;
     }
 
-    statusText.textContent = i18n[currentLang].addressSearching;
+    statusText.textContent = t.addressSearching;
     resultsDiv.innerHTML = "";
     locateBtn.disabled = true;
     searchBtn.disabled = true;
@@ -488,10 +438,10 @@ async function triggerAddressSearch(forcedQuery = null) {
             await refreshActiveTabData(false);
             if (document.activeElement) document.activeElement.blur(); 
         } else {
-            statusText.textContent = i18n[currentLang].addressError;
+            statusText.textContent = t.addressError;
         }
     } catch (err) {
-        statusText.textContent = i18n[currentLang].addressError;
+        statusText.textContent = t.addressError;
         console.error("Address lookup error:", err);
     } finally {
         locateBtn.disabled = false;
@@ -515,12 +465,12 @@ clearHistoryBtn.addEventListener('click', () => {
 
 locateBtn.addEventListener('click', () => {
     if (!navigator.geolocation) {
-        statusText.textContent = i18n[currentLang].noSupport;
+        statusText.textContent = t.noSupport;
         return;
     }
     locateBtn.disabled = true;
     refreshBtn.disabled = true;
-    statusText.textContent = i18n[currentLang].gpsLocating;
+    statusText.textContent = t.gpsLocating;
     resultsDiv.innerHTML = "";
 
     navigator.geolocation.getCurrentPosition(
@@ -533,7 +483,7 @@ locateBtn.addEventListener('click', () => {
             console.warn("GPS tracking failed, falling back to Kowloon center coordinates.", error);
             userCoordinates = { lat: 22.3193, lng: 114.1694 };
             renderFilterPills();
-            statusText.textContent = currentLang === 'zh_TW' ? "定位未開啟，已顯示九龍中心數據" : "GPS failed, displaying Kowloon defaults.";
+            statusText.textContent = "定位未開啟，已顯示九龍中心數據";
             await refreshActiveTabData(false);
         },
         { enableHighAccuracy: true }
@@ -565,7 +515,7 @@ showFavBtn.addEventListener('click', () => {
 async function refreshActiveTabData(isBackgroundRefresh = false) {
     if (!userCoordinates) return;
     if (!isBackgroundRefresh) {
-        statusText.textContent = i18n[currentLang].apiFetching;
+        statusText.textContent = t.apiFetching;
         locateBtn.disabled = true;
         refreshBtn.disabled = true;
     }
@@ -577,7 +527,7 @@ async function refreshActiveTabData(isBackgroundRefresh = false) {
         }
     } catch (err) {
         if (!isBackgroundRefresh) {
-            statusText.textContent = `${i18n[currentLang].apiError}${err.message}`;
+            statusText.textContent = `${t.apiError}${err.message}`;
         }
         console.error("Data processing error log:", err);
     } finally {
@@ -589,8 +539,8 @@ async function refreshActiveTabData(isBackgroundRefresh = false) {
 }
 
 async function fetchCarParks(userLat, userLng) {
-    const infoUrl = `https://api.data.gov.hk/v1/carpark-info-vacancy?data=info&lang=${currentLang}`;
-    const vacancyUrl = `https://api.data.gov.hk/v1/carpark-info-vacancy?data=vacancy&lang=${currentLang}`;
+    const infoUrl = 'https://api.data.gov.hk/v1/carpark-info-vacancy?data=info&lang=zh_TW';
+    const vacancyUrl = 'https://api.data.gov.hk/v1/carpark-info-vacancy?data=vacancy&lang=zh_TW';
 
     const [infoRes, vacancyRes] = await Promise.all([fetch(infoUrl), fetch(vacancyUrl)]);
     if (!infoRes.ok || !vacancyRes.ok) throw new Error("API network failure");
@@ -646,21 +596,19 @@ async function fetchMeteredParking(userLat, userLng) {
         const status = occupancyMap.get(spaceId) || 'V';
 
         const streetTc = row['street_tc'] || '';
-        const streetEn = row['street_en'] || row['street'] || '';
         const districtTc = row['district_tc'] || '';
-        const districtEn = row['district_en'] || row['district'] || '';
 
         cachedAllMeters.push({
             park_Id: spaceId,
-            name: currentLang === 'zh_TW' ? `${streetTc} ${spaceId}` : `${streetEn} ${spaceId}`,
-            address: currentLang === 'zh_TW' ? `${districtTc} ${streetTc}` : `${districtEn} ${streetEn}`,
-            district: currentLang === 'zh_TW' ? districtTc : districtEn,
+            name: `${streetTc} ${spaceId}`,
+            address: `${districtTc} ${streetTc}`,
+            district: districtTc,
             latitude: lat,
             longitude: lng,
             distance: distance,
             vacancyStatus: status,
-            rawStreet: currentLang === 'zh_TW' ? streetTc : streetEn,
-            rawDistrict: currentLang === 'zh_TW' ? districtTc : districtEn
+            rawStreet: streetTc,
+            rawDistrict: districtTc
         });
     });
 
@@ -683,7 +631,6 @@ function toggleFavorite(id) {
 }
 
 function generateCardHTML(park) {
-    const t = i18n[currentLang];
     const isFav = favorites.includes(park.park_Id);
     let displayAddress = park.displayAddress || (park.address && park.address.displayAddress) || '';
     const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(displayAddress + " " + (park.name || ''))}`;
@@ -734,7 +681,7 @@ function generateCardHTML(park) {
     let infoGridItems = '';
     if (displayAddress) infoGridItems += `<div class="info-label">${t.address}:</div><div><a href="${mapUrl}" target="_blank" class="map-link">${displayAddress}</a></div>`;
     if (park.district) infoGridItems += `<div class="info-label">${t.district}:</div><div>${park.district}</div>`;
-    if (park.carpark_Type) infoGridItems += `<div class="info-label">${currentLang === 'zh_TW' ? '類型' : 'Type'}:</div><div>${park.carpark_Type}</div>`;
+    if (park.carpark_Type) infoGridItems += `<div class="info-label">類型:</div><div>${park.carpark_Type}</div>`;
     if (heightText) infoGridItems += `<div class="info-label">${t.maxHeight}:</div><div>${heightText}</div>`;
     if (contactHTML) infoGridItems += `<div class="info-label">${t.contact}:</div><div>${contactHTML}</div>`;
 
@@ -754,7 +701,6 @@ function generateCardHTML(park) {
 }
 
 function generateMeterCardHTML(meterGroup) {
-    const t = i18n[currentLang];
     const isFav = favorites.includes(meterGroup.park_Id);
     const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(meterGroup.address)}`;
     
@@ -794,10 +740,10 @@ function generateMeterCardHTML(meterGroup) {
 
 function displayResults(items, isMeter = false) {
     statusText.textContent = ""; 
-    uiSearchTitle.textContent = `${i18n[currentLang].searchTitle} (${items.length})`; 
+    uiSearchTitle.textContent = `${t.searchTitle} (${items.length})`; 
     
     if (items.length === 0) {
-        resultsDiv.innerHTML = `<div class="empty-notice">${i18n[currentLang].noRecords}</div>`;
+        resultsDiv.innerHTML = `<div class="empty-notice">${t.noRecords}</div>`;
         return;
     }
     resultsDiv.innerHTML = items.map(item => isMeter ? generateMeterCardHTML(item) : generateCardHTML(item)).join('');
@@ -805,7 +751,7 @@ function displayResults(items, isMeter = false) {
 
 function renderFavorites() {
     if (favorites.length === 0) {
-        favoritesList.innerHTML = `<div class="empty-notice">${i18n[currentLang].noFavs}</div>`;
+        favoritesList.innerHTML = `<div class="empty-notice">${t.noFavs}</div>`;
         return;
     }
     
@@ -819,13 +765,13 @@ function renderFavorites() {
         favMeters.forEach(m => html += generateMeterCardHTML(m));
     }
     
-    favoritesList.innerHTML = html ? html : `<div class="empty-notice">${i18n[currentLang].noFavs}</div>`;
+    favoritesList.innerHTML = html ? html : `<div class="empty-notice">${t.noFavs}</div>`;
 }
 
 async function silentFetchData() {
     try {
-        const infoUrl = `https://api.data.gov.hk/v1/carpark-info-vacancy?data=info&lang=${currentLang}`;
-        const vacancyUrl = `https://api.data.gov.hk/v1/carpark-info-vacancy?data=vacancy&lang=${currentLang}`;
+        const infoUrl = 'https://api.data.gov.hk/v1/carpark-info-vacancy?data=info&lang=zh_TW';
+        const vacancyUrl = 'https://api.data.gov.hk/v1/carpark-info-vacancy?data=vacancy&lang=zh_TW';
         const [infoRes, vacancyRes] = await Promise.all([fetch(infoUrl), fetch(vacancyUrl)]);
         if (infoRes.ok && vacancyRes.ok) {
             const infoData = await infoRes.json();
@@ -837,13 +783,6 @@ async function silentFetchData() {
         }
     } catch (e) {}
 }
-
-langSelect.addEventListener('change', async (e) => {
-    currentLang = e.target.value;
-    updateUIStaticText();
-    if (userCoordinates) await refreshActiveTabData(false);
-    else if (cachedAllParks.length > 0 || cachedAllMeters.length > 0) renderFavorites();
-});
 
 updateUIStaticText();
 renderSearchHistory();

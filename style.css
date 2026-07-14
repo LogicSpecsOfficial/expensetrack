@@ -75,37 +75,37 @@ select#langSelect {
 
 .action-group {
     display: flex;
-    flex-direction: column;
     gap: 10px;
     margin-bottom: 16px;
+    width: 100%;
 }
 
 button.main-btn {
+    flex: 1;
     background-color: var(--accent);
     color: white;
     border: none;
-    padding: 14px;
-    font-size: 1rem;
+    padding: 12px;
+    font-size: 0.9rem;
     border-radius: var(--radius);
     cursor: pointer;
     font-weight: 600;
     transition: background-color 0.2s;
-    width: 100%;
 }
 
 button.main-btn:active { background-color: var(--accent-hover); }
 button.main-btn:disabled { background-color: var(--border-color); color: var(--text-muted); }
 
 button.secondary-btn {
+    flex: 1;
     background-color: transparent;
     color: var(--text-main);
     border: 1px solid var(--border-color);
     padding: 12px;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     border-radius: var(--radius);
     cursor: pointer;
     font-weight: 500;
-    width: 100%;
 }
 
 button.secondary-btn:active { background-color: #e9ecef; }
@@ -201,18 +201,22 @@ button.search-action-btn:active {
 }
 
 .clear-btn {
-    background: none;
-    border: none;
+    background-color: #f1f3f5;
+    border: 1px solid var(--border-color);
     color: var(--text-muted);
     font-size: 0.75rem;
     font-weight: 600;
     cursor: pointer;
-    padding: 6px 8px;
+    padding: 6px 12px;
+    border-radius: 6px;
     white-space: nowrap;
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s;
 }
 
 .clear-btn:active {
+    background-color: #fff5f5;
     color: var(--danger);
+    border-color: #fbc2c2;
 }
 
 #filter-container {

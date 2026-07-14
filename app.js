@@ -27,7 +27,11 @@ const i18n = {
         distWarning: "[提示: 距離較遠]",
         aiPredictTitle: "AI 15分鐘後車位估算率",
         addFav: "收藏",
-        removeFav: "取消收藏"
+        removeFav: "取消收藏",
+        filterLabel: "車位狀態過濾：",
+        optAll: "全部",
+        optVacant: "僅顯示空置",
+        optOccupied: "僅顯示使用中"
     },
     en_US: {
         title: "Nearest HK Car Parks",
@@ -57,7 +61,11 @@ const i18n = {
         distWarning: "[Notice: Far Distance]",
         aiPredictTitle: "AI 15-Min Availability Probability",
         addFav: "Favorite",
-        removeFav: "Unfavorite"
+        removeFav: "Unfavorite",
+        filterLabel: "Filter Status:",
+        optAll: "All",
+        optVacant: "Vacant Only",
+        optOccupied: "Occupied Only"
     }
 };
 
@@ -85,6 +93,9 @@ const favWrapper = document.getElementById('fav-wrapper');
 const uiFavTitle = document.getElementById('ui-fav-title');
 const uiSearchTitle = document.getElementById('ui-search-title');
 
+const filterContainer = document.getElementById('filter-container');
+const meterFilter = document.getElementById('meterFilter');
+
 function updateUIStaticText() {
     uiTitle.textContent = i18n[currentLang].title;
     locateBtn.textContent = i18n[currentLang].btnText;
@@ -93,6 +104,12 @@ function updateUIStaticText() {
     tabOffStreet.textContent = i18n[currentLang].tabOffStreet;
     tabMetered.textContent = i18n[currentLang].tabMetered;
     showFavBtn.textContent = favWrapper.style.display === 'none' ? i18n[currentLang].btnFavShow : i18n[currentLang].btnFavHide;
+    
+    document.getElementById('ui-filter-label').textContent = i18n[currentLang].filterLabel;
+    document.getElementById('ui-opt-all').textContent = i18n[currentLang].optAll;
+    document.getElementById('ui-opt-vacant').textContent = i18n[currentLang].optVacant;
+    document.getElementById('ui-opt-occupied').textContent = i18n[currentLang].optOccupied;
+    
     updateCountdownUI();
 }
 
@@ -128,9 +145,11 @@ async function switchTab(tabName) {
     if (currentTab === 'offstreet') {
         tabOffStreet.classList.add('active');
         tabMetered.classList.remove('active');
+        filterContainer.style.display = 'none';
     } else {
         tabMetered.classList.add('active');
         tabOffStreet.classList.remove('active');
+        filterContainer.style.display = 'flex';
     }
     renderFavorites();
     await renderActiveTabDisplay();
@@ -146,7 +165,14 @@ async function renderActiveTabDisplay() {
         }
     } else {
         if (cachedAllMeters.length > 0) {
-            displayResults(cachedAllMeters.slice(0, 30), true);
+            let filteredMeters = cachedAllMeters;
+            const filterValue = meterFilter.value;
+            if (filterValue === 'vacant') {
+                filteredMeters = cachedAllMeters.filter(m => m.vacancyStatus === 'V');
+            } else if (filterValue === 'occupied') {
+                filteredMeters = cachedAllMeters.filter(m => m.vacancyStatus !== 'V');
+            }
+            displayResults(filteredMeters.slice(0, 30), true);
         } else {
             await refreshActiveTabData(false);
         }
@@ -245,7 +271,6 @@ function calculateMeteredAIPrediction(status) {
 }
 
 async function fetchTextThroughProxy(rawUrl) {
-    // 1. Native Direct Connection
     try {
         const res = await fetch(rawUrl);
         if (res.ok) {
@@ -256,7 +281,6 @@ async function fetchTextThroughProxy(rawUrl) {
         console.warn("Direct native request blocked, applying proxies.");
     }
 
-    // 2. Proxy A: corsproxy.io (Unencoded directly)
     try {
         const proxyUrl = `https://corsproxy.io/?${rawUrl}`;
         const res = await fetch(proxyUrl);
@@ -268,7 +292,6 @@ async function fetchTextThroughProxy(rawUrl) {
         console.warn("Proxy A (corsproxy.io) failed, trying fallback.");
     }
 
-    // 3. Proxy B: api.codetabs.com
     try {
         const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(rawUrl)}`;
         const res = await fetch(proxyUrl);
@@ -280,7 +303,6 @@ async function fetchTextThroughProxy(rawUrl) {
         console.warn("Proxy B (codetabs) failed, trying fallback.");
     }
 
-    // 4. Proxy C: api.allorigins.win
     try {
         const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(rawUrl)}`;
         const res = await fetch(proxyUrl);
@@ -333,6 +355,10 @@ showFavBtn.addEventListener('click', () => {
         favWrapper.style.display = 'none';
     }
     updateUIStaticText();
+});
+
+meterFilter.addEventListener('change', () => {
+    renderActiveTabDisplay();
 });
 
 async function refreshActiveTabData(isBackgroundRefresh = false) {
@@ -434,7 +460,16 @@ async function fetchMeteredParking(userLat, userLng) {
     });
 
     cachedAllMeters.sort((a, b) => a.distance - b.distance);
-    displayResults(cachedAllMeters.slice(0, 30), true);
+    
+    let filteredMeters = cachedAllMeters;
+    const filterValue = meterFilter.value;
+    if (filterValue === 'vacant') {
+        filteredMeters = cachedAllMeters.filter(m => m.vacancyStatus === 'V');
+    } else if (filterValue === 'occupied') {
+        filteredMeters = cachedAllMeters.filter(m => m.vacancyStatus !== 'V');
+    }
+    
+    displayResults(filteredMeters.slice(0, 30), true);
     renderFavorites();
 }
 

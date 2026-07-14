@@ -662,7 +662,7 @@ function generateToiletCardHTML(toilet) {
     let distWarningHTML = toilet.distance > 5 ? `<span class="distance-warning">${t.distWarning || '距離較遠'}</span>` : '';
     const distHTML = toilet.distance !== Infinity ? `<span class="distance">${toilet.distance.toFixed(2)} ${t.away || '公里'}</span>${distWarningHTML}` : '';
 
-    const wheelchairBadgeHTML = toilet.hasWheelchair ? `<span class="status-badge ev-charger">♿ 設無障礙通道</span>` : '';
+    const wheelchairBadgeHTML = toilet.hasWheelchair ? `<span class="status-badge ev-charger">設無障礙通道</span>` : '';
 
     let infoGridItems = '';
     if (toilet.address) infoGridItems += `<div class="info-label">地址:</div><div><a href="${mapUrl}" target="_blank" class="map-link">${toilet.address}</a></div>`;
@@ -691,36 +691,84 @@ function generateToiletCardHTML(toilet) {
         </div>`;
 }
 
-// 實作食環署 XML 專用高性能串流解析器
+// 三軌備援連線獲取 XML 並進行多層防錯篩選
 async function fetchToilets(lat, lng) {
     const url = 'https://www.fehd.gov.hk/tc_chi/map/fehd_map_c.xml';
-    
-    // 透過跨域代理獲取原始 XML 文字
-    const xmlText = await fetchTextThroughProxy(url, true);
-    if (!xmlText || xmlText.trim() === "") {
-        throw new Error("獲取的 XML 數據為空");
+    let xmlText = "";
+    let success = false;
+
+    // 備援一：使用您定義的 proxy
+    try {
+        xmlText = await fetchTextThroughProxy(url, true);
+        if (xmlText && xmlText.trim() !== "" && xmlText.includes("<marker")) {
+            success = true;
+        }
+    } catch (e) {
+        console.warn("Proxy 1 failed:", e);
+    }
+
+    // 備援二：直接連線
+    if (!success) {
+        try {
+            const res = await fetch(url);
+            xmlText = await res.text();
+            if (xmlText && xmlText.trim() !== "" && xmlText.includes("<marker")) {
+                success = true;
+            }
+        } catch (e) {
+            console.warn("Direct fetch failed:", e);
+        }
+    }
+
+    // 備援三：AllOrigins 代理
+    if (!success) {
+        try {
+            const res = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(url));
+            xmlText = await res.text();
+            if (xmlText && xmlText.trim() !== "" && xmlText.includes("<marker")) {
+                success = true;
+            }
+        } catch (e) {
+            console.warn("Proxy 2 failed:", e);
+        }
+    }
+
+    // 備援四：Corsproxy 代理
+    if (!success) {
+        try {
+            const res = await fetch('https://corsproxy.io/?' + encodeURIComponent(url));
+            xmlText = await res.text();
+            if (xmlText && xmlText.trim() !== "" && xmlText.includes("<marker")) {
+                success = true;
+            }
+        } catch (e) {
+            console.warn("Proxy 3 failed:", e);
+        }
+    }
+
+    if (!success || !xmlText) {
+        throw new Error("無法取得公廁 XML 數據，請檢查網絡連線。");
     }
 
     const parser = new DOMParser();
     const xmlDoc = parser.parseFromString(xmlText, "text/xml");
     
-    // 判斷 XML 解析是否正確
     const parseError = xmlDoc.querySelector('parsererror');
     if (parseError) {
-        throw new Error("XML 格式解析失敗");
+        throw new Error("XML 數據結構解析失敗");
     }
 
-    // 讀取標記節點
-    let nodes = xmlDoc.getElementsByTagName('marker');
+    // 支援多種節點命名
+    let nodes = Array.from(xmlDoc.getElementsByTagName('marker'));
     if (nodes.length === 0) {
-        nodes = xmlDoc.getElementsByTagName('marker_c'); // 防呆備份
+        nodes = Array.from(xmlDoc.getElementsByTagName('marker_c'));
+    }
+    if (nodes.length === 0) {
+        nodes = Array.from(xmlDoc.querySelectorAll('*')).filter(el => el.hasAttribute('lat') && el.hasAttribute('lng'));
     }
 
     const toiletsList = [];
-    for (let i = 0; i < nodes.length; i++) {
-        const node = nodes[i];
-        
-        // 封裝安全讀取屬性或子標籤值的函數
+    nodes.forEach((node, i) => {
         const getVal = (key) => {
             return node.getAttribute(key) || 
                    node.querySelector(key)?.textContent || 
@@ -729,23 +777,25 @@ async function fetchToilets(lat, lng) {
         };
 
         const type = getVal('type') || getVal('Type') || '';
-        
-        // 篩選出屬於「公廁」類型的項目（XML 內標示為 "公廁" 或 "Public Toilet"）
-        if (type.includes('公廁') || type.includes('廁所') || type.toLowerCase().includes('toilet')) {
+        const name = getVal('name') || getVal('Name') || '';
+        const address = getVal('address') || getVal('Address') || '';
+
+        // 食環署代碼對照：type="1" 代表公眾廁所，type="2" 代表旱廁，部分資料為中英文字串
+        const isToilet = type === '1' || type === '2' || 
+                         type.includes('公廁') || type.includes('廁所') || type.toLowerCase().includes('toilet') ||
+                         name.includes('公廁') || name.includes('廁所') || name.toLowerCase().includes('toilet');
+
+        if (isToilet) {
             const tLat = parseFloat(getVal('lat') || getVal('latitude') || '0');
             const tLng = parseFloat(getVal('lng') || getVal('longitude') || '0');
             
-            if (tLat === 0 || tLng === 0) continue;
-
-            const name = getVal('name') || getVal('Name') || '公眾廁所';
-            const address = getVal('address') || getVal('Address') || '香港各區';
+            if (tLat === 0 || tLng === 0) return;
             
-            // 讀取無障礙通道狀態
             const rawWheelchair = getVal('wheelchair') || getVal('wheelchair_access') || '';
-            const hasWheelchair = (rawWheelchair === 'Y' || rawWheelchair.toUpperCase() === 'YES' || rawWheelchair === '有');
+            const hasWheelchair = (rawWheelchair === 'Y' || rawWheelchair.toUpperCase() === 'YES' || rawWheelchair === '有' || rawWheelchair === '1');
 
             toiletsList.push({
-                park_Id: `toilet_${tLat}_${tLng}_${i}`, // 產生唯一識別 ID 用於收藏夾
+                park_Id: `toilet_${tLat}_${tLng}_${i}`,
                 name: name,
                 address: address,
                 district: getVal('district') || '',
@@ -755,10 +805,10 @@ async function fetchToilets(lat, lng) {
                 distance: calcDistance(lat, lng, tLat, tLng)
             });
         }
-    }
+    });
 
     if (toiletsList.length === 0) {
-        throw new Error("數據源中未檢索到符合的公廁設施");
+        throw new Error("未檢索到符合條件的公廁數據。");
     }
 
     cachedAllToilets = toiletsList;

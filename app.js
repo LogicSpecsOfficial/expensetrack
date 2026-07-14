@@ -25,7 +25,6 @@ const i18n = {
         spaces: "個空置車位",
         noVacancyData: "未有提供即時空位數據",
         distWarning: "[提示: 距離較遠]",
-        aiPredictTitle: "AI 15分鐘後車位估算率",
         addFav: "收藏",
         removeFav: "取消收藏",
         optAll: "全部",
@@ -58,7 +57,6 @@ const i18n = {
         spaces: "spaces available",
         noVacancyData: "No live availability data provided",
         distWarning: "[Notice: Far Distance]",
-        aiPredictTitle: "AI 15-Min Availability Probability",
         addFav: "Favorite",
         removeFav: "Unfavorite",
         optAll: "All",
@@ -236,45 +234,6 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
               Math.sin(dLon/2) * Math.sin(dLon/2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     return R * c;
-}
-
-function calculateOffStreetAIPrediction(currentVacancy) {
-    if (currentVacancy === undefined || currentVacancy === null || currentVacancy < 0) return null;
-    if (currentVacancy === 0) return 0;
-
-    const now = new Date();
-    const hour = now.getHours();
-
-    if (hour >= 23 || hour < 6) {
-        return 100;
-    }
-
-    const day = now.getDay();
-    let trendFactor = 1.0;
-    if (day >= 1 && day <= 5) {
-        if ((hour >= 8 && hour <= 10) || (hour >= 17 && hour <= 19)) trendFactor = 0.75;
-    } else {
-        if (hour >= 12 && hour <= 18) trendFactor = 0.65;
-    }
-
-    let prediction = Math.min(100, Math.max(15, currentVacancy * 4 * trendFactor));
-    return Math.round(prediction);
-}
-
-function calculateMeteredAIPrediction(status) {
-    const now = new Date();
-    const hour = now.getHours();
-    
-    if (hour >= 23 || hour < 6) {
-        return status === 'V' ? 100 : 0;
-    }
-    
-    const isPeak = hour >= 8 && hour <= 20;
-    if (status === 'V') {
-        return isPeak ? 30 : 80;
-    } else {
-        return isPeak ? 12 : 45;
-    }
 }
 
 async function fetchTextThroughProxy(rawUrl) {
@@ -495,7 +454,6 @@ function generateCardHTML(park) {
 
     let heightText = (park.heightRestrictions || []).map(h => h.height ? `${h.height}m` : '').filter(Boolean).join(', ');
     let vacancyHTML = `<div class="vacancy-box">Notice: ${t.noVacancyData}</div>`;
-    let aiPredictionHTML = '';
 
     if (park.liveInfo && park.liveInfo.privateCar && park.liveInfo.privateCar.length > 0) {
         const count = park.liveInfo.privateCar[0].vacancy;
@@ -505,14 +463,6 @@ function generateCardHTML(park) {
                     <strong>${t.liveVacancy}:</strong> 
                     <span class="vacancy-num ${count === 0 ? 'none' : ''}">${count}</span> ${t.spaces}
                 </div>`;
-            
-            const aiPct = calculateOffStreetAIPrediction(count);
-            if (aiPct !== null) {
-                aiPredictionHTML = `
-                    <div class="ai-box">
-                        <strong>${t.aiPredictTitle}:</strong> <span class="ai-num">${aiPct}%</span>
-                    </div>`;
-            }
         }
     }
 
@@ -537,7 +487,6 @@ function generateCardHTML(park) {
             <div class="tags-row">${distHTML}</div>
             ${infoGridItems ? `<div class="info-grid">${infoGridItems}</div>` : ''}
             ${vacancyHTML}
-            ${aiPredictionHTML}
         </div>`;
 }
 
@@ -550,7 +499,6 @@ function generateMeterCardHTML(meter) {
 
     let distWarningHTML = meter.distance > 5 ? `<span class="distance-warning">${t.distWarning}</span>` : '';
     const distHTML = meter.distance !== Infinity ? `<span class="distance">${meter.distance.toFixed(2)} ${t.away}</span>${distWarningHTML}` : '';
-    const aiPct = calculateMeteredAIPrediction(meter.vacancyStatus);
 
     return `
         <div class="carpark-card">
@@ -566,9 +514,6 @@ function generateMeterCardHTML(meter) {
             <div class="vacancy-box ${isVacant ? 'available' : 'full'}">
                 <strong>${t.liveVacancy}:</strong> 
                 <span class="vacancy-num ${!isVacant ? 'none' : ''}">${statusLabel}</span>
-            </div>
-            <div class="ai-box">
-                <strong>${t.aiPredictTitle}:</strong> <span class="ai-num">${aiPct}%</span>
             </div>
         </div>`;
 }

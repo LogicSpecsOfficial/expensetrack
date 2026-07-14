@@ -1,5 +1,6 @@
 let currentTab = 'offstreet';
 let userCoordinates = null;
+let currentSearchLocationName = ''; // 新增：用於持久儲存當前定位點名稱
 let cachedAllParks = [];
 let cachedAllMeters = [];
 let favorites = JSON.parse(localStorage.getItem('hk_carpark_favs')) || [];
@@ -343,11 +344,9 @@ async function triggerAddressSearch(forcedQuery = null) {
 
         if (lat && lng) {
             userCoordinates = { lat, lng };
+            currentSearchLocationName = locationName; // 儲存定位點名稱
             saveSearch(inputVal); 
             renderFilterPills();
-            
-            // 更新狀態文字，明確告知使用者目前定位點名稱
-            statusText.textContent = `已定位中心點：${locationName}`;
             
             await refreshActiveTabData(false);
             if (document.activeElement) document.activeElement.blur(); 
@@ -390,12 +389,14 @@ locateBtn.addEventListener('click', () => {
     navigator.geolocation.getCurrentPosition(
         async (position) => {
             userCoordinates = { lat: position.coords.latitude, lng: position.coords.longitude };
+            currentSearchLocationName = "您的位置"; // GPS 定位時儲存名稱
             renderFilterPills();
             await refreshActiveTabData(false);
         },
         async (error) => {
             console.warn("GPS tracking failed, falling back to Kowloon center coordinates.", error);
             userCoordinates = { lat: 22.3193, lng: 114.1694 };
+            currentSearchLocationName = "九龍中心"; // 降級使用預設位置名稱
             renderFilterPills();
             statusText.textContent = "定位未開啟，已顯示九龍中心數據";
             await refreshActiveTabData(false);
@@ -587,7 +588,13 @@ function generateMeterCardHTML(meterGroup) {
 
 function displayResults(items, isMeter = false) {
     statusText.textContent = ""; 
-    uiSearchTitle.textContent = `${t.searchTitle} (${items.length})`; 
+    
+    // 修正：持久地將定位中心點顯示在標題列中
+    if (currentSearchLocationName) {
+        uiSearchTitle.textContent = `${t.searchTitle} (${items.length}) - 近 ${currentSearchLocationName}`; 
+    } else {
+        uiSearchTitle.textContent = `${t.searchTitle} (${items.length})`; 
+    }
     
     if (items.length === 0) {
         resultsDiv.innerHTML = `<div class="empty-notice">${t.noRecords}</div>`;

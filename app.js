@@ -1,9 +1,9 @@
 const i18n = {
     zh_TW: {
         title: "最近的香港停車場",
-        btnText: "使用當前 GPS 位置尋找",
-        btnFavShow: "顯示我的收藏",
-        btnFavHide: "隱藏我的收藏",
+        btnText: "GPS 定位",
+        btnFavShow: "我的收藏",
+        btnFavHide: "隱藏收藏",
         favTitle: "我的收藏夾",
         searchTitle: "搜尋結果",
         tabOffStreet: "室內停車場",
@@ -37,13 +37,14 @@ const i18n = {
         searchPlaceholder: "搜尋香港地址、大廈、商場或街道...",
         searchBtnText: "搜尋",
         clearBtnText: "清除",
-        evBadge: "設有充電設備"
+        evBadge: "設有充電設備",
+        refreshBtnText: "更新數據"
     },
     en_US: {
         title: "Nearest HK Car Parks",
-        btnText: "Use Current GPS Location",
-        btnFavShow: "Show My Favorites",
-        btnFavHide: "Hide My Favorites",
+        btnText: "GPS Locate",
+        btnFavShow: "Favorites",
+        btnFavHide: "Hide Favs",
         favTitle: "My Favorites",
         searchTitle: "Search Results",
         tabOffStreet: "Off-Street Lots",
@@ -77,7 +78,8 @@ const i18n = {
         searchPlaceholder: "Search HK address, building, mall, or street...",
         searchBtnText: "Search",
         clearBtnText: "Clear",
-        evBadge: "EV Charger"
+        evBadge: "EV Charger",
+        refreshBtnText: "Refresh"
     }
 };
 
@@ -90,14 +92,10 @@ let favorites = JSON.parse(localStorage.getItem('hk_carpark_favs')) || [];
 let searchHistory = JSON.parse(localStorage.getItem('hk_carpark_history')) || [];
 let activeMeterFilter = 'all';
 
-// Independent toggles for offstreet tab
 let offstreetFilters = {
     hideFull: false,
     evOnly: false
 };
-
-let refreshInterval = null;
-let countdownValue = 15;
 
 const langSelect = document.getElementById('langSelect');
 const uiTitle = document.getElementById('ui-title');
@@ -105,8 +103,8 @@ const tabOffStreet = document.getElementById('tabOffStreet');
 const tabMetered = document.getElementById('tabMetered');
 const locateBtn = document.getElementById('locateBtn');
 const showFavBtn = document.getElementById('showFavBtn');
+const refreshBtn = document.getElementById('refreshBtn');
 const statusText = document.getElementById('status');
-const countdownElement = document.getElementById('countdownText');
 const resultsDiv = document.getElementById('results');
 const favoritesList = document.getElementById('favoritesList');
 const favWrapper = document.getElementById('fav-wrapper');
@@ -120,6 +118,7 @@ const clearHistoryBtn = document.getElementById('clearHistoryBtn');
 function updateUIStaticText() {
     uiTitle.textContent = i18n[currentLang].title;
     locateBtn.textContent = i18n[currentLang].btnText;
+    refreshBtn.textContent = i18n[currentLang].refreshBtnText;
     uiFavTitle.textContent = i18n[currentLang].favTitle;
     uiSearchTitle.textContent = i18n[currentLang].searchTitle;
     tabOffStreet.textContent = i18n[currentLang].tabOffStreet;
@@ -131,34 +130,6 @@ function updateUIStaticText() {
     clearHistoryBtn.textContent = i18n[currentLang].clearBtnText;
     
     renderFilterPills();
-    updateCountdownUI();
-}
-
-function updateCountdownUI() {
-    if (!userCoordinates) {
-        countdownElement.textContent = '';
-        return;
-    }
-    countdownElement.textContent = currentLang === 'zh_TW' ? 
-        `資料將在 ${countdownValue} 秒後自動更新` : 
-        `Data will auto-refresh in ${countdownValue}s`;
-}
-
-function initAutoRefreshLoop() {
-    if (refreshInterval) clearInterval(refreshInterval);
-    countdownValue = 15;
-    updateCountdownUI();
-    
-    refreshInterval = setInterval(async () => {
-        countdownValue--;
-        if (countdownValue <= 0) {
-            countdownValue = 15;
-            if (userCoordinates) {
-                await refreshActiveTabData(true);
-            }
-        }
-        updateCountdownUI();
-    }, 1000);
 }
 
 function renderFilterPills() {
@@ -398,6 +369,7 @@ async function triggerAddressSearch(forcedQuery = null) {
     resultsDiv.innerHTML = "";
     locateBtn.disabled = true;
     searchBtn.disabled = true;
+    refreshBtn.disabled = true;
 
     try {
         const searchUrl = `https://www.als.gov.hk/lookup?q=${encodeURIComponent(query)}`;
@@ -412,7 +384,6 @@ async function triggerAddressSearch(forcedQuery = null) {
             userCoordinates = { lat, lng };
             
             saveSearch(query);
-            initAutoRefreshLoop();
             renderFilterPills();
             statusText.textContent = currentLang === 'zh_TW' ? `已定位至搜尋地點: ${query}` : `Positioned to searched place: ${query}`;
             await refreshActiveTabData(false);
@@ -425,6 +396,7 @@ async function triggerAddressSearch(forcedQuery = null) {
     } finally {
         locateBtn.disabled = false;
         searchBtn.disabled = false;
+        refreshBtn.disabled = false;
     }
 }
 
@@ -447,26 +419,33 @@ locateBtn.addEventListener('click', () => {
         return;
     }
     locateBtn.disabled = true;
+    refreshBtn.disabled = true;
     statusText.textContent = i18n[currentLang].gpsLocating;
     resultsDiv.innerHTML = "";
 
     navigator.geolocation.getCurrentPosition(
         async (position) => {
             userCoordinates = { lat: position.coords.latitude, lng: position.coords.longitude };
-            initAutoRefreshLoop();
             renderFilterPills();
             await refreshActiveTabData(false);
         },
         async (error) => {
             console.warn("GPS tracking failed, falling back to Kowloon center coordinates.", error);
             userCoordinates = { lat: 22.3193, lng: 114.1694 };
-            initAutoRefreshLoop();
             renderFilterPills();
             statusText.textContent = currentLang === 'zh_TW' ? "定位未開啟，已顯示九龍中心數據" : "GPS failed, displaying Kowloon defaults.";
             await refreshActiveTabData(false);
         },
         { enableHighAccuracy: true }
     );
+});
+
+refreshBtn.addEventListener('click', async () => {
+    if (!userCoordinates) {
+        locateBtn.click();
+    } else {
+        await refreshActiveTabData(false);
+    }
 });
 
 showFavBtn.addEventListener('click', () => {
@@ -488,6 +467,7 @@ async function refreshActiveTabData(isBackgroundRefresh = false) {
     if (!isBackgroundRefresh) {
         statusText.textContent = i18n[currentLang].apiFetching;
         locateBtn.disabled = true;
+        refreshBtn.disabled = true;
     }
     try {
         if (currentTab === 'offstreet') {
@@ -503,6 +483,7 @@ async function refreshActiveTabData(isBackgroundRefresh = false) {
     } finally {
         if (!isBackgroundRefresh) {
             locateBtn.disabled = false;
+            refreshBtn.disabled = false;
         }
     }
 }

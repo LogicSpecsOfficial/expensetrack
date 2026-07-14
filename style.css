@@ -44,6 +44,37 @@ body {
 
 h1 { font-size: 1.15rem; font-weight: 700; letter-spacing: -0.5px; white-space: nowrap; }
 
+/* 右上角圖標按鈕組 */
+.header-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.icon-btn {
+    background-color: transparent;
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 0;
+    width: var(--btn-height);
+    height: var(--btn-height);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.icon-btn:active { background-color: #e9ecef; }
+body.dark-theme .icon-btn:active { background-color: #2d2d2d; }
+
+.icon-btn svg {
+    width: 18px;
+    height: 18px;
+    display: block;
+}
+
 .tab-container {
     display: flex;
     background-color: #e9ecef;
@@ -60,7 +91,7 @@ body.dark-theme .tab-container {
     background-color: #2d2d2d;
 }
 
-.tab-btn, button.main-btn, button.secondary-btn, button.search-action-btn, .pill-btn, .theme-toggle-btn {
+.tab-btn, button.main-btn, button.secondary-btn, button.search-action-btn, .pill-btn {
     height: var(--btn-height);
     font-size: var(--font-size-btn);
     border-radius: var(--radius);
@@ -86,49 +117,6 @@ body.dark-theme .tab-container {
     background-color: var(--surface);
     color: var(--text-main);
     box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-}
-
-.action-group {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 12px;
-    width: 100%;
-}
-
-button.main-btn {
-    flex: 1;
-    background-color: var(--accent);
-    color: white;
-}
-
-button.main-btn:active { background-color: var(--accent-hover); }
-button.main-btn:disabled { background-color: var(--border-color); color: var(--text-muted); }
-
-button.secondary-btn {
-    flex: 1;
-    background-color: transparent;
-    color: var(--text-main);
-    border-color: var(--border-color);
-}
-
-button.secondary-btn:active { background-color: #e9ecef; }
-body.dark-theme button.secondary-btn:active { background-color: #2d2d2d; }
-
-.theme-toggle-btn {
-    background-color: transparent;
-    color: var(--text-main);
-    border-color: var(--border-color);
-    padding: 0;
-    width: var(--btn-height);
-    height: var(--btn-height);
-}
-
-.theme-toggle-btn:active { background-color: #e9ecef; }
-body.dark-theme .theme-toggle-btn:active { background-color: #2d2d2d; }
-
-.theme-toggle-btn svg {
-    width: 20px;
-    height: 20px;
 }
 
 #status {

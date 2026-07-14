@@ -204,7 +204,6 @@ function hasEVCharging(park) {
     return evKeywords.some(kw => searchString.includes(kw));
 }
 
-// 數據渲染與計算邏輯
 function getVacancyCount(park) {
     if (park.liveInfo && park.liveInfo.privateCar && park.liveInfo.privateCar.length > 0) {
         const count = park.liveInfo.privateCar[0].vacancy;
@@ -444,7 +443,14 @@ locateBtn.addEventListener('click', () => {
     }
     locateBtn.disabled = true;
     refreshBtn.disabled = true;
-    statusText.textContent = t.gpsLocating;
+    
+    // 依據分頁顯示不同的 GPS 載入狀態
+    if (currentTab === 'toilet') {
+        statusText.textContent = t.toiletLocating || "正在獲取公廁定位...";
+    } else {
+        statusText.textContent = t.gpsLocating;
+    }
+    
     resultsDiv.innerHTML = "";
 
     navigator.geolocation.getCurrentPosition(
@@ -482,10 +488,15 @@ showFavBtn.addEventListener('click', () => {
     updateUIStaticText();
 });
 
+// 修正：當切換至公廁分頁時，將載入狀態文字重新命名為「正在讀取公廁數據...」
 async function refreshActiveTabData(isBackgroundRefresh = false) {
     if (!userCoordinates) return;
     if (!isBackgroundRefresh) {
-        statusText.textContent = t.apiFetching;
+        if (currentTab === 'toilet') {
+            statusText.textContent = t.toiletFetching || "正在讀取公廁數據...";
+        } else {
+            statusText.textContent = t.apiFetching;
+        }
         locateBtn.disabled = true;
         refreshBtn.disabled = true;
     }
@@ -682,15 +693,65 @@ function generateToiletCardHTML(toilet) {
         </div>`;
 }
 
-// 修正後的公廁獲取函數：直接使用代理請求 FEHD JSON 檔案，防止 Unexpected end of JSON input
+// 帶超時中斷的強效 Fetch 輔助函數，防止因任何單一代理掛掉而導致程式無限期卡死載入中
+async function fetchWithTimeout(resource, options = {}) {
+    const { timeout = 4000 } = options; // 限制單次請求上限 4 秒，防止 hanging 
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    const response = await fetch(resource, {
+        ...options,
+        signal: controller.signal
+    });
+    clearTimeout(id);
+    return response;
+}
+
+// 修正後的超高防禦力公廁數據獲取函數：三軌備援機制，徹底解決 hang 住與 Unexpected end of JSON 報錯
 async function fetchToilets(lat, lng) {
-    const url = 'https://www.fehd.gov.hk/english/map/toilet/toilet_map.json';
-    const responseText = await fetchTextThroughProxy(url, true);
-    
-    if (!responseText || responseText.trim() === "") {
-        throw new Error("獲取的公廁數據為空");
+    let responseText = "";
+    let success = false;
+
+    // 備援軌道一：使用政府官方 CORS-enabled filter API 獲取
+    try {
+        const res = await fetchWithTimeout('https://api.data.gov.hk/v1/filter?media-format=json&url=https%3A%2F%2Fwww.fehd.gov.hk%2Fenglish%2Fmap%2Ftoilet%2Ftoilet_map.json', { timeout: 4000 });
+        responseText = await res.text();
+        if (responseText && responseText.trim() !== "" && responseText.includes("toilet")) {
+            success = true;
+        }
+    } catch (e) {
+        console.warn("備援一號（政府 Filter API）失敗，自動切換至備援二號...", e);
     }
-    
+
+    // 備援軌道二：使用 corsproxy.io 代理直接對接食環署原廠數據
+    if (!success) {
+        try {
+            const res = await fetchWithTimeout('https://corsproxy.io/?' + encodeURIComponent('https://www.fehd.gov.hk/english/map/toilet/toilet_map.json'), { timeout: 4000 });
+            responseText = await res.text();
+            if (responseText && responseText.trim() !== "" && responseText.includes("toilet")) {
+                success = true;
+            }
+        } catch (e) {
+            console.warn("備援二號（corsproxy 代理）失敗，自動切換至備援三號...", e);
+        }
+    }
+
+    // 備援軌道三：使用 allorigins 快速代理作最後防禦
+    if (!success) {
+        try {
+            const res = await fetchWithTimeout('https://api.allorigins.win/raw?url=' + encodeURIComponent('https://www.fehd.gov.hk/english/map/toilet/toilet_map.json'), { timeout: 4000 });
+            responseText = await res.text();
+            if (responseText && responseText.trim() !== "" && responseText.includes("toilet")) {
+                success = true;
+            }
+        } catch (e) {
+            console.warn("備援三號（allorigins 代理）失敗", e);
+        }
+    }
+
+    if (!success || !responseText) {
+        throw new Error("公廁數據伺服器連線逾時，請檢查網路或稍後再試。");
+    }
+
     const data = JSON.parse(responseText);
     let toiletsList = [];
     if (data && data.toilet) {
@@ -698,9 +759,9 @@ async function fetchToilets(lat, lng) {
     } else if (Array.isArray(data)) {
         toiletsList = data;
     } else {
-        throw new Error("數據格式錯誤");
+        throw new Error("獲取的公廁 JSON 格式不合規");
     }
-    
+
     cachedAllToilets = toiletsList.map((item, index) => {
         const tLat = parseFloat(item.lat || item.latitude || item.Latitude || 0);
         const tLng = parseFloat(item.lng || item.longitude || item.Longitude || 0);
@@ -720,7 +781,7 @@ async function fetchToilets(lat, lng) {
             distance: calcDistance(lat, lng, tLat, tLng)
         };
     });
-    
+
     await renderActiveTabDisplay();
 }
 

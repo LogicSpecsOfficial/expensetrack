@@ -204,6 +204,7 @@ function hasEVCharging(park) {
     return evKeywords.some(kw => searchString.includes(kw));
 }
 
+// 數據渲染與計算邏輯
 function getVacancyCount(park) {
     if (park.liveInfo && park.liveInfo.privateCar && park.liveInfo.privateCar.length > 0) {
         const count = park.liveInfo.privateCar[0].vacancy;
@@ -681,16 +682,23 @@ function generateToiletCardHTML(toilet) {
         </div>`;
 }
 
+// 修正後的公廁獲取函數：直接使用代理請求 FEHD JSON 檔案，防止 Unexpected end of JSON input
 async function fetchToilets(lat, lng) {
-    const url = 'https://api.data.gov.hk/v1/filter?media-format=json&url=https%3A%2F%2Fwww.fehd.gov.hk%2Fenglish%2Fmap%2Ftoilet%2Ftoilet_map.json';
-    const res = await fetch(url);
-    const data = await res.json();
+    const url = 'https://www.fehd.gov.hk/english/map/toilet/toilet_map.json';
+    const responseText = await fetchTextThroughProxy(url, true);
     
+    if (!responseText || responseText.trim() === "") {
+        throw new Error("獲取的公廁數據為空");
+    }
+    
+    const data = JSON.parse(responseText);
     let toiletsList = [];
     if (data && data.toilet) {
         toiletsList = data.toilet;
     } else if (Array.isArray(data)) {
         toiletsList = data;
+    } else {
+        throw new Error("數據格式錯誤");
     }
     
     cachedAllToilets = toiletsList.map((item, index) => {

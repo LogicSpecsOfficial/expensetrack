@@ -6,6 +6,7 @@
     --accent: #0d6efd;
     --accent-hover: #0b5ed7;
     --success: #198754;
+    --warning: #ff9f43;
     --danger: #dc3545;
     --border-color: #dee2e6;
     --radius: 12px;
@@ -246,19 +247,25 @@ button.search-action-btn:active {
     transform: scale(0.97);
 }
 
-#pill-all.active {
+.pill-btn.active.color-blue {
     background-color: var(--accent);
     color: white;
     border-color: var(--accent);
 }
 
-#pill-vacant.active {
+.pill-btn.active.color-green {
     background-color: var(--success);
     color: white;
     border-color: var(--success);
 }
 
-#pill-occupied.active {
+.pill-btn.active.color-amber {
+    background-color: var(--warning);
+    color: white;
+    border-color: var(--warning);
+}
+
+.pill-btn.active.color-red {
     background-color: var(--danger);
     color: white;
     border-color: var(--danger);
@@ -277,6 +284,25 @@ button.search-action-btn:active {
     margin-bottom: 16px;
     border-radius: var(--radius);
     border: 1px solid var(--border-color);
+    border-left: 6px solid var(--border-color); /* Default status boundary line */
+    transition: border-color 0.15s;
+}
+
+/* Color Coding Status Borders */
+.carpark-card.status-high {
+    border-left-color: var(--success);
+}
+
+.carpark-card.status-medium {
+    border-left-color: var(--warning);
+}
+
+.carpark-card.status-empty {
+    border-left-color: var(--danger);
+}
+
+.carpark-card.status-unknown {
+    border-left-color: var(--border-color);
 }
 
 .card-header {
@@ -352,12 +378,18 @@ button.search-action-btn:active {
     background-color: #f4fbf7;
 }
 
+.vacancy-box.moderate {
+    border-left-color: var(--warning);
+    background-color: #fffaf4;
+}
+
 .vacancy-box.full {
     border-left-color: var(--danger);
     background-color: #fff5f5;
 }
 
 .vacancy-num { font-weight: 700; color: var(--success); }
+.vacancy-num.medium { color: var(--warning); }
 .vacancy-num.none { color: var(--danger); }
 
 .empty-notice {

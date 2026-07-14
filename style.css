@@ -126,6 +126,25 @@ button.secondary-btn:active { background-color: #e9ecef; }
     font-weight: 500;
 }
 
+#filter-container {
+    display: none;
+    align-items: center;
+    background-color: var(--surface);
+    padding: 10px 14px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border-color);
+}
+
+#meterFilter {
+    padding: 6px 12px;
+    font-size: 0.9rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background-color: var(--surface);
+    color: var(--text-main);
+    cursor: pointer;
+}
+
 .section-title {
     font-size: 1.1rem;
     font-weight: 600;

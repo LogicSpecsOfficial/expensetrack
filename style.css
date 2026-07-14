@@ -34,19 +34,6 @@ body {
 
 h1 { font-size: 1.15rem; font-weight: 700; letter-spacing: -0.5px; white-space: nowrap; }
 
-select#langSelect {
-    padding: 2px 6px;
-    font-size: 0.75rem;
-    border-radius: 6px;
-    border: 1px solid var(--border-color);
-    background-color: var(--surface);
-    color: var(--text-main);
-    width: auto;
-    max-width: 90px;
-    height: 26px;
-    flex-shrink: 0;
-}
-
 .tab-container {
     display: flex;
     background-color: #e9ecef;
@@ -300,7 +287,6 @@ button.search-action-btn:active {
     gap: 6px;
 }
 
-/* Color-Coded Dot Indicators */
 .status-dot {
     width: 8px;
     height: 8px;

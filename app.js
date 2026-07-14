@@ -1,6 +1,6 @@
 let currentTab = 'offstreet';
 let userCoordinates = null;
-let currentSearchLocationName = ''; // 用於持久儲存當前定位點名稱
+let currentSearchLocationName = ''; 
 let cachedAllParks = [];
 let cachedAllMeters = [];
 let favorites = JSON.parse(localStorage.getItem('hk_carpark_favs')) || [];
@@ -283,7 +283,6 @@ function saveSearch(query) {
     renderSearchHistory();
 }
 
-// 輔助解析政府 ALS 複雜地址結構的函數
 function extractAddress(responseText, defaultVal) {
     try {
         const data = JSON.parse(responseText);
@@ -295,7 +294,7 @@ function extractAddress(responseText, defaultVal) {
             }
         }
     } catch (e) {
-        // 解析 JSON 失敗時，改用 Regex 提取
+        // parsing error fallback
     }
 
     const chiNoSpacingMatch = responseText.match(/"ChiNoSpacingAddress"\s*:\s*"([^"]+)"/i) || responseText.match(/<ChiNoSpacingAddress>([^<]+)<\/ChiNoSpacingAddress>/i);
@@ -359,16 +358,26 @@ async function triggerAddressSearch(forcedQuery = null) {
                 lat = coordinates[1];
                 
                 const prop = photonData.features[0].properties;
-                // 優先使用地標名稱，否則使用街道與城市組合
-                locationName = prop.name || [prop.street, prop.city].filter(Boolean).join(', ');
+                const addressParts = [];
+                if (prop.name) addressParts.push(prop.name);
+                if (prop.street) {
+                    let streetStr = prop.street;
+                    if (prop.housenumber) streetStr = prop.housenumber + " " + streetStr;
+                    addressParts.push(streetStr);
+                }
+                if (prop.district) addressParts.push(prop.district);
+                else if (prop.city && !["Hong Kong", "香港", "China", "中国"].includes(prop.city)) {
+                    addressParts.push(prop.city);
+                }
                 
+                locationName = addressParts.filter(Boolean).join(', ');
                 if (!locationName) locationName = inputVal;
             }
         }
 
         if (lat && lng) {
             userCoordinates = { lat, lng };
-            currentSearchLocationName = locationName; // 儲存乾淨的定位點名稱
+            currentSearchLocationName = locationName; 
             saveSearch(inputVal); 
             renderFilterPills();
             
@@ -413,14 +422,14 @@ locateBtn.addEventListener('click', () => {
     navigator.geolocation.getCurrentPosition(
         async (position) => {
             userCoordinates = { lat: position.coords.latitude, lng: position.coords.longitude };
-            currentSearchLocationName = "您的位置"; // GPS 定位時儲存名稱
+            currentSearchLocationName = "您的位置"; 
             renderFilterPills();
             await refreshActiveTabData(false);
         },
         async (error) => {
             console.warn("GPS tracking failed, falling back to Kowloon center coordinates.", error);
             userCoordinates = { lat: 22.3193, lng: 114.1694 };
-            currentSearchLocationName = "九龍中心"; // 降級使用預設位置名稱
+            currentSearchLocationName = "九龍中心"; 
             renderFilterPills();
             statusText.textContent = "定位未開啟，已顯示九龍中心數據";
             await refreshActiveTabData(false);

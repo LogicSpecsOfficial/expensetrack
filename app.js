@@ -31,27 +31,14 @@ const searchBtn = document.getElementById('searchBtn');
 const clearHistoryBtn = document.getElementById('clearHistoryBtn');
 const themeToggleBtn = document.getElementById('themeToggleBtn');
 
-// SVG 圖標代碼
-const svgGps = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-svg"><path d="m3 11 19-9-9 19-2-8-8-2z"/></svg>`;
-const svgStarOutline = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-svg"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
-const svgStarFilled = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-svg"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
-const svgRefresh = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-svg"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>`;
-const svgSearch = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-svg"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`;
-
-const defaultSunIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-svg"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="M4.93 4.93l1.41 1.41"/><path d="M17.66 17.66l1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="M6.34 17.66l-1.41 1.41"/><path d="M19.07 4.93l-1.41 1.41"/></svg>`;
-const defaultMoonIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-svg"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>`;
-
-const getSunIcon = () => (typeof sunIcon !== 'undefined' ? sunIcon : defaultSunIcon);
-const getMoonIcon = () => (typeof moonIcon !== 'undefined' ? moonIcon : defaultMoonIcon);
-
 function initTheme() {
     const savedTheme = localStorage.getItem('hk_carpark_theme') || 'light';
     if (savedTheme === 'dark') {
         document.body.classList.add('dark-theme');
-        themeToggleBtn.innerHTML = getSunIcon();
+        themeToggleBtn.innerHTML = sunIcon;
     } else {
         document.body.classList.remove('dark-theme');
-        themeToggleBtn.innerHTML = getMoonIcon();
+        themeToggleBtn.innerHTML = moonIcon;
     }
 }
 
@@ -59,28 +46,25 @@ function toggleTheme() {
     const isDark = document.body.classList.toggle('dark-theme');
     if (isDark) {
         localStorage.setItem('hk_carpark_theme', 'dark');
-        themeToggleBtn.innerHTML = getSunIcon();
+        themeToggleBtn.innerHTML = sunIcon;
     } else {
         localStorage.setItem('hk_carpark_theme', 'light');
-        themeToggleBtn.innerHTML = getMoonIcon();
+        themeToggleBtn.innerHTML = moonIcon;
     }
 }
 
 function updateUIStaticText() {
     uiTitle.textContent = t.title;
-    
-    // 將按鈕文字替換為純圖標，提升介面可用度
-    locateBtn.innerHTML = svgGps;
-    refreshBtn.innerHTML = svgRefresh;
-    searchBtn.innerHTML = svgSearch;
-    showFavBtn.innerHTML = favWrapper.style.display === 'none' ? svgStarOutline : svgStarFilled;
-    
+    locateBtn.textContent = t.btnText;
+    refreshBtn.textContent = t.refreshBtnText;
     uiFavTitle.textContent = t.favTitle;
     uiSearchTitle.textContent = t.searchTitle;
     tabOffStreet.textContent = t.tabOffStreet;
     tabMetered.textContent = t.tabMetered;
+    showFavBtn.textContent = favWrapper.style.display === 'none' ? t.btnFavShow : t.btnFavHide;
     
     searchInput.placeholder = t.searchPlaceholder;
+    searchBtn.textContent = t.searchBtnText;
     clearHistoryBtn.textContent = t.clearBtnText;
     
     renderFilterPills();
@@ -320,6 +304,7 @@ async function triggerAddressSearch(forcedQuery = null) {
     refreshBtn.disabled = true;
 
     try {
+        // 引擎 1：嘗試官方政府 ALS 服務
         const searchUrl = `https://www.als.gov.hk/lookup?q=${encodeURIComponent(query)}`;
         const responseText = await fetchTextThroughProxy(searchUrl, true);
         
@@ -333,6 +318,7 @@ async function triggerAddressSearch(forcedQuery = null) {
             lat = parseFloat(latMatch[1]);
             lng = parseFloat(lngMatch[1]);
         } else {
+            // 引擎 2：政府無結果，背景靜默啟用 Photon API 智慧搜尋
             const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=1`;
             const photonRes = await fetch(photonUrl);
             const photonData = await photonRes.json();
@@ -424,8 +410,6 @@ showFavBtn.addEventListener('click', () => {
     }
     updateUIStaticText();
 });
-
-themeToggleBtn.addEventListener('click', toggleTheme);
 
 async function refreshActiveTabData(isBackgroundRefresh = false) {
     if (!userCoordinates) return;
@@ -623,86 +607,6 @@ function renderWelcomeMessage() {
             <p>${t.welcomeDesc}</p>
         </div>
     `;
-}
-
-// 基礎距離計算與網絡請求輔助函數
-function getDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371; 
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-}
-
-async function fetchTextThroughProxy(url, useProxy = false) {
-    if (useProxy) {
-        try {
-            const res = await fetch(url);
-            return await res.text();
-        } catch (e) {
-            const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(url);
-            const res = await fetch(proxyUrl);
-            return await res.text();
-        }
-    } else {
-        const res = await fetch(url);
-        return await res.text();
-    }
-}
-
-async function fetchCarParks(lat, lng) {
-    const url = 'https://api.data.gov.hk/v1/carpark-info-vacancy';
-    const res = await fetch(url);
-    const data = await res.json();
-    
-    if (data && data.results) {
-        cachedAllParks = data.results.map(park => {
-            const parkLat = parseFloat(park.latitude || 0);
-            const parkLng = parseFloat(park.longitude || 0);
-            return {
-                ...park,
-                distance: getDistance(lat, lng, parkLat, parkLng)
-            };
-        });
-        await renderActiveTabDisplay();
-    }
-}
-
-async function fetchMeteredParking(lat, lng) {
-    const infoUrl = 'https://api.data.gov.hk/v1/carpark-info-vacancy?vehicle_type=privateCar';
-    const res = await fetch(infoUrl);
-    const data = await res.json();
-    
-    if (data && data.results) {
-        cachedAllMeters = data.results.filter(p => p.carpark_Type === 'Metered').map(m => {
-            const mLat = parseFloat(m.latitude || 0);
-            const mLng = parseFloat(m.longitude || 0);
-            return {
-                address: m.address || m.name || '',
-                rawStreet: m.name || '',
-                district: m.district || '',
-                latitude: mLat,
-                longitude: mLng,
-                vacancyStatus: (m.liveInfo && m.liveInfo.privateCar && m.liveInfo.privateCar[0] && m.liveInfo.privateCar[0].vacancy > 0) ? 'V' : 'O',
-                distance: getDistance(lat, lng, mLat, mLng)
-            };
-        });
-        await renderActiveTabDisplay();
-    }
-}
-
-async function silentFetchData() {
-    if (userCoordinates) {
-        try {
-            await fetchCarParks(userCoordinates.lat, userCoordinates.lng);
-            await fetchMeteredParking(userCoordinates.lat, userCoordinates.lng);
-        } catch (e) {
-            console.warn("Silent fetch background error:", e);
-        }
-    }
 }
 
 initTheme();

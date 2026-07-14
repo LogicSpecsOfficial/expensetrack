@@ -1,7 +1,7 @@
 const i18n = {
     zh_TW: {
         title: "最近的香港停車場",
-        btnText: "尋找最近的停車場",
+        btnText: "使用當前 GPS 位置尋找",
         btnFavShow: "顯示我的收藏",
         btnFavHide: "隱藏我的收藏",
         favTitle: "我的收藏夾",
@@ -10,6 +10,8 @@ const i18n = {
         tabMetered: "路邊咪錶位",
         gpsLocating: "正在獲取您的位置...",
         apiFetching: "正在讀取停車場數據...",
+        addressSearching: "正在搜尋該地址...",
+        addressError: "找不到該地址，請嘗試輸入其他關鍵字。",
         gpsError: "定位錯誤: ",
         apiError: "處理數據出錯: ",
         noSupport: "您的瀏覽器不支援地理定位功能。",
@@ -30,11 +32,12 @@ const i18n = {
         optAll: "全部",
         optVacant: "僅顯示空置",
         optOccupied: "僅顯示使用中",
-        searchPlaceholder: "搜尋地區、街道或停車場名稱..."
+        searchPlaceholder: "搜尋香港地址、大廈、商場或街道...",
+        searchBtnText: "搜尋"
     },
     en_US: {
         title: "Nearest HK Car Parks",
-        btnText: "Find Nearest Car Parks",
+        btnText: "Use Current GPS Location",
         btnFavShow: "Show My Favorites",
         btnFavHide: "Hide My Favorites",
         favTitle: "My Favorites",
@@ -43,6 +46,8 @@ const i18n = {
         tabMetered: "On-Street Meters",
         gpsLocating: "Acquiring location...",
         apiFetching: "Fetching car park data...",
+        addressSearching: "Searching address...",
+        addressError: "Address not found. Please try other keywords.",
         gpsError: "Location error: ",
         apiError: "Error processing data: ",
         noSupport: "Geolocation is not supported by your browser.",
@@ -63,7 +68,8 @@ const i18n = {
         optAll: "All",
         optVacant: "Vacant Only",
         optOccupied: "Occupied Only",
-        searchPlaceholder: "Search district, street, or car park name..."
+        searchPlaceholder: "Search HK address, building, mall, or street...",
+        searchBtnText: "Search"
     }
 };
 
@@ -74,7 +80,6 @@ let cachedAllParks = [];
 let cachedAllMeters = [];
 let favorites = JSON.parse(localStorage.getItem('hk_carpark_favs')) || [];
 let activeMeterFilter = 'all';
-let searchQuery = '';
 
 let refreshInterval = null;
 let countdownValue = 15;
@@ -94,6 +99,7 @@ const uiFavTitle = document.getElementById('ui-fav-title');
 const uiSearchTitle = document.getElementById('ui-search-title');
 const filterContainer = document.getElementById('filter-container');
 const searchInput = document.getElementById('searchInput');
+const searchBtn = document.getElementById('searchBtn');
 
 function updateUIStaticText() {
     uiTitle.textContent = i18n[currentLang].title;
@@ -109,6 +115,7 @@ function updateUIStaticText() {
     document.getElementById('pill-occupied').textContent = i18n[currentLang].optOccupied;
     
     searchInput.placeholder = i18n[currentLang].searchPlaceholder;
+    searchBtn.textContent = i18n[currentLang].searchBtnText;
     
     updateCountdownUI();
 }
@@ -171,16 +178,7 @@ async function renderActiveTabDisplay() {
     if (!userCoordinates) return;
     if (currentTab === 'offstreet') {
         if (cachedAllParks.length > 0) {
-            let filteredParks = cachedAllParks;
-            if (searchQuery) {
-                filteredParks = cachedAllParks.filter(p => {
-                    const name = (p.name || '').toLowerCase();
-                    const addr = (p.displayAddress || (p.address && p.address.displayAddress) || '').toLowerCase();
-                    const dist = (p.district || '').toLowerCase();
-                    return name.includes(searchQuery) || addr.includes(searchQuery) || dist.includes(searchQuery);
-                });
-            }
-            displayResults(filteredParks.slice(0, 30), false);
+            displayResults(cachedAllParks.slice(0, 30), false);
         } else {
             await refreshActiveTabData(false);
         }
@@ -191,15 +189,6 @@ async function renderActiveTabDisplay() {
                 filteredMeters = cachedAllMeters.filter(m => m.vacancyStatus === 'V');
             } else if (activeMeterFilter === 'occupied') {
                 filteredMeters = cachedAllMeters.filter(m => m.vacancyStatus !== 'V');
-            }
-            
-            if (searchQuery) {
-                filteredMeters = filteredMeters.filter(m => {
-                    const name = (m.name || '').toLowerCase();
-                    const addr = (m.address || '').toLowerCase();
-                    const dist = (m.district || '').toLowerCase();
-                    return name.includes(searchQuery) || addr.includes(searchQuery) || dist.includes(searchQuery);
-                });
             }
             displayResults(filteredMeters.slice(0, 30), true);
         } else {
@@ -260,23 +249,25 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
     return R * c;
 }
 
-async function fetchTextThroughProxy(rawUrl) {
+async function fetchTextThroughProxy(rawUrl, useJSONHeader = false) {
+    const fetchOptions = useJSONHeader ? { headers: { 'Accept': 'application/json' } } : {};
+
     try {
-        const res = await fetch(rawUrl);
+        const res = await fetch(rawUrl, fetchOptions);
         if (res.ok) {
             const text = await res.text();
-            if (text && text.trim().length > 100) return text;
+            if (text && text.trim().length > 20) return text;
         }
     } catch (e) {
-        console.warn("Direct native request blocked, applying proxies.");
+        console.warn("Direct native request failed, applying proxies.");
     }
 
     try {
-        const proxyUrl = `https://corsproxy.io/?${rawUrl}`;
-        const res = await fetch(proxyUrl);
+        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(rawUrl)}`;
+        const res = await fetch(proxyUrl, fetchOptions);
         if (res.ok) {
             const text = await res.text();
-            if (text && text.trim().length > 100) return text;
+            if (text && text.trim().length > 20) return text;
         }
     } catch (e) {
         console.warn("Proxy A (corsproxy.io) failed, trying fallback.");
@@ -284,10 +275,10 @@ async function fetchTextThroughProxy(rawUrl) {
 
     try {
         const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(rawUrl)}`;
-        const res = await fetch(proxyUrl);
+        const res = await fetch(proxyUrl, fetchOptions);
         if (res.ok) {
             const text = await res.text();
-            if (text && text.trim().length > 100) return text;
+            if (text && text.trim().length > 20) return text;
         }
     } catch (e) {
         console.warn("Proxy B (codetabs) failed, trying fallback.");
@@ -298,14 +289,57 @@ async function fetchTextThroughProxy(rawUrl) {
         const res = await fetch(proxyUrl);
         if (res.ok) {
             const data = await res.json();
-            if (data && data.contents && data.contents.trim().length > 100) return data.contents;
+            if (data && data.contents && data.contents.trim().length > 20) return data.contents;
         }
     } catch (e) {
         console.error("All proxies failed.");
     }
 
-    throw new Error("Unable to fetch metered parking datasets through proxy streams.");
+    throw new Error("Unable to fetch data through proxy connections.");
 }
+
+async function triggerAddressSearch() {
+    const query = searchInput.value.trim();
+    if (!query) return;
+
+    statusText.textContent = i18n[currentLang].addressSearching;
+    resultsDiv.innerHTML = "";
+    locateBtn.disabled = true;
+    searchBtn.disabled = true;
+
+    try {
+        const searchUrl = `https://www.als.gov.hk/lookup?q=${encodeURIComponent(query)}`;
+        const responseText = await fetchTextThroughProxy(searchUrl, true);
+        
+        const latMatch = responseText.match(/"Latitude"\s*:\s*"?([0-9.]+)"?/i) || responseText.match(/<Latitude>([0-9.]+)<\/Latitude>/i);
+        const lngMatch = responseText.match(/"Longitude"\s*:\s*"?([0-9.]+)"?/i) || responseText.match(/<Longitude>([0-9.]+)<\/Longitude>/i);
+
+        if (latMatch && lngMatch) {
+            const lat = parseFloat(latMatch[1]);
+            const lng = parseFloat(lngMatch[1]);
+            userCoordinates = { lat, lng };
+            
+            initAutoRefreshLoop();
+            statusText.textContent = currentLang === 'zh_TW' ? `已定位至搜尋地點: ${query}` : `Positioned to searched place: ${query}`;
+            await refreshActiveTabData(false);
+        } else {
+            statusText.textContent = i18n[currentLang].addressError;
+        }
+    } catch (err) {
+        statusText.textContent = i18n[currentLang].addressError;
+        console.error("Address lookup error:", err);
+    } finally {
+        locateBtn.disabled = false;
+        searchBtn.disabled = false;
+    }
+}
+
+searchBtn.addEventListener('click', triggerAddressSearch);
+searchInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+        triggerAddressSearch();
+    }
+});
 
 locateBtn.addEventListener('click', () => {
     if (!navigator.geolocation) {
@@ -345,11 +379,6 @@ showFavBtn.addEventListener('click', () => {
         favWrapper.style.display = 'none';
     }
     updateUIStaticText();
-});
-
-searchInput.addEventListener('input', (e) => {
-    searchQuery = e.target.value.trim().toLowerCase();
-    renderActiveTabDisplay();
 });
 
 async function refreshActiveTabData(isBackgroundRefresh = false) {
@@ -395,7 +424,7 @@ async function fetchCarParks(userLat, userLng) {
         return { ...park, distance, liveInfo };
     }).sort((a, b) => a.distance - b.distance);
 
-    await renderActiveTabDisplay();
+    displayResults(cachedAllParks.slice(0, 30), false);
     renderFavorites();
 }
 
@@ -452,7 +481,14 @@ async function fetchMeteredParking(userLat, userLng) {
 
     cachedAllMeters.sort((a, b) => a.distance - b.distance);
     
-    await renderActiveTabDisplay();
+    let filteredMeters = cachedAllMeters;
+    if (activeMeterFilter === 'vacant') {
+        filteredMeters = cachedAllMeters.filter(m => m.vacancyStatus === 'V');
+    } else if (activeMeterFilter === 'occupied') {
+        filteredMeters = cachedAllMeters.filter(m => m.vacancyStatus !== 'V');
+    }
+    
+    displayResults(filteredMeters.slice(0, 30), true);
     renderFavorites();
 }
 

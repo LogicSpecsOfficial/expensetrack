@@ -118,12 +118,18 @@ body.dark-theme button.secondary-btn:active { background-color: #2d2d2d; }
     background-color: transparent;
     color: var(--text-main);
     border-color: var(--border-color);
-    padding: 0 12px;
-    width: auto;
+    padding: 0;
+    width: var(--btn-height);
+    height: var(--btn-height);
 }
 
 .theme-toggle-btn:active { background-color: #e9ecef; }
 body.dark-theme .theme-toggle-btn:active { background-color: #2d2d2d; }
+
+.theme-toggle-btn svg {
+    width: 20px;
+    height: 20px;
+}
 
 #status {
     margin: 4px 0 8px 0;

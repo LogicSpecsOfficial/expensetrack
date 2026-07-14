@@ -157,14 +157,17 @@ function parseCSV(text) {
     const lines = text.split(/\r?\n/);
     if (lines.length === 0) return [];
     
-    const headers = lines[0].split(',').map(h => h.replace(/^["']|["']$/g, '').trim().toLowerCase());
-    const results = [];
+    const splitRegex = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/;
+    const headers = lines[0].split(splitRegex).map(h => 
+        h.replace(/^["']|["']$/g, '').trim().toLowerCase()
+    );
     
+    const results = [];
     for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
         
-        const currentline = line.split(',');
+        const currentline = line.split(splitRegex);
         if (currentline.length < headers.length) continue;
         
         const obj = {};
@@ -311,8 +314,11 @@ async function fetchCarParks(userLat, userLng) {
 }
 
 async function fetchMeteredParking(userLat, userLng) {
-    const infoUrl = 'https://resource.data.one.gov.hk/td/psiparkingspaces/spaceinfo/parkingspaces.csv';
-    const vacancyUrl = 'https://resource.data.one.gov.hk/td/psiparkingspaces/occupancystatus/occupancystatus.csv';
+    const rawInfoUrl = 'https://resource.data.one.gov.hk/td/psiparkingspaces/spaceinfo/parkingspaces.csv';
+    const rawVacancyUrl = 'https://resource.data.one.gov.hk/td/psiparkingspaces/occupancystatus/occupancystatus.csv';
+
+    const infoUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(rawInfoUrl)}`;
+    const vacancyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(rawVacancyUrl)}`;
 
     const [infoRes, vacancyRes] = await Promise.all([fetch(infoUrl), fetch(vacancyUrl)]);
     if (!infoRes.ok || !vacancyRes.ok) throw new Error("Meter data sequence failure");

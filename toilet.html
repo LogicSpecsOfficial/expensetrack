@@ -3,98 +3,103 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FEHD Toilet Finder</title>
+    <title>公廁數據直接直連測試</title>
     <style>
-        body { font-family: -apple-system, sans-serif; padding: 16px; background: #f8f9fa; color: #212529; }
-        .log-panel { background: #e9ecef; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 0.8rem; margin-bottom: 16px; white-space: pre-wrap; max-height: 150px; overflow-y: auto; border: 1px solid #dee2e6; }
-        .card { background: white; padding: 12px; margin-bottom: 10px; border-radius: 6px; border: 1px solid #dee2e6; border-left: 4px solid #0d6efd; }
-        .name { font-weight: bold; font-size: 0.95rem; }
-        .addr { color: #6c757d; font-size: 0.85rem; margin-top: 4px; }
-        .meta { font-size: 0.75rem; margin-top: 4px; color: #198754; font-weight: 600; }
-        input { padding: 8px; width: 300px; margin-right: 8px; }
-        button { padding: 8px 16px; }
+        body { font-family: -apple-system, sans-serif; padding: 16px; background: #f8f9fa; color: #212529; line-height: 1.5; }
+        .log-panel { background: #1e1e1e; color: #4af626; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 0.85rem; margin-bottom: 16px; white-space: pre-wrap; height: 180px; overflow-y: auto; }
+        .card { background: white; padding: 12px; margin-bottom: 10px; border-radius: 6px; border: 1px solid #dee2e6; border-left: 4px solid #0d6efd; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .name { font-weight: bold; font-size: 1rem; color: #0d6efd; }
+        .addr { color: #495057; font-size: 0.85rem; margin-top: 6px; }
+        .meta { font-size: 0.75rem; margin-top: 6px; display: inline-block; background: #eafaf1; color: #198754; padding: 3px 6px; border-radius: 4px; font-weight: bold; border: 1px solid #a3e4d7; }
+        button { background: #0d6efd; color: white; border: none; padding: 10px 16px; border-radius: 6px; font-size: 1rem; cursor: pointer; margin-bottom: 16px; font-weight: bold; width: 100%; }
+        button:active { background: #0b5ed7; }
     </style>
 </head>
 <body>
-    <h2>食環署公廁搜尋測試</h2>
-    <div>
-        <input id="placeInput" value="Central, Hong Kong" placeholder="輸入地點例如 Central">
-        <button onclick="searchPlace()">搜尋</button>
-    </div>
-    <div id="log" class="log-panel">準備就緒。點擊搜尋開始。</div>
+
+    <h2>官方直連測試 (免代理)</h2>
+    <button onclick="runToiletTest()">點擊開始獲取公廁數據</button>
+    <div id="log" class="log-panel">等待測試開始...</div>
     <div id="test-results"></div>
+
     <script>
         const logDiv = document.getElementById('log');
         const resultsDiv = document.getElementById('test-results');
+
         function logger(text) {
             logDiv.textContent += "\n" + text;
             logDiv.scrollTop = logDiv.scrollHeight;
         }
-        function getDistance(lat1, lon1, lat2, lon2) {
-            const R = 6371;
-            const dLat = (lat2 - lat1) * Math.PI / 180;
-            const dLon = (lon2 - lon1) * Math.PI / 180;
-            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                      Math.sin(dLon/2) * Math.sin(dLon/2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-            return R * c;
-        }
-        async function searchPlace() {
-            const place = document.getElementById('placeInput').value || "Central, Hong Kong";
-            const userLat = 22.282;
-            const userLon = 114.158;
-            logger("使用地點: " + place + " (測試座標: " + userLat + ", " + userLon + ")");
-            const targetUrl = 'https://www.fehd.gov.hk/tc_chi/map/fehd_map_c.xml';
-            const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(targetUrl);
-            logger("開始請求數據...");
+
+        async function runToiletTest() {
+            logDiv.textContent = "=== 測試開始 ===";
+            resultsDiv.innerHTML = "";
+            
+            // 地政總署官方 GeoData 公廁 API，原生支援 CORS，無需代理
+            const geoDataUrl = 'https://geodata.gov.hk/gs/api/v1.0.0/geo/fehd-publictoilet';
+            
+            logger("1. 直接連線至地政總署伺服器: " + geoDataUrl);
+            
             try {
-                const response = await fetch(proxyUrl);
+                // 設定 5 秒超時限制
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000);
+                
+                logger("2. 發送請求中...");
+                const response = await fetch(geoDataUrl, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                
                 if (!response.ok) {
-                    logger("錯誤: 狀態碼 " + response.status);
+                    logger(`錯誤：伺服器狀態異常 (${response.status})`);
                     return;
                 }
-                const xmlText = await response.text();
-                const parser = new DOMParser();
-                const xmlDoc = parser.parseFromString(xmlText, "text/xml");
-                const maps = xmlDoc.getElementsByTagName('map');
-                let toilets = [];
-                for (let i = 0; i < maps.length; i++) {
-                    const node = maps[i];
-                    const mapType = node.getElementsByTagName('map_type')[0]?.textContent || '';
-                    const name = node.getElementsByTagName('name_c')[0]?.textContent || '';
-                    const address = node.getElementsByTagName('address_c')[0]?.textContent || '';
-                    const coordStr = node.getElementsByTagName('map_coordinate')[0]?.textContent || '';
-                    if ((mapType === 'toilet' || name.includes('公廁')) && coordStr) {
-                        const [tLat, tLon] = coordStr.split(',').map(Number);
-                        const dist = getDistance(userLat, userLon, tLat, tLon);
-                        toilets.push({name, address, coord: coordStr, distance: dist});
-                    }
+                
+                logger("3. 成功接收回應，開始解析 JSON...");
+                const data = await response.json();
+                
+                if (!data || !data.features) {
+                    logger("錯誤：JSON 數據格式不符合預期（缺少 features 欄位）。");
+                    return;
                 }
-                toilets.sort((a, b) => a.distance - b.distance);
-                const top = toilets.slice(0, 10);
-                logger("找到公廁: " + toilets.length + "，顯示最近10個");
-                let html = "";
-                top.forEach(t => {
-                    html += `
+
+                const features = data.features;
+                logger(`4. 成功讀取數據！共獲取到 ${features.length} 筆公廁資料。`);
+
+                let cardsHtml = "";
+                let displayCount = 0;
+
+                // 隨機渲染前 30 筆資料作為預覽
+                for (let i = 0; i < features.length && displayCount < 30; i++) {
+                    const props = features[i].properties;
+                    if (!props) continue;
+
+                    // 地政總署的 JSON 屬性欄位提取
+                    const name = props['Name (TC)'] || props['Name (tc)'] || props['name_tc'] || props['Name (EN)'] || '公眾廁所';
+                    const address = props['Address (TC)'] || props['Address (tc)'] || props['address_tc'] || '無詳細地址';
+                    const rawWheelchair = props['Wheelchair Access'] || props['Wheelchair Accessible'] || props['wheelchair'] || '';
+                    const hasWheelchair = (rawWheelchair.toUpperCase() === 'YES' || rawWheelchair.toUpperCase() === 'Y');
+
+                    displayCount++;
+                    cardsHtml += `
                         <div class="card">
-                            <div class="name">${t.name}</div>
-                            <div class="addr">地址: ${t.address}</div>
-                            <div class="meta">距離: ${t.distance.toFixed(2)} km | 座標: ${t.coord}</div>
+                            <div class="name">📍 ${name}</div>
+                            <div class="addr">地址：${address}</div>
+                            ${hasWheelchair ? `<div class="meta">♿ 設有無障礙通道</div>` : ''}
                         </div>
                     `;
-                });
-                resultsDiv.innerHTML = html;
+                }
+
+                logger("5. 介面渲染完成。顯示前 30 筆結果。");
+                resultsDiv.innerHTML = cardsHtml;
+
             } catch (error) {
-                logger("錯誤: " + error.message);
+                if (error.name === 'AbortError') {
+                    logger("異常中斷：連線超過 5 秒逾時。");
+                } else {
+                    logger("異常中斷：" + error.message);
+                }
             }
         }
-        window.addEventListener('DOMContentLoaded', () => {
-            setTimeout(() => {
-                document.getElementById('placeInput').value = "Central, Hong Kong";
-                searchPlace();
-            }, 300);
-        });
     </script>
 </body>
 </html>

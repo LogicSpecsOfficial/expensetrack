@@ -304,19 +304,27 @@ async function triggerAddressSearch(forcedQuery = null) {
     refreshBtn.disabled = true;
 
     try {
+        let lat = null;
+        let lng = null;
+        let locationName = ""; 
+
         // 引擎 1：嘗試官方政府 ALS 服務
         const searchUrl = `https://www.als.gov.hk/lookup?q=${encodeURIComponent(query)}`;
         const responseText = await fetchTextThroughProxy(searchUrl, true);
         
         let latMatch = responseText.match(/"Latitude"\s*:\s*"?([0-9.]+)"?/i) || responseText.match(/<Latitude>([0-9.]+)<\/Latitude>/i);
         let lngMatch = responseText.match(/"Longitude"\s*:\s*"?([0-9.]+)"?/i) || responseText.match(/<Longitude>([0-9.]+)<\/Longitude>/i);
-
-        let lat = null;
-        let lng = null;
+        
+        let addressMatch = responseText.match(/"SuggestedAddress"\s*:\s*"?([^"]+)"?/i) || responseText.match(/<SuggestedAddress>([^<]+)<\/SuggestedAddress>/i);
 
         if (latMatch && lngMatch) {
             lat = parseFloat(latMatch[1]);
             lng = parseFloat(lngMatch[1]);
+            if (addressMatch) {
+                locationName = addressMatch[1];
+            } else {
+                locationName = query; 
+            }
         } else {
             // 引擎 2：政府無結果，背景靜默啟用 Photon API 智慧搜尋
             const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=1`;
@@ -327,6 +335,9 @@ async function triggerAddressSearch(forcedQuery = null) {
                 const coordinates = photonData.features[0].geometry.coordinates;
                 lng = coordinates[0];
                 lat = coordinates[1];
+                
+                const prop = photonData.features[0].properties;
+                locationName = prop.name || [prop.street, prop.city].filter(Boolean).join(', ');
             }
         }
 
@@ -334,6 +345,10 @@ async function triggerAddressSearch(forcedQuery = null) {
             userCoordinates = { lat, lng };
             saveSearch(inputVal); 
             renderFilterPills();
+            
+            // 更新狀態文字，明確告知使用者目前定位點名稱
+            statusText.textContent = `已定位中心點：${locationName}`;
+            
             await refreshActiveTabData(false);
             if (document.activeElement) document.activeElement.blur(); 
         } else {

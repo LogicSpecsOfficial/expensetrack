@@ -31,6 +31,12 @@ const searchBtn = document.getElementById('searchBtn');
 const clearHistoryBtn = document.getElementById('clearHistoryBtn');
 const themeToggleBtn = document.getElementById('themeToggleBtn');
 
+// 定義 SVG 圖標代碼
+const svgGps = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 19-9-9 19-2-8-8-2z"/></svg>`;
+const svgStarOutline = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
+const svgStarFilled = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#ff9f43" stroke="#ff9f43" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
+const svgRefresh = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>`;
+
 function initTheme() {
     const savedTheme = localStorage.getItem('hk_carpark_theme') || 'light';
     if (savedTheme === 'dark') {
@@ -55,13 +61,16 @@ function toggleTheme() {
 
 function updateUIStaticText() {
     uiTitle.textContent = t.title;
-    locateBtn.textContent = t.btnText;
-    refreshBtn.textContent = t.refreshBtnText;
+    
+    // 將頂部按鈕內容替換為 SVG 圖標
+    locateBtn.innerHTML = svgGps;
+    refreshBtn.innerHTML = svgRefresh;
+    showFavBtn.innerHTML = favWrapper.style.display === 'none' ? svgStarOutline : svgStarFilled;
+    
     uiFavTitle.textContent = t.favTitle;
     uiSearchTitle.textContent = t.searchTitle;
     tabOffStreet.textContent = t.tabOffStreet;
     tabMetered.textContent = t.tabMetered;
-    showFavBtn.textContent = favWrapper.style.display === 'none' ? t.btnFavShow : t.btnFavHide;
     
     searchInput.placeholder = t.searchPlaceholder;
     searchBtn.textContent = t.searchBtnText;
@@ -304,7 +313,6 @@ async function triggerAddressSearch(forcedQuery = null) {
     refreshBtn.disabled = true;
 
     try {
-        // 引擎 1：嘗試官方政府 ALS 服務
         const searchUrl = `https://www.als.gov.hk/lookup?q=${encodeURIComponent(query)}`;
         const responseText = await fetchTextThroughProxy(searchUrl, true);
         
@@ -318,7 +326,6 @@ async function triggerAddressSearch(forcedQuery = null) {
             lat = parseFloat(latMatch[1]);
             lng = parseFloat(lngMatch[1]);
         } else {
-            // 引擎 2：政府無結果，背景靜默啟用 Photon API 智慧搜尋
             const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=1`;
             const photonRes = await fetch(photonUrl);
             const photonData = await photonRes.json();

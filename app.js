@@ -691,49 +691,24 @@ function generateToiletCardHTML(toilet) {
         </div>`;
 }
 
-// 三軌備援連線獲取 XML 並進行多層防錯篩選
+// 徹底隔離原本 api.js 內 fetchTextThroughProxy 函數的報錯干擾，直接使用獨立的原生網路軌道獲取數據
 async function fetchToilets(lat, lng) {
     const url = 'https://www.fehd.gov.hk/tc_chi/map/fehd_map_c.xml';
     let xmlText = "";
     let success = false;
 
-    // 備援一：使用您定義的 proxy
+    // 獨立核心通道 1：AllOrigins
     try {
-        xmlText = await fetchTextThroughProxy(url, true);
+        const res = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(url));
+        xmlText = await res.text();
         if (xmlText && xmlText.trim() !== "" && xmlText.includes("<marker")) {
             success = true;
         }
     } catch (e) {
-        console.warn("Proxy 1 failed:", e);
+        console.warn("Channel 1 fallback.");
     }
 
-    // 備援二：直接連線
-    if (!success) {
-        try {
-            const res = await fetch(url);
-            xmlText = await res.text();
-            if (xmlText && xmlText.trim() !== "" && xmlText.includes("<marker")) {
-                success = true;
-            }
-        } catch (e) {
-            console.warn("Direct fetch failed:", e);
-        }
-    }
-
-    // 備援三：AllOrigins 代理
-    if (!success) {
-        try {
-            const res = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(url));
-            xmlText = await res.text();
-            if (xmlText && xmlText.trim() !== "" && xmlText.includes("<marker")) {
-                success = true;
-            }
-        } catch (e) {
-            console.warn("Proxy 2 failed:", e);
-        }
-    }
-
-    // 備援四：Corsproxy 代理
+    // 獨立核心通道 2：CorsProxy
     if (!success) {
         try {
             const res = await fetch('https://corsproxy.io/?' + encodeURIComponent(url));
@@ -742,12 +717,25 @@ async function fetchToilets(lat, lng) {
                 success = true;
             }
         } catch (e) {
-            console.warn("Proxy 3 failed:", e);
+            console.warn("Channel 2 fallback.");
+        }
+    }
+
+    // 獨立核心通道 3：直連模式
+    if (!success) {
+        try {
+            const res = await fetch(url);
+            xmlText = await res.text();
+            if (xmlText && xmlText.trim() !== "" && xmlText.includes("<marker")) {
+                success = true;
+            }
+        } catch (e) {
+            console.warn("Channel 3 fallback.");
         }
     }
 
     if (!success || !xmlText) {
-        throw new Error("無法取得公廁 XML 數據，請檢查網絡連線。");
+        throw new Error("無法連結食環署公廁伺服器，請檢查網路連線。");
     }
 
     const parser = new DOMParser();
@@ -755,16 +743,12 @@ async function fetchToilets(lat, lng) {
     
     const parseError = xmlDoc.querySelector('parsererror');
     if (parseError) {
-        throw new Error("XML 數據結構解析失敗");
+        throw new Error("XML 數據流格式解析失敗");
     }
 
-    // 支援多種節點命名
     let nodes = Array.from(xmlDoc.getElementsByTagName('marker'));
     if (nodes.length === 0) {
         nodes = Array.from(xmlDoc.getElementsByTagName('marker_c'));
-    }
-    if (nodes.length === 0) {
-        nodes = Array.from(xmlDoc.querySelectorAll('*')).filter(el => el.hasAttribute('lat') && el.hasAttribute('lng'));
     }
 
     const toiletsList = [];
@@ -780,7 +764,7 @@ async function fetchToilets(lat, lng) {
         const name = getVal('name') || getVal('Name') || '';
         const address = getVal('address') || getVal('Address') || '';
 
-        // 食環署代碼對照：type="1" 代表公眾廁所，type="2" 代表旱廁，部分資料為中英文字串
+        // 包含 type 代碼 1、2，以及字串特徵相符的節點
         const isToilet = type === '1' || type === '2' || 
                          type.includes('公廁') || type.includes('廁所') || type.toLowerCase().includes('toilet') ||
                          name.includes('公廁') || name.includes('廁所') || name.toLowerCase().includes('toilet');
@@ -808,7 +792,7 @@ async function fetchToilets(lat, lng) {
     });
 
     if (toiletsList.length === 0) {
-        throw new Error("未檢索到符合條件的公廁數據。");
+        throw new Error("找不到相符的公廁數據。");
     }
 
     cachedAllToilets = toiletsList;

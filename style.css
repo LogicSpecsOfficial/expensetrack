@@ -58,7 +58,6 @@ select#langSelect {
     align-items: center;
 }
 
-/* Button consistency base class rules */
 .tab-btn, button.main-btn, button.secondary-btn, button.search-action-btn, .pill-btn {
     height: var(--btn-height);
     font-size: var(--font-size-btn);
@@ -257,7 +256,6 @@ button.search-action-btn:active {
     color: var(--text-main);
 }
 
-/* Compact Car Park Card Rules */
 .carpark-card {
     background-color: var(--surface);
     padding: 10px 12px;
@@ -297,7 +295,24 @@ button.search-action-btn:active {
     font-weight: 600;
     color: var(--text-main);
     line-height: 1.3;
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
+
+/* Color-Coded Dot Indicators */
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+.dot-green { background-color: var(--success); }
+.dot-orange { background-color: var(--warning); }
+.dot-red { background-color: var(--danger); }
+.dot-grey { background-color: var(--text-muted); }
 
 .card-fav-btn {
     background-color: #f1f3f5;

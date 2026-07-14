@@ -328,6 +328,11 @@ button.search-action-btn:active {
 
 .info-label { color: var(--text-muted); font-weight: 500; }
 
+.warning-hours {
+    color: var(--danger) !important;
+    font-weight: 600;
+}
+
 .map-link, .phone-link {
     color: var(--accent);
     text-decoration: none;

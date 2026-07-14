@@ -34,7 +34,21 @@
         <div id="favoritesList"></div>
     </div>
 
+    <div id="filter-container" style="display: none; margin-bottom: 15px; align-items: center; gap: 8px;">
+        <span id="ui-filter-label" style="font-size: 0.9rem; font-weight: 600; color: var(--text-main);">車位狀態過濾：</span>
+        <select id="meterFilter">
+            <option value="all" id="ui-opt-all">全部</option>
+            <option value="vacant" id="ui-opt-vacant">僅顯示空置</option>
+            <option value="occupied" id="ui-opt-occupied">僅顯示使用中</option>
+        </select>
+    </div>
+
     <div class="section-title" id="ui-search-title">搜尋結果</div>
+    <div id="results"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>    <div class="section-title" id="ui-search-title">搜尋結果</div>
     <div id="results"></div>
 
     <script src="app.js"></script>

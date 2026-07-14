@@ -42,9 +42,7 @@ const t = {
     dist1km: "1公里",
     dist2km: "2公里",
     distAll: "不限距離",
-    vacantMeters: "空置咪錶",
-    viewCCTV: "查看附近路況",
-    hideCCTV: "隱藏路況"
+    vacantMeters: "空置咪錶"
 };
 
 const sunIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>`;
@@ -71,18 +69,3 @@ const synonymMap = {
     "太古廣場": "金鐘金鐘道88號",
     "pacificplace": "金鐘金鐘道88號"
 };
-
-// 替換為經過確認目前仍有數據的運輸署攝像機清單
-const trafficCameras = [
-    { id: "H216F", name: "堅拿道天橋近時代廣場", lat: 22.2785, lng: 114.1818 },
-    { id: "H106F", name: "干諾道中近交易廣場", lat: 22.2842, lng: 114.1578 },
-    { id: "H207F", name: "紅隧港島入口", lat: 22.2820, lng: 114.1813 },
-    { id: "K813F", name: "觀塘繞道近勵業街", lat: 22.3156, lng: 114.2183 },
-    { id: "TR116F", name: "屯門公路小欖段", lat: 22.3636, lng: 114.0135 },
-    { id: "H215F", name: "告士打道近灣仔交匯處", lat: 22.2818, lng: 114.1754 },
-    { id: "H201F", name: "軒尼詩道近軍器廠街", lat: 22.2778, lng: 114.1685 },
-    { id: "H429F", name: "香港仔海傍道近魚類批發市場", lat: 22.2476, lng: 114.1522 },
-    { id: "H305F", name: "高士威道近興發街", lat: 22.2825, lng: 114.1895 },
-    { id: "H110F", name: "干諾道中近信德中心", lat: 22.2877, lng: 114.1524 },
-    { id: "NL022F", name: "東涌東榮路", lat: 22.2960, lng: 113.9380 }
-];

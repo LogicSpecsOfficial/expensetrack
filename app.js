@@ -34,7 +34,8 @@ const i18n = {
         optOccupied: "僅顯示使用中",
         searchPlaceholder: "搜尋香港地址、大廈、商場或街道...",
         searchBtnText: "搜尋",
-        clearBtnText: "清除"
+        clearBtnText: "清除",
+        openingHours: "營業時間"
     },
     en_US: {
         title: "Nearest HK Car Parks",
@@ -71,7 +72,8 @@ const i18n = {
         optOccupied: "Occupied Only",
         searchPlaceholder: "Search HK address, building, mall, or street...",
         searchBtnText: "Search",
-        clearBtnText: "Clear"
+        clearBtnText: "Clear",
+        openingHours: "Opening Hours"
     }
 };
 
@@ -546,6 +548,59 @@ function toggleFavorite(id) {
     renderActiveTabDisplay();
 }
 
+function formatOpeningHours(openingHours) {
+    if (!openingHours || !Array.isArray(openingHours) || openingHours.length === 0) {
+        return null;
+    }
+    
+    let is247 = false;
+    if (openingHours.length === 1) {
+        const rule = openingHours[0];
+        const isAllDays = rule.weekdays && rule.weekdays.length >= 7; 
+        const isFullDay = (rule.periodStart === '00:00' && (rule.periodEnd === '24:00' || rule.periodEnd === '00:00')) ||
+                          (rule.periodStart === '07:00' && rule.periodEnd === '07:00') ||
+                          (rule.periodStart === rule.periodEnd);
+        if (isAllDays && isFullDay) {
+            is247 = true;
+        }
+    } else if (openingHours.length > 1) {
+        const allRulesFullDay = openingHours.every(rule => 
+            (rule.periodStart === '00:00' && (rule.periodEnd === '24:00' || rule.periodEnd === '00:00')) ||
+            (rule.periodStart === rule.periodEnd)
+        );
+        const allDays = new Set();
+        openingHours.forEach(rule => {
+            if (rule.weekdays) {
+                rule.weekdays.forEach(d => allDays.add(d));
+            }
+        });
+        if (allRulesFullDay && allDays.has('MON') && allDays.has('TUE') && allDays.has('WED') && allDays.has('THU') && allDays.has('FRI') && allDays.has('SAT') && allDays.has('SUN')) {
+            is247 = true;
+        }
+    }
+    
+    if (is247) {
+        return null; 
+    }
+    
+    const dayMap = {
+        zh_TW: { 'MON': '一', 'TUE': '二', 'WED': '三', 'THU': '四', 'FRI': '五', 'SAT': '六', 'SUN': '日', 'PH': '公眾假期' },
+        en_US: { 'MON': 'Mon', 'TUE': 'Tue', 'WED': 'Wed', 'THU': 'Thu', 'FRI': 'Fri', 'SAT': 'Sat', 'SUN': 'Sun', 'PH': 'PH' }
+    };
+    
+    const rulesText = openingHours.map(rule => {
+        const start = rule.periodStart || '';
+        const end = rule.periodEnd || '';
+        const days = (rule.weekdays || []).map(d => dayMap[currentLang][d] || d).join(', ');
+        const holidayText = rule.excludePublicHoliday ? 
+            (currentLang === 'zh_TW' ? ' (不包括公眾假期)' : ' (Excl. PH)') : '';
+        
+        return `${days}: ${start} - ${end}${holidayText}`;
+    }).join(' | ');
+    
+    return rulesText;
+}
+
 function generateCardHTML(park) {
     const t = i18n[currentLang];
     const isFav = favorites.includes(park.park_Id);
@@ -577,6 +632,11 @@ function generateCardHTML(park) {
     if (park.carpark_Type) infoGridItems += `<div class="info-label">${currentLang === 'zh_TW' ? '類型' : 'Type'}:</div><div>${park.carpark_Type}</div>`;
     if (heightText) infoGridItems += `<div class="info-label">${t.maxHeight}:</div><div>${heightText}</div>`;
     if (contactHTML) infoGridItems += `<div class="info-label">${t.contact}:</div><div>${contactHTML}</div>`;
+
+    const formattedHours = formatOpeningHours(park.openingHours);
+    if (formattedHours) {
+        infoGridItems += `<div class="info-label warning-hours">${t.openingHours}:</div><div class="warning-hours">${formattedHours}</div>`;
+    }
 
     return `
         <div class="carpark-card">

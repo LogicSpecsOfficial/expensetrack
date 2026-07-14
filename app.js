@@ -38,7 +38,11 @@ const i18n = {
         searchBtnText: "搜尋",
         clearBtnText: "清除",
         evBadge: "設有充電設備",
-        refreshBtnText: "更新數據"
+        refreshBtnText: "更新數據",
+        dist500m: "500米",
+        dist1km: "1公里",
+        dist2km: "2公里",
+        distAll: "不限距離"
     },
     en_US: {
         title: "Nearest HK Car Parks",
@@ -79,7 +83,11 @@ const i18n = {
         searchBtnText: "Search",
         clearBtnText: "Clear",
         evBadge: "EV Charger",
-        refreshBtnText: "Refresh"
+        refreshBtnText: "Refresh",
+        dist500m: "500m",
+        dist1km: "1km",
+        dist2km: "2km",
+        distAll: "Any Dist"
     }
 };
 
@@ -91,8 +99,8 @@ let cachedAllMeters = [];
 let favorites = JSON.parse(localStorage.getItem('hk_carpark_favs')) || [];
 let searchHistory = JSON.parse(localStorage.getItem('hk_carpark_history')) || [];
 let activeMeterFilter = 'all';
+let activeDistanceFilter = '1'; // Default 1km restriction
 
-// Independent toggles for offstreet tab
 let offstreetFilters = {
     hideFull: false,
     evOnly: false,
@@ -141,19 +149,35 @@ function renderFilterPills() {
     }
     filterContainer.style.display = 'flex';
     
+    let distHTML = `
+        <div class="filter-row">
+            <button class="pill-btn color-blue ${activeDistanceFilter === '0.5' ? 'active' : ''}" onclick="setDistanceFilter('0.5')">${i18n[currentLang].dist500m}</button>
+            <button class="pill-btn color-blue ${activeDistanceFilter === '1' ? 'active' : ''}" onclick="setDistanceFilter('1')">${i18n[currentLang].dist1km}</button>
+            <button class="pill-btn color-blue ${activeDistanceFilter === '2' ? 'active' : ''}" onclick="setDistanceFilter('2')">${i18n[currentLang].dist2km}</button>
+            <button class="pill-btn color-blue ${activeDistanceFilter === 'all' ? 'active' : ''}" onclick="setDistanceFilter('all')">${i18n[currentLang].distAll}</button>
+        </div>
+    `;
+    
+    let statusHTML = '';
     if (currentTab === 'offstreet') {
-        filterContainer.innerHTML = `
-            <button class="pill-btn color-red ${offstreetFilters.hideFull ? 'active' : ''}" onclick="toggleOffstreetFilter('hideFull')">${i18n[currentLang].optHideFull}</button>
-            <button class="pill-btn color-green ${offstreetFilters.evOnly ? 'active' : ''}" onclick="toggleOffstreetFilter('evOnly')">${i18n[currentLang].optEVOnly}</button>
-            <button class="pill-btn color-blue ${offstreetFilters.sortByVacancy ? 'active' : ''}" onclick="toggleOffstreetFilter('sortByVacancy')">${i18n[currentLang].optSortVacancy}</button>
+        statusHTML = `
+            <div class="filter-row">
+                <button class="pill-btn color-red ${offstreetFilters.hideFull ? 'active' : ''}" onclick="toggleOffstreetFilter('hideFull')">${i18n[currentLang].optHideFull}</button>
+                <button class="pill-btn color-green ${offstreetFilters.evOnly ? 'active' : ''}" onclick="toggleOffstreetFilter('evOnly')">${i18n[currentLang].optEVOnly}</button>
+                <button class="pill-btn color-blue ${offstreetFilters.sortByVacancy ? 'active' : ''}" onclick="toggleOffstreetFilter('sortByVacancy')">${i18n[currentLang].optSortVacancy}</button>
+            </div>
         `;
     } else {
-        filterContainer.innerHTML = `
-            <button class="pill-btn color-blue ${activeMeterFilter === 'all' ? 'active' : ''}" onclick="setMeterFilter('all')">${i18n[currentLang].optAll}</button>
-            <button class="pill-btn color-green ${activeMeterFilter === 'vacant' ? 'active' : ''}" onclick="setMeterFilter('vacant')">${i18n[currentLang].optVacant}</button>
-            <button class="pill-btn color-red ${activeMeterFilter === 'occupied' ? 'active' : ''}" onclick="setMeterFilter('occupied')">${i18n[currentLang].optOccupied}</button>
+        statusHTML = `
+            <div class="filter-row">
+                <button class="pill-btn color-blue ${activeMeterFilter === 'all' ? 'active' : ''}" onclick="setMeterFilter('all')">${i18n[currentLang].optAll}</button>
+                <button class="pill-btn color-green ${activeMeterFilter === 'vacant' ? 'active' : ''}" onclick="setMeterFilter('vacant')">${i18n[currentLang].optVacant}</button>
+                <button class="pill-btn color-red ${activeMeterFilter === 'occupied' ? 'active' : ''}" onclick="setMeterFilter('occupied')">${i18n[currentLang].optOccupied}</button>
+            </div>
         `;
     }
+    
+    filterContainer.innerHTML = distHTML + statusHTML;
 }
 
 async function switchTab(tabName) {
@@ -178,6 +202,12 @@ function toggleOffstreetFilter(filterName) {
 
 function setMeterFilter(filterValue) {
     activeMeterFilter = filterValue;
+    renderFilterPills();
+    renderActiveTabDisplay();
+}
+
+function setDistanceFilter(distanceValue) {
+    activeDistanceFilter = distanceValue;
     renderFilterPills();
     renderActiveTabDisplay();
 }
@@ -210,6 +240,14 @@ async function renderActiveTabDisplay() {
     if (currentTab === 'offstreet') {
         if (cachedAllParks.length > 0) {
             let filteredParks = [...cachedAllParks];
+            
+            // Distance Filter
+            if (activeDistanceFilter !== 'all') {
+                const limit = parseFloat(activeDistanceFilter);
+                filteredParks = filteredParks.filter(p => p.distance <= limit);
+            }
+            
+            // Hide Full Filter
             if (offstreetFilters.hideFull) {
                 filteredParks = filteredParks.filter(p => {
                     if (p.liveInfo && p.liveInfo.privateCar && p.liveInfo.privateCar.length > 0) {
@@ -219,18 +257,19 @@ async function renderActiveTabDisplay() {
                     return true; 
                 });
             }
+            
+            // EV Charging Filter
             if (offstreetFilters.evOnly) {
                 filteredParks = filteredParks.filter(p => hasEVCharging(p));
             }
             
+            // Sorting Logic
             if (offstreetFilters.sortByVacancy) {
                 filteredParks.sort((a, b) => {
                     const vacA = getVacancyCount(a);
                     const vacB = getVacancyCount(b);
-                    if (vacA !== vacB) {
-                        return vacB - vacA; // Higher vacancies show first
-                    }
-                    return a.distance - b.distance; // If vacancy is equal, sort by distance
+                    if (vacA !== vacB) return vacB - vacA;
+                    return a.distance - b.distance;
                 });
             } else {
                 filteredParks.sort((a, b) => a.distance - b.distance);
@@ -242,12 +281,21 @@ async function renderActiveTabDisplay() {
         }
     } else {
         if (cachedAllMeters.length > 0) {
-            let filteredMeters = cachedAllMeters;
-            if (activeMeterFilter === 'vacant') {
-                filteredMeters = cachedAllMeters.filter(m => m.vacancyStatus === 'V');
-            } else if (activeMeterFilter === 'occupied') {
-                filteredMeters = cachedAllMeters.filter(m => m.vacancyStatus !== 'V');
+            let filteredMeters = [...cachedAllMeters];
+            
+            // Distance Filter
+            if (activeDistanceFilter !== 'all') {
+                const limit = parseFloat(activeDistanceFilter);
+                filteredMeters = filteredMeters.filter(m => m.distance <= limit);
             }
+            
+            // Meter State Filter
+            if (activeMeterFilter === 'vacant') {
+                filteredMeters = filteredMeters.filter(m => m.vacancyStatus === 'V');
+            } else if (activeMeterFilter === 'occupied') {
+                filteredMeters = filteredMeters.filter(m => m.vacancyStatus !== 'V');
+            }
+            
             displayResults(filteredMeters.slice(0, 30), true);
         } else {
             await refreshActiveTabData(false);
@@ -531,32 +579,7 @@ async function fetchCarParks(userLat, userLng) {
         return { ...park, distance, liveInfo };
     }).sort((a, b) => a.distance - b.distance);
 
-    let filteredParks = [...cachedAllParks];
-    if (offstreetFilters.hideFull) {
-        filteredParks = filteredParks.filter(p => {
-            if (p.liveInfo && p.liveInfo.privateCar && p.liveInfo.privateCar.length > 0) {
-                const count = p.liveInfo.privateCar[0].vacancy;
-                return count === undefined || count === null || count > 0;
-            }
-            return true;
-        });
-    }
-    if (offstreetFilters.evOnly) {
-        filteredParks = filteredParks.filter(p => hasEVCharging(p));
-    }
-
-    if (offstreetFilters.sortByVacancy) {
-        filteredParks.sort((a, b) => {
-            const vacA = getVacancyCount(a);
-            const vacB = getVacancyCount(b);
-            if (vacA !== vacB) return vacB - vacA;
-            return a.distance - b.distance;
-        });
-    } else {
-        filteredParks.sort((a, b) => a.distance - b.distance);
-    }
-
-    displayResults(filteredParks.slice(0, 30), false);
+    await renderActiveTabDisplay();
     renderFavorites();
 }
 
@@ -613,14 +636,7 @@ async function fetchMeteredParking(userLat, userLng) {
 
     cachedAllMeters.sort((a, b) => a.distance - b.distance);
     
-    let filteredMeters = cachedAllMeters;
-    if (activeMeterFilter === 'vacant') {
-        filteredMeters = cachedAllMeters.filter(m => m.vacancyStatus === 'V');
-    } else if (activeMeterFilter === 'occupied') {
-        filteredMeters = cachedAllMeters.filter(m => m.vacancyStatus !== 'V');
-    }
-    
-    displayResults(filteredMeters.slice(0, 30), true);
+    await renderActiveTabDisplay();
     renderFavorites();
 }
 

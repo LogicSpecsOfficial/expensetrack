@@ -31,6 +31,7 @@ const i18n = {
         optAll: "全部",
         optHideFull: "隱藏已滿車位",
         optEVOnly: "僅顯示充電位",
+        optSortVacancy: "空置優先",
         optVacant: "僅顯示空置",
         optOccupied: "僅顯示使用中",
         searchPlaceholder: "搜尋香港地址、大廈、商場或街道...",
@@ -71,6 +72,7 @@ const i18n = {
         optAll: "All",
         optHideFull: "Hide Full Lots",
         optEVOnly: "EV Charging Only",
+        optSortVacancy: "Sort by Vacancy",
         optVacant: "Vacant Only",
         optOccupied: "Occupied Only",
         searchPlaceholder: "Search HK address, building, mall, or street...",
@@ -90,9 +92,11 @@ let favorites = JSON.parse(localStorage.getItem('hk_carpark_favs')) || [];
 let searchHistory = JSON.parse(localStorage.getItem('hk_carpark_history')) || [];
 let activeMeterFilter = 'all';
 
+// Independent toggles for offstreet tab
 let offstreetFilters = {
     hideFull: false,
-    evOnly: false
+    evOnly: false,
+    sortByVacancy: false
 };
 
 const langSelect = document.getElementById('langSelect');
@@ -141,6 +145,7 @@ function renderFilterPills() {
         filterContainer.innerHTML = `
             <button class="pill-btn color-red ${offstreetFilters.hideFull ? 'active' : ''}" onclick="toggleOffstreetFilter('hideFull')">${i18n[currentLang].optHideFull}</button>
             <button class="pill-btn color-green ${offstreetFilters.evOnly ? 'active' : ''}" onclick="toggleOffstreetFilter('evOnly')">${i18n[currentLang].optEVOnly}</button>
+            <button class="pill-btn color-blue ${offstreetFilters.sortByVacancy ? 'active' : ''}" onclick="toggleOffstreetFilter('sortByVacancy')">${i18n[currentLang].optSortVacancy}</button>
         `;
     } else {
         filterContainer.innerHTML = `
@@ -192,11 +197,19 @@ function hasEVCharging(park) {
     return evKeywords.some(kw => searchString.includes(kw));
 }
 
+function getVacancyCount(park) {
+    if (park.liveInfo && park.liveInfo.privateCar && park.liveInfo.privateCar.length > 0) {
+        const count = park.liveInfo.privateCar[0].vacancy;
+        return (count !== undefined && count !== null && count >= 0) ? count : -1;
+    }
+    return -1;
+}
+
 async function renderActiveTabDisplay() {
     if (!userCoordinates) return;
     if (currentTab === 'offstreet') {
         if (cachedAllParks.length > 0) {
-            let filteredParks = cachedAllParks;
+            let filteredParks = [...cachedAllParks];
             if (offstreetFilters.hideFull) {
                 filteredParks = filteredParks.filter(p => {
                     if (p.liveInfo && p.liveInfo.privateCar && p.liveInfo.privateCar.length > 0) {
@@ -209,6 +222,20 @@ async function renderActiveTabDisplay() {
             if (offstreetFilters.evOnly) {
                 filteredParks = filteredParks.filter(p => hasEVCharging(p));
             }
+            
+            if (offstreetFilters.sortByVacancy) {
+                filteredParks.sort((a, b) => {
+                    const vacA = getVacancyCount(a);
+                    const vacB = getVacancyCount(b);
+                    if (vacA !== vacB) {
+                        return vacB - vacA; // Higher vacancies show first
+                    }
+                    return a.distance - b.distance; // If vacancy is equal, sort by distance
+                });
+            } else {
+                filteredParks.sort((a, b) => a.distance - b.distance);
+            }
+            
             displayResults(filteredParks.slice(0, 30), false);
         } else {
             await refreshActiveTabData(false);
@@ -504,9 +531,9 @@ async function fetchCarParks(userLat, userLng) {
         return { ...park, distance, liveInfo };
     }).sort((a, b) => a.distance - b.distance);
 
-    let filteredParks = cachedAllParks;
+    let filteredParks = [...cachedAllParks];
     if (offstreetFilters.hideFull) {
-        filteredParks = cachedAllParks.filter(p => {
+        filteredParks = filteredParks.filter(p => {
             if (p.liveInfo && p.liveInfo.privateCar && p.liveInfo.privateCar.length > 0) {
                 const count = p.liveInfo.privateCar[0].vacancy;
                 return count === undefined || count === null || count > 0;
@@ -516,6 +543,17 @@ async function fetchCarParks(userLat, userLng) {
     }
     if (offstreetFilters.evOnly) {
         filteredParks = filteredParks.filter(p => hasEVCharging(p));
+    }
+
+    if (offstreetFilters.sortByVacancy) {
+        filteredParks.sort((a, b) => {
+            const vacA = getVacancyCount(a);
+            const vacB = getVacancyCount(b);
+            if (vacA !== vacB) return vacB - vacA;
+            return a.distance - b.distance;
+        });
+    } else {
+        filteredParks.sort((a, b) => a.distance - b.distance);
     }
 
     displayResults(filteredParks.slice(0, 30), false);
@@ -692,8 +730,8 @@ function generateMeterCardHTML(meter) {
 }
 
 function displayResults(items, isMeter = false) {
-    statusText.textContent = ""; // Clear loading status text
-    uiSearchTitle.textContent = `${i18n[currentLang].searchTitle} (${items.length})`; // Merge count into title
+    statusText.textContent = ""; 
+    uiSearchTitle.textContent = `${i18n[currentLang].searchTitle} (${items.length})`; 
     
     if (items.length === 0) {
         resultsDiv.innerHTML = `<div class="empty-notice">${i18n[currentLang].noRecords}</div>`;

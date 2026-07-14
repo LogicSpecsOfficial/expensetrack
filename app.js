@@ -42,7 +42,8 @@ const i18n = {
         dist500m: "500米",
         dist1km: "1公里",
         dist2km: "2公里",
-        distAll: "不限距離"
+        distAll: "不限距離",
+        vacantMeters: "空置咪錶位"
     },
     en_US: {
         title: "Nearest HK Car Parks",
@@ -87,7 +88,8 @@ const i18n = {
         dist500m: "500m",
         dist1km: "1km",
         dist2km: "2km",
-        distAll: "Any Dist"
+        distAll: "Any Dist",
+        vacantMeters: "Vacant Meters"
     }
 };
 
@@ -99,7 +101,7 @@ let cachedAllMeters = [];
 let favorites = JSON.parse(localStorage.getItem('hk_carpark_favs')) || [];
 let searchHistory = JSON.parse(localStorage.getItem('hk_carpark_history')) || [];
 let activeMeterFilter = 'all';
-let activeDistanceFilter = '1'; // Default 1km restriction
+let activeDistanceFilter = '1'; 
 
 let offstreetFilters = {
     hideFull: false,
@@ -235,19 +237,48 @@ function getVacancyCount(park) {
     return -1;
 }
 
+function groupMeteredParking(meters) {
+    const groups = {};
+    meters.forEach(m => {
+        const key = m.address; 
+        if (!groups[key]) {
+            groups[key] = {
+                park_Id: m.address, 
+                name: m.rawStreet,
+                address: m.address,
+                district: m.district,
+                distance: m.distance,
+                latitude: m.latitude,
+                longitude: m.longitude,
+                totalSpaces: 0,
+                vacantSpaces: 0
+            };
+        }
+        const g = groups[key];
+        g.totalSpaces += 1;
+        if (m.vacancyStatus === 'V') {
+            g.vacantSpaces += 1;
+        }
+        if (m.distance < g.distance) {
+            g.distance = m.distance;
+            g.latitude = m.latitude;
+            g.longitude = m.longitude;
+        }
+    });
+    return Object.values(groups).sort((a, b) => a.distance - b.distance);
+}
+
 async function renderActiveTabDisplay() {
     if (!userCoordinates) return;
     if (currentTab === 'offstreet') {
         if (cachedAllParks.length > 0) {
             let filteredParks = [...cachedAllParks];
             
-            // Distance Filter
             if (activeDistanceFilter !== 'all') {
                 const limit = parseFloat(activeDistanceFilter);
                 filteredParks = filteredParks.filter(p => p.distance <= limit);
             }
             
-            // Hide Full Filter
             if (offstreetFilters.hideFull) {
                 filteredParks = filteredParks.filter(p => {
                     if (p.liveInfo && p.liveInfo.privateCar && p.liveInfo.privateCar.length > 0) {
@@ -258,12 +289,10 @@ async function renderActiveTabDisplay() {
                 });
             }
             
-            // EV Charging Filter
             if (offstreetFilters.evOnly) {
                 filteredParks = filteredParks.filter(p => hasEVCharging(p));
             }
             
-            // Sorting Logic
             if (offstreetFilters.sortByVacancy) {
                 filteredParks.sort((a, b) => {
                     const vacA = getVacancyCount(a);
@@ -281,22 +310,20 @@ async function renderActiveTabDisplay() {
         }
     } else {
         if (cachedAllMeters.length > 0) {
-            let filteredMeters = [...cachedAllMeters];
+            let groupedMeters = groupMeteredParking(cachedAllMeters);
             
-            // Distance Filter
             if (activeDistanceFilter !== 'all') {
                 const limit = parseFloat(activeDistanceFilter);
-                filteredMeters = filteredMeters.filter(m => m.distance <= limit);
+                groupedMeters = groupedMeters.filter(m => m.distance <= limit);
             }
             
-            // Meter State Filter
             if (activeMeterFilter === 'vacant') {
-                filteredMeters = filteredMeters.filter(m => m.vacancyStatus === 'V');
+                groupedMeters = groupedMeters.filter(m => m.vacantSpaces > 0);
             } else if (activeMeterFilter === 'occupied') {
-                filteredMeters = filteredMeters.filter(m => m.vacancyStatus !== 'V');
+                groupedMeters = groupedMeters.filter(m => m.vacantSpaces === 0);
             }
             
-            displayResults(filteredMeters.slice(0, 30), true);
+            displayResults(groupedMeters.slice(0, 30), true);
         } else {
             await refreshActiveTabData(false);
         }
@@ -459,6 +486,7 @@ async function triggerAddressSearch(forcedQuery = null) {
             saveSearch(query);
             renderFilterPills();
             await refreshActiveTabData(false);
+            if (document.activeElement) document.activeElement.blur(); 
         } else {
             statusText.textContent = i18n[currentLang].addressError;
         }
@@ -630,7 +658,9 @@ async function fetchMeteredParking(userLat, userLng) {
             latitude: lat,
             longitude: lng,
             distance: distance,
-            vacancyStatus: status
+            vacancyStatus: status,
+            rawStreet: currentLang === 'zh_TW' ? streetTc : streetEn,
+            rawDistrict: currentLang === 'zh_TW' ? districtTc : districtEn
         });
     });
 
@@ -716,31 +746,37 @@ function generateCardHTML(park) {
         </div>`;
 }
 
-function generateMeterCardHTML(meter) {
+function generateMeterCardHTML(meterGroup) {
     const t = i18n[currentLang];
-    const isFav = favorites.includes(meter.park_Id);
-    const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(meter.address)}`;
-    const isVacant = meter.vacancyStatus === 'V';
-    const statusLabel = isVacant ? (currentLang === 'zh_TW' ? '空置' : 'Vacant') : (currentLang === 'zh_TW' ? '使用中' : 'Occupied');
-    const cardStatusClass = isVacant ? 'status-high' : 'status-empty';
+    const isFav = favorites.includes(meterGroup.park_Id);
+    const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(meterGroup.address)}`;
+    
+    const vacantCount = meterGroup.vacantSpaces;
+    const totalCount = meterGroup.totalSpaces;
+    const isAnyVacant = vacantCount > 0;
+    
+    const cardStatusClass = isAnyVacant ? 'status-high' : 'status-empty';
+    const boxStatusClass = isAnyVacant ? 'available' : 'full';
 
-    let distWarningHTML = meter.distance > 5 ? `<span class="distance-warning">${t.distWarning}</span>` : '';
-    const distHTML = meter.distance !== Infinity ? `<span class="distance">${meter.distance.toFixed(2)} ${t.away}</span>${distWarningHTML}` : '';
+    let distWarningHTML = meterGroup.distance > 5 ? `<span class="distance-warning">${t.distWarning}</span>` : '';
+    const distHTML = meterGroup.distance !== Infinity ? `<span class="distance">${meterGroup.distance.toFixed(2)} ${t.away}</span>${distWarningHTML}` : '';
+
+    const vacancyLabel = `${vacantCount}/${totalCount}`;
 
     return `
         <div class="carpark-card ${cardStatusClass}">
             <div class="card-header">
-                <div class="carpark-name">${meter.name}</div>
-                <button class="card-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${meter.park_Id}')">${isFav ? t.removeFav : t.addFav}</button>
+                <div class="carpark-name">${meterGroup.name}</div>
+                <button class="card-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${meterGroup.park_Id}')">${isFav ? t.removeFav : t.addFav}</button>
             </div>
             <div class="tags-row">${distHTML}</div>
             <div class="info-grid">
-                <div class="info-label">${t.address}:</div><div><a href="${mapUrl}" target="_blank" class="map-link">${meter.address}</a></div>
-                <div class="info-label">${t.district}:</div><div>${meter.district || '---'}</div>
+                <div class="info-label">${t.address}:</div><div><a href="${mapUrl}" target="_blank" class="map-link">${meterGroup.address}</a></div>
+                <div class="info-label">${t.district}:</div><div>${meterGroup.district || '---'}</div>
             </div>
-            <div class="vacancy-box ${isVacant ? 'available' : 'full'}">
+            <div class="vacancy-box ${boxStatusClass}">
                 <strong>${t.liveVacancy}:</strong> 
-                <span class="vacancy-num ${!isVacant ? 'none' : ''}">${statusLabel}</span>
+                <span class="vacancy-num ${!isAnyVacant ? 'none' : ''}">${vacancyLabel}</span> ${t.vacantMeters}
             </div>
         </div>`;
 }
@@ -767,7 +803,8 @@ function renderFavorites() {
         const favOffstreet = cachedAllParks.filter(park => favorites.includes(park.park_Id));
         favOffstreet.forEach(p => html += generateCardHTML(p));
     } else {
-        const favMeters = cachedAllMeters.filter(meter => favorites.includes(meter.park_Id));
+        const groupedMeters = groupMeteredParking(cachedAllMeters);
+        const favMeters = groupedMeters.filter(meterGroup => favorites.includes(meterGroup.park_Id));
         favMeters.forEach(m => html += generateMeterCardHTML(m));
     }
     

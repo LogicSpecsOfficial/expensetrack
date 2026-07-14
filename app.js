@@ -694,6 +694,7 @@ function generateCardHTML(park) {
     let cardStatusClass = 'status-unknown';
     let boxStatusClass = '';
     let vacancyNumClass = '';
+    let dotClass = 'dot-grey';
 
     if (park.liveInfo && park.liveInfo.privateCar && park.liveInfo.privateCar.length > 0) {
         const count = park.liveInfo.privateCar[0].vacancy;
@@ -702,14 +703,17 @@ function generateCardHTML(park) {
                 cardStatusClass = 'status-high';
                 boxStatusClass = 'available';
                 vacancyNumClass = '';
+                dotClass = 'dot-green';
             } else if (count > 0) {
                 cardStatusClass = 'status-medium';
                 boxStatusClass = 'moderate';
                 vacancyNumClass = 'medium';
+                dotClass = 'dot-orange';
             } else {
                 cardStatusClass = 'status-empty';
                 boxStatusClass = 'full';
                 vacancyNumClass = 'none';
+                dotClass = 'dot-red';
             }
             vacancyHTML = `
                 <div class="vacancy-box ${boxStatusClass}">
@@ -737,7 +741,10 @@ function generateCardHTML(park) {
     return `
         <div class="carpark-card ${cardStatusClass}">
             <div class="card-header">
-                <div class="carpark-name">${park.name || '---'}</div>
+                <div class="carpark-name">
+                    <span class="status-dot ${dotClass}"></span>
+                    ${park.name || '---'}
+                </div>
                 <button class="card-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${park.park_Id}')">${isFav ? t.removeFav : t.addFav}</button>
             </div>
             <div class="tags-row">${distHTML} ${evBadgeHTML}</div>
@@ -757,6 +764,7 @@ function generateMeterCardHTML(meterGroup) {
     
     const cardStatusClass = isAnyVacant ? 'status-high' : 'status-empty';
     const boxStatusClass = isAnyVacant ? 'available' : 'full';
+    const dotClass = isAnyVacant ? 'dot-green' : 'dot-red';
 
     let distWarningHTML = meterGroup.distance > 5 ? `<span class="distance-warning">${t.distWarning}</span>` : '';
     const distHTML = meterGroup.distance !== Infinity ? `<span class="distance">${meterGroup.distance.toFixed(2)} ${t.away}</span>${distWarningHTML}` : '';
@@ -766,7 +774,10 @@ function generateMeterCardHTML(meterGroup) {
     return `
         <div class="carpark-card ${cardStatusClass}">
             <div class="card-header">
-                <div class="carpark-name">${meterGroup.name}</div>
+                <div class="carpark-name">
+                    <span class="status-dot ${dotClass}"></span>
+                    ${meterGroup.name}
+                </div>
                 <button class="card-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${meterGroup.park_Id}')">${isFav ? t.removeFav : t.addFav}</button>
             </div>
             <div class="tags-row">${distHTML}</div>

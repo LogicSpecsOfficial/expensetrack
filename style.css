@@ -259,12 +259,6 @@ button.search-action-btn:active {
     border-color: var(--success);
 }
 
-.pill-btn.active.color-amber {
-    background-color: var(--warning);
-    color: white;
-    border-color: var(--warning);
-}
-
 .pill-btn.active.color-red {
     background-color: var(--danger);
     color: white;
@@ -284,11 +278,10 @@ button.search-action-btn:active {
     margin-bottom: 16px;
     border-radius: var(--radius);
     border: 1px solid var(--border-color);
-    border-left: 6px solid var(--border-color); /* Default status boundary line */
+    border-left: 6px solid var(--border-color);
     transition: border-color 0.15s;
 }
 
-/* Color Coding Status Borders */
 .carpark-card.status-high {
     border-left-color: var(--success);
 }
@@ -347,6 +340,21 @@ button.search-action-btn:active {
 
 .distance { font-size: 0.85rem; font-weight: 600; color: var(--danger); }
 .distance-warning { font-size: 0.8rem; font-weight: bold; color: var(--danger); margin-left: 4px; }
+
+.status-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    border-radius: 6px;
+    text-transform: uppercase;
+}
+
+.status-badge.ev-charger {
+    background-color: #eafaf1;
+    color: var(--success);
+    border: 1px solid #a3e4d7;
+}
 
 .info-grid {
     display: grid;

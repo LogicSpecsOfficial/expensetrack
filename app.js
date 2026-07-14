@@ -29,7 +29,8 @@ const i18n = {
         removeFav: "取消收藏",
         optAll: "全部",
         optVacant: "僅顯示空置",
-        optOccupied: "僅顯示使用中"
+        optOccupied: "僅顯示使用中",
+        searchPlaceholder: "搜尋地區、街道或停車場名稱..."
     },
     en_US: {
         title: "Nearest HK Car Parks",
@@ -61,7 +62,8 @@ const i18n = {
         removeFav: "Unfavorite",
         optAll: "All",
         optVacant: "Vacant Only",
-        optOccupied: "Occupied Only"
+        optOccupied: "Occupied Only",
+        searchPlaceholder: "Search district, street, or car park name..."
     }
 };
 
@@ -72,6 +74,7 @@ let cachedAllParks = [];
 let cachedAllMeters = [];
 let favorites = JSON.parse(localStorage.getItem('hk_carpark_favs')) || [];
 let activeMeterFilter = 'all';
+let searchQuery = '';
 
 let refreshInterval = null;
 let countdownValue = 15;
@@ -90,6 +93,7 @@ const favWrapper = document.getElementById('fav-wrapper');
 const uiFavTitle = document.getElementById('ui-fav-title');
 const uiSearchTitle = document.getElementById('ui-search-title');
 const filterContainer = document.getElementById('filter-container');
+const searchInput = document.getElementById('searchInput');
 
 function updateUIStaticText() {
     uiTitle.textContent = i18n[currentLang].title;
@@ -103,6 +107,8 @@ function updateUIStaticText() {
     document.getElementById('pill-all').textContent = i18n[currentLang].optAll;
     document.getElementById('pill-vacant').textContent = i18n[currentLang].optVacant;
     document.getElementById('pill-occupied').textContent = i18n[currentLang].optOccupied;
+    
+    searchInput.placeholder = i18n[currentLang].searchPlaceholder;
     
     updateCountdownUI();
 }
@@ -165,7 +171,16 @@ async function renderActiveTabDisplay() {
     if (!userCoordinates) return;
     if (currentTab === 'offstreet') {
         if (cachedAllParks.length > 0) {
-            displayResults(cachedAllParks.slice(0, 30), false);
+            let filteredParks = cachedAllParks;
+            if (searchQuery) {
+                filteredParks = cachedAllParks.filter(p => {
+                    const name = (p.name || '').toLowerCase();
+                    const addr = (p.displayAddress || (p.address && p.address.displayAddress) || '').toLowerCase();
+                    const dist = (p.district || '').toLowerCase();
+                    return name.includes(searchQuery) || addr.includes(searchQuery) || dist.includes(searchQuery);
+                });
+            }
+            displayResults(filteredParks.slice(0, 30), false);
         } else {
             await refreshActiveTabData(false);
         }
@@ -176,6 +191,15 @@ async function renderActiveTabDisplay() {
                 filteredMeters = cachedAllMeters.filter(m => m.vacancyStatus === 'V');
             } else if (activeMeterFilter === 'occupied') {
                 filteredMeters = cachedAllMeters.filter(m => m.vacancyStatus !== 'V');
+            }
+            
+            if (searchQuery) {
+                filteredMeters = filteredMeters.filter(m => {
+                    const name = (m.name || '').toLowerCase();
+                    const addr = (m.address || '').toLowerCase();
+                    const dist = (m.district || '').toLowerCase();
+                    return name.includes(searchQuery) || addr.includes(searchQuery) || dist.includes(searchQuery);
+                });
             }
             displayResults(filteredMeters.slice(0, 30), true);
         } else {
@@ -323,6 +347,11 @@ showFavBtn.addEventListener('click', () => {
     updateUIStaticText();
 });
 
+searchInput.addEventListener('input', (e) => {
+    searchQuery = e.target.value.trim().toLowerCase();
+    renderActiveTabDisplay();
+});
+
 async function refreshActiveTabData(isBackgroundRefresh = false) {
     if (!userCoordinates) return;
     if (!isBackgroundRefresh) {
@@ -366,7 +395,7 @@ async function fetchCarParks(userLat, userLng) {
         return { ...park, distance, liveInfo };
     }).sort((a, b) => a.distance - b.distance);
 
-    displayResults(cachedAllParks.slice(0, 30), false);
+    await renderActiveTabDisplay();
     renderFavorites();
 }
 
@@ -423,14 +452,7 @@ async function fetchMeteredParking(userLat, userLng) {
 
     cachedAllMeters.sort((a, b) => a.distance - b.distance);
     
-    let filteredMeters = cachedAllMeters;
-    if (activeMeterFilter === 'vacant') {
-        filteredMeters = cachedAllMeters.filter(m => m.vacancyStatus === 'V');
-    } else if (activeMeterFilter === 'occupied') {
-        filteredMeters = cachedAllMeters.filter(m => m.vacancyStatus !== 'V');
-    }
-    
-    displayResults(filteredMeters.slice(0, 30), true);
+    await renderActiveTabDisplay();
     renderFavorites();
 }
 

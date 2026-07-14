@@ -128,7 +128,7 @@ button.secondary-btn:active { background-color: #e9ecef; }
 .search-bar-container {
     display: flex;
     gap: 8px;
-    margin-bottom: 16px;
+    margin-bottom: 10px;
     width: 100%;
 }
 
@@ -162,6 +162,57 @@ button.search-action-btn {
 
 button.search-action-btn:active {
     background-color: #000;
+}
+
+.history-container {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 16px;
+    width: 100%;
+}
+
+.chips-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    flex: 1;
+}
+
+.history-chip {
+    background-color: #e9ecef;
+    color: var(--text-main);
+    padding: 6px 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border-radius: 6px;
+    cursor: pointer;
+    border: none;
+    white-space: nowrap;
+    max-width: 110px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: background-color 0.15s;
+}
+
+.history-chip:active {
+    background-color: var(--border-color);
+}
+
+.clear-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 6px 8px;
+    white-space: nowrap;
+}
+
+.clear-btn:active {
+    color: var(--danger);
 }
 
 #filter-container {

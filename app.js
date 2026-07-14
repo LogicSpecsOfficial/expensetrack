@@ -31,11 +31,13 @@ const i18n = {
         removeFav: "取消收藏",
         optAll: "全部",
         optHideFull: "隱藏已滿車位",
+        optEVOnly: "僅顯示充電位",
         optVacant: "僅顯示空置",
         optOccupied: "僅顯示使用中",
         searchPlaceholder: "搜尋香港地址、大廈、商場或街道...",
         searchBtnText: "搜尋",
-        clearBtnText: "清除"
+        clearBtnText: "清除",
+        evBadge: "設有充電設備"
     },
     en_US: {
         title: "Nearest HK Car Parks",
@@ -69,11 +71,13 @@ const i18n = {
         removeFav: "Unfavorite",
         optAll: "All",
         optHideFull: "Hide Full Lots",
+        optEVOnly: "EV Charging Only",
         optVacant: "Vacant Only",
         optOccupied: "Occupied Only",
         searchPlaceholder: "Search HK address, building, mall, or street...",
         searchBtnText: "Search",
-        clearBtnText: "Clear"
+        clearBtnText: "Clear",
+        evBadge: "EV Charger"
     }
 };
 
@@ -85,7 +89,12 @@ let cachedAllMeters = [];
 let favorites = JSON.parse(localStorage.getItem('hk_carpark_favs')) || [];
 let searchHistory = JSON.parse(localStorage.getItem('hk_carpark_history')) || [];
 let activeMeterFilter = 'all';
-let activeOffstreetFilter = 'all'; // 'all' | 'hide_full'
+
+// Independent toggles for offstreet tab
+let offstreetFilters = {
+    hideFull: false,
+    evOnly: false
+};
 
 let refreshInterval = null;
 let countdownValue = 15;
@@ -161,8 +170,8 @@ function renderFilterPills() {
     
     if (currentTab === 'offstreet') {
         filterContainer.innerHTML = `
-            <button class="pill-btn color-blue ${activeOffstreetFilter === 'all' ? 'active' : ''}" onclick="setOffstreetFilter('all')">${i18n[currentLang].optAll}</button>
-            <button class="pill-btn color-red ${activeOffstreetFilter === 'hide_full' ? 'active' : ''}" onclick="setOffstreetFilter('hide_full')">${i18n[currentLang].optHideFull}</button>
+            <button class="pill-btn color-red ${offstreetFilters.hideFull ? 'active' : ''}" onclick="toggleOffstreetFilter('hideFull')">${i18n[currentLang].optHideFull}</button>
+            <button class="pill-btn color-green ${offstreetFilters.evOnly ? 'active' : ''}" onclick="toggleOffstreetFilter('evOnly')">${i18n[currentLang].optEVOnly}</button>
         `;
     } else {
         filterContainer.innerHTML = `
@@ -187,8 +196,8 @@ async function switchTab(tabName) {
     await renderActiveTabDisplay();
 }
 
-function setOffstreetFilter(filterValue) {
-    activeOffstreetFilter = filterValue;
+function toggleOffstreetFilter(filterName) {
+    offstreetFilters[filterName] = !offstreetFilters[filterName];
     renderFilterPills();
     renderActiveTabDisplay();
 }
@@ -199,19 +208,37 @@ function setMeterFilter(filterValue) {
     renderActiveTabDisplay();
 }
 
+function hasEVCharging(park) {
+    const evKeywords = ['EV', 'ELECTRIC', '充電', '充电', 'CHARG'];
+    
+    if (park.facilities && Array.isArray(park.facilities)) {
+        if (park.facilities.some(f => evKeywords.some(kw => String(f).toUpperCase().includes(kw)))) {
+            return true;
+        }
+    }
+    if (park.carpark_Type && evKeywords.some(kw => String(park.carpark_Type).toUpperCase().includes(kw))) {
+        return true;
+    }
+    const searchString = JSON.stringify(park).toUpperCase();
+    return evKeywords.some(kw => searchString.includes(kw));
+}
+
 async function renderActiveTabDisplay() {
     if (!userCoordinates) return;
     if (currentTab === 'offstreet') {
         if (cachedAllParks.length > 0) {
             let filteredParks = cachedAllParks;
-            if (activeOffstreetFilter === 'hide_full') {
-                filteredParks = cachedAllParks.filter(p => {
+            if (offstreetFilters.hideFull) {
+                filteredParks = filteredParks.filter(p => {
                     if (p.liveInfo && p.liveInfo.privateCar && p.liveInfo.privateCar.length > 0) {
                         const count = p.liveInfo.privateCar[0].vacancy;
                         return count === undefined || count === null || count > 0;
                     }
                     return true; 
                 });
+            }
+            if (offstreetFilters.evOnly) {
+                filteredParks = filteredParks.filter(p => hasEVCharging(p));
             }
             displayResults(filteredParks.slice(0, 30), false);
         } else {
@@ -500,7 +527,7 @@ async function fetchCarParks(userLat, userLng) {
     }).sort((a, b) => a.distance - b.distance);
 
     let filteredParks = cachedAllParks;
-    if (activeOffstreetFilter === 'hide_full') {
+    if (offstreetFilters.hideFull) {
         filteredParks = cachedAllParks.filter(p => {
             if (p.liveInfo && p.liveInfo.privateCar && p.liveInfo.privateCar.length > 0) {
                 const count = p.liveInfo.privateCar[0].vacancy;
@@ -508,6 +535,9 @@ async function fetchCarParks(userLat, userLng) {
             }
             return true;
         });
+    }
+    if (offstreetFilters.evOnly) {
+        filteredParks = filteredParks.filter(p => hasEVCharging(p));
     }
 
     displayResults(filteredParks.slice(0, 30), false);
@@ -632,6 +662,9 @@ function generateCardHTML(park) {
     let distWarningHTML = park.distance > 5 ? `<span class="distance-warning">${t.distWarning}</span>` : '';
     const distHTML = park.distance !== Infinity ? `<span class="distance">${park.distance.toFixed(2)} ${t.away}</span>${distWarningHTML}` : '';
 
+    const hasEV = hasEVCharging(park);
+    const evBadgeHTML = hasEV ? `<span class="status-badge ev-charger">${t.evBadge}</span>` : '';
+
     let infoGridItems = '';
     if (displayAddress) infoGridItems += `<div class="info-label">${t.address}:</div><div><a href="${mapUrl}" target="_blank" class="map-link">${displayAddress}</a></div>`;
     if (park.district) infoGridItems += `<div class="info-label">${t.district}:</div><div>${park.district}</div>`;
@@ -645,7 +678,7 @@ function generateCardHTML(park) {
                 <div class="carpark-name">${park.name || '---'}</div>
                 <button class="card-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${park.park_Id}')">${isFav ? t.removeFav : t.addFav}</button>
             </div>
-            <div class="tags-row">${distHTML}</div>
+            <div class="tags-row">${distHTML} ${evBadgeHTML}</div>
             ${infoGridItems ? `<div class="info-grid">${infoGridItems}</div>` : ''}
             ${vacancyHTML}
         </div>`;

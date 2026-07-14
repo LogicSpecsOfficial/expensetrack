@@ -500,6 +500,55 @@ body.dark-theme .vacancy-badge.unknown {
     white-space: nowrap;
 }
 
+/* CCTV 摺疊樣式 */
+.cctv-toggle-btn {
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 4px 0 0 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    text-decoration: underline;
+}
+
+.cctv-toggle-btn:active {
+    color: var(--accent-hover);
+}
+
+.cctv-container {
+    display: none;
+    margin-top: 8px;
+    padding: 8px;
+    background-color: var(--bg-primary);
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    width: 100%;
+}
+
+body.dark-theme .cctv-container {
+    background-color: #121212;
+}
+
+.cctv-header {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    font-weight: 600;
+}
+
+.cctv-img {
+    width: 100%;
+    max-height: 180px;
+    object-fit: cover;
+    border-radius: 4px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
 .empty-notice {
     text-align: center;
     padding: 16px;

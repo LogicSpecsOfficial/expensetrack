@@ -154,19 +154,29 @@ async function renderActiveTabDisplay() {
 }
 
 function parseCSV(text) {
-    const lines = text.split(/\r?\n/);
+    const lines = text.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
     if (lines.length === 0) return [];
     
     const splitRegex = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/;
-    const headers = lines[0].split(splitRegex).map(h => 
+    let headerIndex = 0;
+    
+    let headers = lines[headerIndex].split(splitRegex).map(h => 
         h.replace(/^["']|["']$/g, '').trim().toLowerCase()
     );
     
+    // Skip metadata rows (such as rows starting with '------' or lines that lack core column keys)
+    if (headers[0] === '------' || headers[0] === 'header' || headers.length < 3 || (!headers.includes('parkingspaceid') && !headers.includes('poleid') && !headers.includes('occupancystatus'))) {
+        headerIndex = 1;
+        if (lines.length > 1) {
+            headers = lines[headerIndex].split(splitRegex).map(h => 
+                h.replace(/^["']|["']$/g, '').trim().toLowerCase()
+            );
+        }
+    }
+    
     const results = [];
-    for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (!line) continue;
-        
+    for (let i = headerIndex + 1; i < lines.length; i++) {
+        const line = lines[i];
         const currentline = line.split(splitRegex);
         if (currentline.length < headers.length) continue;
         
@@ -228,6 +238,33 @@ function calculateMeteredAIPrediction(status) {
     } else {
         return isPeak ? 12 : 45;
     }
+}
+
+async function fetchTextThroughProxy(rawUrl) {
+    // Attempt 1: AllOrigins JSON Wrapper API
+    try {
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(rawUrl)}`;
+        const res = await fetch(proxyUrl);
+        if (res.ok) {
+            const data = await res.json();
+            if (data && data.contents) return data.contents;
+        }
+    } catch (e) {
+        console.warn("Primary proxy failed, switching to backup...", e);
+    }
+
+    // Attempt 2: CorsProxy.io Backup API
+    try {
+        const backupUrl = `https://corsproxy.io/?url=${encodeURIComponent(rawUrl)}`;
+        const res = await fetch(backupUrl);
+        if (res.ok) {
+            return await res.text();
+        }
+    } catch (e) {
+        console.error("Backup proxy failed", e);
+    }
+
+    throw new Error("Unable to fetch metered parking datasets through proxy streams.");
 }
 
 locateBtn.addEventListener('click', () => {
@@ -317,14 +354,10 @@ async function fetchMeteredParking(userLat, userLng) {
     const rawInfoUrl = 'https://resource.data.one.gov.hk/td/psiparkingspaces/spaceinfo/parkingspaces.csv';
     const rawVacancyUrl = 'https://resource.data.one.gov.hk/td/psiparkingspaces/occupancystatus/occupancystatus.csv';
 
-    const infoUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(rawInfoUrl)}`;
-    const vacancyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(rawVacancyUrl)}`;
-
-    const [infoRes, vacancyRes] = await Promise.all([fetch(infoUrl), fetch(vacancyUrl)]);
-    if (!infoRes.ok || !vacancyRes.ok) throw new Error("Meter data sequence failure");
-
-    const infoText = await infoRes.text();
-    const vacancyText = await vacancyRes.text();
+    const [infoText, vacancyText] = await Promise.all([
+        fetchTextThroughProxy(rawInfoUrl),
+        fetchTextThroughProxy(rawVacancyUrl)
+    ]);
 
     const infoRows = parseCSV(infoText);
     const vacancyRows = parseCSV(vacancyText);

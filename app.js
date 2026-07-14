@@ -304,17 +304,34 @@ async function triggerAddressSearch(forcedQuery = null) {
     refreshBtn.disabled = true;
 
     try {
+        // 引擎 1：嘗試官方政府 ALS 服務
         const searchUrl = `https://www.als.gov.hk/lookup?q=${encodeURIComponent(query)}`;
         const responseText = await fetchTextThroughProxy(searchUrl, true);
         
-        const latMatch = responseText.match(/"Latitude"\s*:\s*"?([0-9.]+)"?/i) || responseText.match(/<Latitude>([0-9.]+)<\/Latitude>/i);
-        const lngMatch = responseText.match(/"Longitude"\s*:\s*"?([0-9.]+)"?/i) || responseText.match(/<Longitude>([0-9.]+)<\/Longitude>/i);
+        let latMatch = responseText.match(/"Latitude"\s*:\s*"?([0-9.]+)"?/i) || responseText.match(/<Latitude>([0-9.]+)<\/Latitude>/i);
+        let lngMatch = responseText.match(/"Longitude"\s*:\s*"?([0-9.]+)"?/i) || responseText.match(/<Longitude>([0-9.]+)<\/Longitude>/i);
+
+        let lat = null;
+        let lng = null;
 
         if (latMatch && lngMatch) {
-            const lat = parseFloat(latMatch[1]);
-            const lng = parseFloat(lngMatch[1]);
-            userCoordinates = { lat, lng };
+            lat = parseFloat(latMatch[1]);
+            lng = parseFloat(lngMatch[1]);
+        } else {
+            // 引擎 2：政府無結果，背景靜默啟用 Photon API 智慧搜尋
+            const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=1`;
+            const photonRes = await fetch(photonUrl);
+            const photonData = await photonRes.json();
             
+            if (photonData.features && photonData.features.length > 0) {
+                const coordinates = photonData.features[0].geometry.coordinates;
+                lng = coordinates[0];
+                lat = coordinates[1];
+            }
+        }
+
+        if (lat && lng) {
+            userCoordinates = { lat, lng };
             saveSearch(inputVal); 
             renderFilterPills();
             await refreshActiveTabData(false);
@@ -583,7 +600,6 @@ function renderFavorites() {
     favoritesList.innerHTML = html ? html : `<div class="empty-notice">${t.noFavs}</div>`;
 }
 
-// 渲染首頁歡迎卡片
 function renderWelcomeMessage() {
     resultsDiv.innerHTML = `
         <div class="welcome-box">

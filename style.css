@@ -243,6 +243,7 @@ button.search-action-btn:active {
     color: var(--text-main);
 }
 
+/* Compact Split Layout Rules */
 .carpark-card {
     background-color: var(--surface);
     padding: 10px 12px;
@@ -253,28 +254,30 @@ button.search-action-btn:active {
     transition: border-color 0.15s;
 }
 
-.carpark-card.status-high {
-    border-left-color: var(--success);
-}
+.carpark-card.status-high { border-left-color: var(--success); }
+.carpark-card.status-medium { border-left-color: var(--warning); }
+.carpark-card.status-empty { border-left-color: var(--danger); }
+.carpark-card.status-unknown { border-left-color: var(--border-color); }
 
-.carpark-card.status-medium {
-    border-left-color: var(--warning);
-}
-
-.carpark-card.status-empty {
-    border-left-color: var(--danger);
-}
-
-.carpark-card.status-unknown {
-    border-left-color: var(--border-color);
-}
-
-.card-header {
+.card-body-split {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
+    align-items: stretch;
     gap: 12px;
-    margin-bottom: 6px;
+}
+
+.card-left {
+    flex: 1;
+    min-width: 0;
+}
+
+.card-right {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: flex-end;
+    width: 80px;
+    flex-shrink: 0;
 }
 
 .carpark-name {
@@ -285,6 +288,7 @@ button.search-action-btn:active {
     display: flex;
     align-items: center;
     gap: 6px;
+    margin-bottom: 4px;
 }
 
 .status-dot {
@@ -304,12 +308,14 @@ button.search-action-btn:active {
     background-color: #f1f3f5;
     color: var(--text-main);
     border: 1px solid var(--border-color);
-    padding: 4px 8px;
-    font-size: 0.75rem;
-    font-weight: 500;
-    border-radius: 6px;
+    padding: 3px 6px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    border-radius: 4px;
     cursor: pointer;
     white-space: nowrap;
+    width: 100%;
+    text-align: center;
 }
 
 .card-fav-btn.active {
@@ -360,33 +366,56 @@ button.search-action-btn:active {
     font-weight: 500;
 }
 
-.vacancy-box {
-    margin-top: 8px;
-    padding: 6px 10px;
+/* Compact Dashboard Vacancy Badge */
+.vacancy-badge {
+    width: 100%;
+    padding: 4px 6px;
     border-radius: 6px;
-    font-size: 0.8rem;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-color);
     background-color: #f8f9fa;
-    border-left: 3px solid var(--border-color);
 }
 
-.vacancy-box.available {
-    border-left-color: var(--success);
+.vacancy-badge.available {
+    border-color: #a3e4d7;
     background-color: #f4fbf7;
 }
 
-.vacancy-box.moderate {
-    border-left-color: var(--warning);
+.vacancy-badge.moderate {
+    border-color: #fde3a7;
     background-color: #fffaf4;
 }
 
-.vacancy-box.full {
-    border-left-color: var(--danger);
+.vacancy-badge.full {
+    border-color: #fbc2c2;
     background-color: #fff5f5;
 }
 
-.vacancy-num { font-weight: 700; color: var(--success); }
-.vacancy-num.medium { color: var(--warning); }
+.vacancy-badge.unknown {
+    border-color: var(--border-color);
+    background-color: #f8f9fa;
+}
+
+.vacancy-num {
+    font-size: 1.1rem;
+    font-weight: 700;
+    line-height: 1.1;
+}
+
 .vacancy-num.none { color: var(--danger); }
+.vacancy-num.medium { color: var(--warning); }
+
+.vacancy-label {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+    font-weight: 600;
+    white-space: nowrap;
+}
 
 .empty-notice {
     text-align: center;

@@ -42,10 +42,11 @@ const t = {
     dist1km: "1公里",
     dist2km: "2公里",
     distAll: "不限距離",
-    vacantMeters: "空置咪錶",
-    themeLight: "淺色",
-    themeDark: "深色"
+    vacantMeters: "空置咪錶"
 };
+
+const sunIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>`;
+const moonIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>`;
 
 let currentTab = 'offstreet';
 let userCoordinates = null;
@@ -84,10 +85,10 @@ function initTheme() {
     const savedTheme = localStorage.getItem('hk_carpark_theme') || 'light';
     if (savedTheme === 'dark') {
         document.body.classList.add('dark-theme');
-        themeToggleBtn.textContent = t.themeLight;
+        themeToggleBtn.innerHTML = sunIcon;
     } else {
         document.body.classList.remove('dark-theme');
-        themeToggleBtn.textContent = t.themeDark;
+        themeToggleBtn.innerHTML = moonIcon;
     }
 }
 
@@ -95,10 +96,10 @@ function toggleTheme() {
     const isDark = document.body.classList.toggle('dark-theme');
     if (isDark) {
         localStorage.setItem('hk_carpark_theme', 'dark');
-        themeToggleBtn.textContent = t.themeLight;
+        themeToggleBtn.innerHTML = sunIcon;
     } else {
         localStorage.setItem('hk_carpark_theme', 'light');
-        themeToggleBtn.textContent = t.themeDark;
+        themeToggleBtn.innerHTML = moonIcon;
     }
 }
 
@@ -327,7 +328,7 @@ function parseCSV(text) {
     
     if (headerIndex === -1) {
         headerIndex = 0;
-        headers = lines[0].split(splitRegex).map(h => h.replace(/^\uFEFF/i, '').replace(/^["']|["']$/g, '').trim().toLowerCase());
+        headers = lines[0].split(splitRegex).map(h => h.replace(/^\uFEFF/i).replace(/^["']|["']$/g, '').trim().toLowerCase());
     }
     
     const results = [];

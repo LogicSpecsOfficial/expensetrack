@@ -245,26 +245,51 @@ function calculateMeteredAIPrediction(status) {
 }
 
 async function fetchTextThroughProxy(rawUrl) {
+    // 1. Native Direct Connection
     try {
-        const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(rawUrl)}`;
+        const res = await fetch(rawUrl);
+        if (res.ok) {
+            const text = await res.text();
+            if (text && text.trim().length > 100) return text;
+        }
+    } catch (e) {
+        console.warn("Direct native request blocked, applying proxies.");
+    }
+
+    // 2. Proxy A: corsproxy.io (Unencoded directly)
+    try {
+        const proxyUrl = `https://corsproxy.io/?${rawUrl}`;
         const res = await fetch(proxyUrl);
         if (res.ok) {
             const text = await res.text();
             if (text && text.trim().length > 100) return text;
         }
     } catch (e) {
-        console.warn("Primary proxy (corsproxy.io) failed, trying fallback...", e);
+        console.warn("Proxy A (corsproxy.io) failed, trying fallback.");
     }
 
+    // 3. Proxy B: api.codetabs.com
+    try {
+        const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(rawUrl)}`;
+        const res = await fetch(proxyUrl);
+        if (res.ok) {
+            const text = await res.text();
+            if (text && text.trim().length > 100) return text;
+        }
+    } catch (e) {
+        console.warn("Proxy B (codetabs) failed, trying fallback.");
+    }
+
+    // 4. Proxy C: api.allorigins.win
     try {
         const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(rawUrl)}`;
         const res = await fetch(proxyUrl);
         if (res.ok) {
             const data = await res.json();
-            if (data && data.contents) return data.contents;
+            if (data && data.contents && data.contents.trim().length > 100) return data.contents;
         }
     } catch (e) {
-        console.error("All proxies failed for " + rawUrl, e);
+        console.error("All proxies failed.");
     }
 
     throw new Error("Unable to fetch metered parking datasets through proxy streams.");
@@ -285,9 +310,12 @@ locateBtn.addEventListener('click', () => {
             initAutoRefreshLoop();
             await refreshActiveTabData(false);
         },
-        (error) => {
-            locateBtn.disabled = false;
-            statusText.textContent = `${i18n[currentLang].gpsError}${error.message}`;
+        async (error) => {
+            console.warn("GPS tracking failed, falling back to Kowloon center coordinates.", error);
+            userCoordinates = { lat: 22.3193, lng: 114.1694 };
+            initAutoRefreshLoop();
+            statusText.textContent = currentLang === 'zh_TW' ? "定位未開啟，已顯示九龍中心數據" : "GPS failed, displaying Kowloon defaults.";
+            await refreshActiveTabData(false);
         },
         { enableHighAccuracy: true }
     );
@@ -323,7 +351,7 @@ async function refreshActiveTabData(isBackgroundRefresh = false) {
         if (!isBackgroundRefresh) {
             statusText.textContent = `${i18n[currentLang].apiError}${err.message}`;
         }
-        console.error("Data processing exception details:", err);
+        console.error("Data processing error log:", err);
     } finally {
         if (!isBackgroundRefresh) {
             locateBtn.disabled = false;

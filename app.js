@@ -583,6 +583,17 @@ function renderFavorites() {
     favoritesList.innerHTML = html ? html : `<div class="empty-notice">${t.noFavs}</div>`;
 }
 
+// 渲染首頁歡迎卡片
+function renderWelcomeMessage() {
+    resultsDiv.innerHTML = `
+        <div class="welcome-box">
+            <h3>${t.welcomeTitle}</h3>
+            <p>${t.welcomeDesc}</p>
+        </div>
+    `;
+}
+
 initTheme();
 updateUIStaticText();
 renderSearchHistory();
+renderWelcomeMessage();

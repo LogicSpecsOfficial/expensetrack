@@ -432,46 +432,6 @@ function toggleFavorite(id) {
     renderActiveTabDisplay();
 }
 
-function toggleCCTV(id, lat, lng) {
-    const safeId = 'cctv-' + String(id).replace(/[^a-zA-Z0-9]/g, '_');
-    const container = document.getElementById(safeId);
-    const btn = document.getElementById('btn-' + safeId);
-    if (!container || !btn) return;
-
-    if (container.style.display === 'block') {
-        container.style.display = 'none';
-        btn.textContent = t.viewCCTV;
-        return;
-    }
-
-    let nearestCam = null;
-    let minDistance = Infinity;
-
-    trafficCameras.forEach(cam => {
-        const dist = calculateDistance(lat, lng, cam.lat, cam.lng);
-        if (dist < minDistance) {
-            minDistance = dist;
-            nearestCam = cam;
-        }
-    });
-
-    if (nearestCam) {
-        const timestamp = new Date().getTime();
-        const imgUrl = `https://tdcctv.data.one.gov.hk/${nearestCam.id}.JPG?t=${timestamp}`;
-        // 備用的 SVG 佔位圖，當 API 暫停服務時保證顯示錯誤訊息而非一片空白
-        const fallbackImg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='240' viewBox='0 0 320 240'%3E%3Crect width='320' height='240' fill='%23f8f9fa'/%3E%3Ctext x='160' y='120' font-family='sans-serif' font-size='14' fill='%236c757d' text-anchor='middle' dominant-baseline='middle'%3E暫時無法載入實時路況%3C/text%3E%3C/svg%3E";
-
-        container.innerHTML = `
-            <div class="cctv-header">${nearestCam.name} (約 ${minDistance.toFixed(2)} 公里外)</div>
-            <img src="${imgUrl}" class="cctv-img" alt="CCTV" 
-                 onload="this.style.opacity=1" 
-                 onerror="this.onerror=null; this.src='${fallbackImg}'; this.style.opacity=1;">
-        `;
-        container.style.display = 'block';
-        btn.textContent = t.hideCCTV;
-    }
-}
-
 function generateCardHTML(park) {
     const isFav = favorites.includes(park.park_Id);
     let displayAddress = park.displayAddress || (park.address && park.address.displayAddress) || '';
@@ -532,10 +492,6 @@ function generateCardHTML(park) {
     if (heightText) infoGridItems += `<div class="info-label">${t.maxHeight}:</div><div>${heightText}</div>`;
     if (contactHTML) infoGridItems += `<div class="info-label">${t.contact}:</div><div>${contactHTML}</div>`;
 
-    const safeId = 'cctv-' + String(park.park_Id).replace(/[^a-zA-Z0-9]/g, '_');
-    const pLat = park.latitude || 0;
-    const pLng = park.longitude || 0;
-
     return `
         <div class="carpark-card ${cardStatusClass}">
             <div class="card-body-split">
@@ -546,8 +502,6 @@ function generateCardHTML(park) {
                     </div>
                     <div class="tags-row">${distHTML} ${evBadgeHTML}</div>
                     ${infoGridItems ? `<div class="info-grid">${infoGridItems}</div>` : ''}
-                    <button id="btn-${safeId}" class="cctv-toggle-btn" onclick="toggleCCTV('${park.park_Id}', ${pLat}, ${pLng})">${t.viewCCTV}</button>
-                    <div id="${safeId}" class="cctv-container"></div>
                 </div>
                 <div class="card-right">
                     <button class="card-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${park.park_Id}')">${isFav ? t.removeFav : t.addFav}</button>
@@ -573,9 +527,6 @@ function generateMeterCardHTML(meterGroup) {
     const distHTML = meterGroup.distance !== Infinity ? `<span class="distance">${meterGroup.distance.toFixed(2)} ${t.away}</span>${distWarningHTML}` : '';
 
     const vacancyLabel = `${vacantCount}/${totalCount}`;
-    const safeId = 'cctv-' + String(meterGroup.park_Id).replace(/[^a-zA-Z0-9]/g, '_');
-    const pLat = meterGroup.latitude || 0;
-    const pLng = meterGroup.longitude || 0;
 
     return `
         <div class="carpark-card ${cardStatusClass}">
@@ -590,8 +541,6 @@ function generateMeterCardHTML(meterGroup) {
                         <div class="info-label">${t.address}:</div><div><a href="${mapUrl}" target="_blank" class="map-link">${meterGroup.address}</a></div>
                         <div class="info-label">${t.district}:</div><div>${meterGroup.district || '---'}</div>
                     </div>
-                    <button id="btn-${safeId}" class="cctv-toggle-btn" onclick="toggleCCTV('${meterGroup.park_Id}', ${pLat}, ${pLng})">${t.viewCCTV}</button>
-                    <div id="${safeId}" class="cctv-container"></div>
                 </div>
                 <div class="card-right">
                     <button class="card-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${meterGroup.park_Id}')">${isFav ? t.removeFav : t.addFav}</button>

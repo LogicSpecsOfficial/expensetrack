@@ -28,7 +28,6 @@ const i18n = {
         aiPredictTitle: "AI 15分鐘後車位估算率",
         addFav: "收藏",
         removeFav: "取消收藏",
-        filterLabel: "車位狀態過濾：",
         optAll: "全部",
         optVacant: "僅顯示空置",
         optOccupied: "僅顯示使用中"
@@ -62,7 +61,6 @@ const i18n = {
         aiPredictTitle: "AI 15-Min Availability Probability",
         addFav: "Favorite",
         removeFav: "Unfavorite",
-        filterLabel: "Filter Status:",
         optAll: "All",
         optVacant: "Vacant Only",
         optOccupied: "Occupied Only"
@@ -75,6 +73,7 @@ let userCoordinates = null;
 let cachedAllParks = [];
 let cachedAllMeters = [];
 let favorites = JSON.parse(localStorage.getItem('hk_carpark_favs')) || [];
+let activeMeterFilter = 'all';
 
 let refreshInterval = null;
 let countdownValue = 15;
@@ -92,9 +91,7 @@ const favoritesList = document.getElementById('favoritesList');
 const favWrapper = document.getElementById('fav-wrapper');
 const uiFavTitle = document.getElementById('ui-fav-title');
 const uiSearchTitle = document.getElementById('ui-search-title');
-
 const filterContainer = document.getElementById('filter-container');
-const meterFilter = document.getElementById('meterFilter');
 
 function updateUIStaticText() {
     uiTitle.textContent = i18n[currentLang].title;
@@ -105,10 +102,9 @@ function updateUIStaticText() {
     tabMetered.textContent = i18n[currentLang].tabMetered;
     showFavBtn.textContent = favWrapper.style.display === 'none' ? i18n[currentLang].btnFavShow : i18n[currentLang].btnFavHide;
     
-    document.getElementById('ui-filter-label').textContent = i18n[currentLang].filterLabel;
-    document.getElementById('ui-opt-all').textContent = i18n[currentLang].optAll;
-    document.getElementById('ui-opt-vacant').textContent = i18n[currentLang].optVacant;
-    document.getElementById('ui-opt-occupied').textContent = i18n[currentLang].optOccupied;
+    document.getElementById('pill-all').textContent = i18n[currentLang].optAll;
+    document.getElementById('pill-vacant').textContent = i18n[currentLang].optVacant;
+    document.getElementById('pill-occupied').textContent = i18n[currentLang].optOccupied;
     
     updateCountdownUI();
 }
@@ -155,6 +151,18 @@ async function switchTab(tabName) {
     await renderActiveTabDisplay();
 }
 
+function setMeterFilter(filterValue) {
+    activeMeterFilter = filterValue;
+    
+    document.getElementById('pill-all').classList.remove('active');
+    document.getElementById('pill-vacant').classList.remove('active');
+    document.getElementById('pill-occupied').classList.remove('active');
+    
+    document.getElementById(`pill-${filterValue}`).classList.add('active');
+    
+    renderActiveTabDisplay();
+}
+
 async function renderActiveTabDisplay() {
     if (!userCoordinates) return;
     if (currentTab === 'offstreet') {
@@ -166,10 +174,9 @@ async function renderActiveTabDisplay() {
     } else {
         if (cachedAllMeters.length > 0) {
             let filteredMeters = cachedAllMeters;
-            const filterValue = meterFilter.value;
-            if (filterValue === 'vacant') {
+            if (activeMeterFilter === 'vacant') {
                 filteredMeters = cachedAllMeters.filter(m => m.vacancyStatus === 'V');
-            } else if (filterValue === 'occupied') {
+            } else if (activeMeterFilter === 'occupied') {
                 filteredMeters = cachedAllMeters.filter(m => m.vacancyStatus !== 'V');
             }
             displayResults(filteredMeters.slice(0, 30), true);
@@ -357,10 +364,6 @@ showFavBtn.addEventListener('click', () => {
     updateUIStaticText();
 });
 
-meterFilter.addEventListener('change', () => {
-    renderActiveTabDisplay();
-});
-
 async function refreshActiveTabData(isBackgroundRefresh = false) {
     if (!userCoordinates) return;
     if (!isBackgroundRefresh) {
@@ -462,10 +465,9 @@ async function fetchMeteredParking(userLat, userLng) {
     cachedAllMeters.sort((a, b) => a.distance - b.distance);
     
     let filteredMeters = cachedAllMeters;
-    const filterValue = meterFilter.value;
-    if (filterValue === 'vacant') {
+    if (activeMeterFilter === 'vacant') {
         filteredMeters = cachedAllMeters.filter(m => m.vacancyStatus === 'V');
-    } else if (filterValue === 'occupied') {
+    } else if (activeMeterFilter === 'occupied') {
         filteredMeters = cachedAllMeters.filter(m => m.vacancyStatus !== 'V');
     }
     

@@ -691,51 +691,71 @@ function generateToiletCardHTML(toilet) {
         </div>`;
 }
 
-// 徹底隔離原本 api.js 內 fetchTextThroughProxy 函數的報錯干擾，直接使用獨立的原生網路軌道獲取數據
+// 帶超時終止保護的高可靠度 Fetch 函數，防止連線卡死[cite: 3]
+async function fetchTextWithTimeout(targetUrl, ms = 2500) {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), ms);
+    try {
+        const response = await fetch(targetUrl, { signal: controller.signal });
+        clearTimeout(id);
+        if (!response.ok) return null;
+        return await response.text();
+    } catch (e) {
+        clearTimeout(id);
+        return null;
+    }
+}
+
+// 修正後的公廁獲取函數：全面導入 3 秒逾時攔截機制，多軌通道備援防卡死[cite: 3]
 async function fetchToilets(lat, lng) {
     const url = 'https://www.fehd.gov.hk/tc_chi/map/fehd_map_c.xml';
     let xmlText = "";
     let success = false;
 
-    // 獨立核心通道 1：AllOrigins
-    try {
-        const res = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(url));
-        xmlText = await res.text();
+    // 軌道一：AllOrigins RAW 文字代理
+    if (!success) {
+        xmlText = await fetchTextWithTimeout('https://api.allorigins.win/raw?url=' + encodeURIComponent(url), 3000);
         if (xmlText && xmlText.trim() !== "" && xmlText.includes("<marker")) {
             success = true;
         }
-    } catch (e) {
-        console.warn("Channel 1 fallback.");
     }
 
-    // 獨立核心通道 2：CorsProxy
+    // 軌道二：CorsProxy 代理
     if (!success) {
-        try {
-            const res = await fetch('https://corsproxy.io/?' + encodeURIComponent(url));
-            xmlText = await res.text();
-            if (xmlText && xmlText.trim() !== "" && xmlText.includes("<marker")) {
-                success = true;
-            }
-        } catch (e) {
-            console.warn("Channel 2 fallback.");
+        xmlText = await fetchTextWithTimeout('https://corsproxy.io/?' + encodeURIComponent(url), 3000);
+        if (xmlText && xmlText.trim() !== "" && xmlText.includes("<marker")) {
+            success = true;
         }
     }
 
-    // 獨立核心通道 3：直連模式
+    // 軌道三：AllOrigins 標準 JSON 包裹通道（高防禦力、不易遭防火牆阻斷）
     if (!success) {
-        try {
-            const res = await fetch(url);
-            xmlText = await res.text();
-            if (xmlText && xmlText.trim() !== "" && xmlText.includes("<marker")) {
-                success = true;
+        const jsonText = await fetchTextWithTimeout('https://api.allorigins.win/get?url=' + encodeURIComponent(url), 3000);
+        if (jsonText) {
+            try {
+                const jsonObj = JSON.parse(jsonText);
+                if (jsonObj && jsonObj.contents) {
+                    xmlText = jsonObj.contents;
+                    if (xmlText && xmlText.trim() !== "" && xmlText.includes("<marker")) {
+                        success = true;
+                    }
+                }
+            } catch (e) {
+                console.warn("JSON wrap parse error.");
             }
-        } catch (e) {
-            console.warn("Channel 3 fallback.");
+        }
+    }
+
+    // 軌道四：直連通道
+    if (!success) {
+        xmlText = await fetchTextWithTimeout(url, 2500);
+        if (xmlText && xmlText.trim() !== "" && xmlText.includes("<marker")) {
+            success = true;
         }
     }
 
     if (!success || !xmlText) {
-        throw new Error("無法連結食環署公廁伺服器，請檢查網路連線。");
+        throw new Error("數據通道連線超時，請點擊右上角重試。");
     }
 
     const parser = new DOMParser();
@@ -743,7 +763,7 @@ async function fetchToilets(lat, lng) {
     
     const parseError = xmlDoc.querySelector('parsererror');
     if (parseError) {
-        throw new Error("XML 數據流格式解析失敗");
+        throw new Error("XML 解析異常");
     }
 
     let nodes = Array.from(xmlDoc.getElementsByTagName('marker'));
@@ -762,9 +782,7 @@ async function fetchToilets(lat, lng) {
 
         const type = getVal('type') || getVal('Type') || '';
         const name = getVal('name') || getVal('Name') || '';
-        const address = getVal('address') || getVal('Address') || '';
 
-        // 包含 type 代碼 1、2，以及字串特徵相符的節點
         const isToilet = type === '1' || type === '2' || 
                          type.includes('公廁') || type.includes('廁所') || type.toLowerCase().includes('toilet') ||
                          name.includes('公廁') || name.includes('廁所') || name.toLowerCase().includes('toilet');
@@ -781,7 +799,7 @@ async function fetchToilets(lat, lng) {
             toiletsList.push({
                 park_Id: `toilet_${tLat}_${tLng}_${i}`,
                 name: name,
-                address: address,
+                address: getVal('address') || getVal('Address') || '香港各區',
                 district: getVal('district') || '',
                 latitude: tLat,
                 longitude: tLng,
@@ -792,7 +810,7 @@ async function fetchToilets(lat, lng) {
     });
 
     if (toiletsList.length === 0) {
-        throw new Error("找不到相符的公廁數據。");
+        throw new Error("無效的公廁資料");
     }
 
     cachedAllToilets = toiletsList;

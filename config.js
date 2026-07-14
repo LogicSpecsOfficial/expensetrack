@@ -42,13 +42,14 @@ const t = {
     dist1km: "1公里",
     dist2km: "2公里",
     distAll: "不限距離",
-    vacantMeters: "空置咪錶"
+    vacantMeters: "空置咪錶",
+    viewCCTV: "查看附近路況",
+    hideCCTV: "隱藏路況"
 };
 
 const sunIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>`;
 const moonIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>`;
 
-// 離線智慧對照字典
 const synonymMap = {
     "sogo": "銅鑼灣軒尼詩道555號",
     "崇光": "銅鑼灣軒尼詩道555號",
@@ -70,3 +71,22 @@ const synonymMap = {
     "太古廣場": "金鐘金鐘道88號",
     "pacificplace": "金鐘金鐘道88號"
 };
+
+// 運輸署實時路口快照相機列表
+const trafficCameras = [
+    { id: "H411F", name: "干諾道中近畢打街", lat: 22.2820, lng: 114.1582 },
+    { id: "H423F", name: "軒尼詩道近波斯富街", lat: 22.2800, lng: 114.1825 },
+    { id: "H402F", name: "夏愤道近紅棉路", lat: 22.2796, lng: 114.1622 },
+    { id: "H416F", name: "告士打道近菲林明道", lat: 22.2797, lng: 114.1738 },
+    { id: "H203F", name: "東區走廊近太古城", lat: 22.2865, lng: 114.2185 },
+    { id: "K102F", name: "梳士巴利道近彌敦道", lat: 22.2940, lng: 114.1718 },
+    { id: "K402F", name: "彌敦道近亞皆老街", lat: 22.3193, lng: 114.1694 },
+    { id: "K201F", name: "窩打老道近歌和老街", lat: 22.3400, lng: 114.1780 },
+    { id: "K501F", name: "觀塘道近駿業里", lat: 22.3120, lng: 114.2250 },
+    { id: "K301F", name: "龍翔道近黃大仙中心", lat: 22.3420, lng: 114.1930 },
+    { id: "N101F", name: "大埔公路近沙田廣場", lat: 22.3835, lng: 114.1890 },
+    { id: "N201F", name: "青山公路近大河道", lat: 22.3735, lng: 114.1160 },
+    { id: "N210F", name: "葵涌道近葵芳", lat: 22.3570, lng: 114.1280 },
+    { id: "N401F", name: "屯門公路近屯門市廣場", lat: 22.3920, lng: 113.9770 },
+    { id: "N301F", name: "青山公路近元朗安寧路", lat: 22.4450, lng: 114.0275 }
+];

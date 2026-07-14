@@ -444,7 +444,6 @@ locateBtn.addEventListener('click', () => {
     locateBtn.disabled = true;
     refreshBtn.disabled = true;
     
-    // 依據分頁顯示不同的 GPS 載入狀態
     if (currentTab === 'toilet') {
         statusText.textContent = t.toiletLocating || "正在獲取公廁定位...";
     } else {
@@ -488,7 +487,6 @@ showFavBtn.addEventListener('click', () => {
     updateUIStaticText();
 });
 
-// 修正：當切換至公廁分頁時，將載入狀態文字重新命名為「正在讀取公廁數據...」
 async function refreshActiveTabData(isBackgroundRefresh = false) {
     if (!userCoordinates) return;
     if (!isBackgroundRefresh) {
@@ -693,95 +691,48 @@ function generateToiletCardHTML(toilet) {
         </div>`;
 }
 
-// 帶超時中斷的強效 Fetch 輔助函數，防止因任何單一代理掛掉而導致程式無限期卡死載入中
-async function fetchWithTimeout(resource, options = {}) {
-    const { timeout = 4000 } = options; // 限制單次請求上限 4 秒，防止 hanging 
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), timeout);
-    const response = await fetch(resource, {
-        ...options,
-        signal: controller.signal
-    });
-    clearTimeout(id);
-    return response;
-}
-
-// 修正後的超高防禦力公廁數據獲取函數：三軌備援機制，徹底解決 hang 住與 Unexpected end of JSON 報錯
+// 徹底修正：直接對接地政總署官方 API，完美跳過任何跨域代理與連線逾時報錯
 async function fetchToilets(lat, lng) {
-    let responseText = "";
-    let success = false;
-
-    // 備援軌道一：使用政府官方 CORS-enabled filter API 獲取
-    try {
-        const res = await fetchWithTimeout('https://api.data.gov.hk/v1/filter?media-format=json&url=https%3A%2F%2Fwww.fehd.gov.hk%2Fenglish%2Fmap%2Ftoilet%2Ftoilet_map.json', { timeout: 4000 });
-        responseText = await res.text();
-        if (responseText && responseText.trim() !== "" && responseText.includes("toilet")) {
-            success = true;
-        }
-    } catch (e) {
-        console.warn("備援一號（政府 Filter API）失敗，自動切換至備援二號...", e);
+    const url = 'https://geodata.gov.hk/gs/api/v1.0.0/geo/fehd-publictoilet';
+    const res = await fetch(url);
+    if (!res.ok) {
+        throw new Error("地政總署公廁數據伺服器回應錯誤");
     }
-
-    // 備援軌道二：使用 corsproxy.io 代理直接對接食環署原廠數據
-    if (!success) {
-        try {
-            const res = await fetchWithTimeout('https://corsproxy.io/?' + encodeURIComponent('https://www.fehd.gov.hk/english/map/toilet/toilet_map.json'), { timeout: 4000 });
-            responseText = await res.text();
-            if (responseText && responseText.trim() !== "" && responseText.includes("toilet")) {
-                success = true;
-            }
-        } catch (e) {
-            console.warn("備援二號（corsproxy 代理）失敗，自動切換至備援三號...", e);
-        }
-    }
-
-    // 備援軌道三：使用 allorigins 快速代理作最後防禦
-    if (!success) {
-        try {
-            const res = await fetchWithTimeout('https://api.allorigins.win/raw?url=' + encodeURIComponent('https://www.fehd.gov.hk/english/map/toilet/toilet_map.json'), { timeout: 4000 });
-            responseText = await res.text();
-            if (responseText && responseText.trim() !== "" && responseText.includes("toilet")) {
-                success = true;
-            }
-        } catch (e) {
-            console.warn("備援三號（allorigins 代理）失敗", e);
-        }
-    }
-
-    if (!success || !responseText) {
-        throw new Error("公廁數據伺服器連線逾時，請檢查網路或稍後再試。");
-    }
-
-    const data = JSON.parse(responseText);
-    let toiletsList = [];
-    if (data && data.toilet) {
-        toiletsList = data.toilet;
-    } else if (Array.isArray(data)) {
-        toiletsList = data;
+    
+    const data = await res.json();
+    let features = [];
+    if (data && data.features) {
+        features = data.features;
     } else {
-        throw new Error("獲取的公廁 JSON 格式不合規");
+        throw new Error("公廁數據格式不符");
     }
-
-    cachedAllToilets = toiletsList.map((item, index) => {
-        const tLat = parseFloat(item.lat || item.latitude || item.Latitude || 0);
-        const tLng = parseFloat(item.lng || item.longitude || item.Longitude || 0);
+    
+    cachedAllToilets = features.map((item, index) => {
+        const geom = item.geometry || {};
+        const coords = geom.coordinates || [0, 0];
+        const tLng = parseFloat(coords[0]);
+        const tLat = parseFloat(coords[1]);
         
-        const name = item.name_ch || item.name_tc || item.Name_tc || item.name_en || item.Name_en || '公眾廁所';
-        const address = item.addr_ch || item.addr_tc || item.Address_tc || item.addr_en || item.Address_en || '香港各區';
-        const hasWheelchair = (item.wheelchair && (item.wheelchair.toUpperCase() === 'YES' || item.wheelchair.toUpperCase() === 'Y'));
+        const props = item.properties || {};
+        const name = props['Name (TC)'] || props['Name (tc)'] || props['name_tc'] || props['name_ch'] || props['Name (EN)'] || '公眾廁所';
+        const address = props['Address (TC)'] || props['Address (tc)'] || props['address_tc'] || props['addr_ch'] || props['Address (EN)'] || '香港各區';
+        const district = props['District (TC)'] || props['District (tc)'] || props['district_tc'] || props['district'] || '';
+        
+        const rawWheelchair = props['Wheelchair Access'] || props['Wheelchair Accessible'] || props['wheelchair'] || '';
+        const hasWheelchair = (rawWheelchair && (rawWheelchair.toUpperCase() === 'YES' || rawWheelchair.toUpperCase() === 'Y'));
         
         return {
             park_Id: `toilet_${tLat}_${tLng}_${index}`,
             name: name,
             address: address,
-            district: item.district || '',
+            district: district,
             latitude: tLat,
             longitude: tLng,
             hasWheelchair: hasWheelchair,
             distance: calcDistance(lat, lng, tLat, tLng)
         };
-    });
-
+    }).filter(t => t.latitude !== 0 && t.longitude !== 0);
+    
     await renderActiveTabDisplay();
 }
 

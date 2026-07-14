@@ -30,6 +30,7 @@ const i18n = {
         addFav: "收藏",
         removeFav: "取消收藏",
         optAll: "全部",
+        optHideFull: "隱藏已滿車位",
         optVacant: "僅顯示空置",
         optOccupied: "僅顯示使用中",
         searchPlaceholder: "搜尋香港地址、大廈、商場或街道...",
@@ -67,6 +68,7 @@ const i18n = {
         addFav: "Favorite",
         removeFav: "Unfavorite",
         optAll: "All",
+        optHideFull: "Hide Full Lots",
         optVacant: "Vacant Only",
         optOccupied: "Occupied Only",
         searchPlaceholder: "Search HK address, building, mall, or street...",
@@ -83,6 +85,7 @@ let cachedAllMeters = [];
 let favorites = JSON.parse(localStorage.getItem('hk_carpark_favs')) || [];
 let searchHistory = JSON.parse(localStorage.getItem('hk_carpark_history')) || [];
 let activeMeterFilter = 'all';
+let activeOffstreetFilter = 'all'; // 'all' | 'hide_full'
 
 let refreshInterval = null;
 let countdownValue = 15;
@@ -114,14 +117,11 @@ function updateUIStaticText() {
     tabMetered.textContent = i18n[currentLang].tabMetered;
     showFavBtn.textContent = favWrapper.style.display === 'none' ? i18n[currentLang].btnFavShow : i18n[currentLang].btnFavHide;
     
-    document.getElementById('pill-all').textContent = i18n[currentLang].optAll;
-    document.getElementById('pill-vacant').textContent = i18n[currentLang].optVacant;
-    document.getElementById('pill-occupied').textContent = i18n[currentLang].optOccupied;
-    
     searchInput.placeholder = i18n[currentLang].searchPlaceholder;
     searchBtn.textContent = i18n[currentLang].searchBtnText;
     clearHistoryBtn.textContent = i18n[currentLang].clearBtnText;
     
+    renderFilterPills();
     updateCountdownUI();
 }
 
@@ -152,30 +152,50 @@ function initAutoRefreshLoop() {
     }, 1000);
 }
 
+function renderFilterPills() {
+    if (!userCoordinates) {
+        filterContainer.style.display = 'none';
+        return;
+    }
+    filterContainer.style.display = 'flex';
+    
+    if (currentTab === 'offstreet') {
+        filterContainer.innerHTML = `
+            <button class="pill-btn color-blue ${activeOffstreetFilter === 'all' ? 'active' : ''}" onclick="setOffstreetFilter('all')">${i18n[currentLang].optAll}</button>
+            <button class="pill-btn color-red ${activeOffstreetFilter === 'hide_full' ? 'active' : ''}" onclick="setOffstreetFilter('hide_full')">${i18n[currentLang].optHideFull}</button>
+        `;
+    } else {
+        filterContainer.innerHTML = `
+            <button class="pill-btn color-blue ${activeMeterFilter === 'all' ? 'active' : ''}" onclick="setMeterFilter('all')">${i18n[currentLang].optAll}</button>
+            <button class="pill-btn color-green ${activeMeterFilter === 'vacant' ? 'active' : ''}" onclick="setMeterFilter('vacant')">${i18n[currentLang].optVacant}</button>
+            <button class="pill-btn color-red ${activeMeterFilter === 'occupied' ? 'active' : ''}" onclick="setMeterFilter('occupied')">${i18n[currentLang].optOccupied}</button>
+        `;
+    }
+}
+
 async function switchTab(tabName) {
     currentTab = tabName;
     if (currentTab === 'offstreet') {
         tabOffStreet.classList.add('active');
         tabMetered.classList.remove('active');
-        filterContainer.style.display = 'none';
     } else {
         tabMetered.classList.add('active');
         tabOffStreet.classList.remove('active');
-        filterContainer.style.display = 'flex';
     }
+    renderFilterPills();
     renderFavorites();
     await renderActiveTabDisplay();
 }
 
+function setOffstreetFilter(filterValue) {
+    activeOffstreetFilter = filterValue;
+    renderFilterPills();
+    renderActiveTabDisplay();
+}
+
 function setMeterFilter(filterValue) {
     activeMeterFilter = filterValue;
-    
-    document.getElementById('pill-all').classList.remove('active');
-    document.getElementById('pill-vacant').classList.remove('active');
-    document.getElementById('pill-occupied').classList.remove('active');
-    
-    document.getElementById(`pill-${filterValue}`).classList.add('active');
-    
+    renderFilterPills();
     renderActiveTabDisplay();
 }
 
@@ -183,7 +203,17 @@ async function renderActiveTabDisplay() {
     if (!userCoordinates) return;
     if (currentTab === 'offstreet') {
         if (cachedAllParks.length > 0) {
-            displayResults(cachedAllParks.slice(0, 30), false);
+            let filteredParks = cachedAllParks;
+            if (activeOffstreetFilter === 'hide_full') {
+                filteredParks = cachedAllParks.filter(p => {
+                    if (p.liveInfo && p.liveInfo.privateCar && p.liveInfo.privateCar.length > 0) {
+                        const count = p.liveInfo.privateCar[0].vacancy;
+                        return count === undefined || count === null || count > 0;
+                    }
+                    return true; 
+                });
+            }
+            displayResults(filteredParks.slice(0, 30), false);
         } else {
             await refreshActiveTabData(false);
         }
@@ -356,6 +386,7 @@ async function triggerAddressSearch(forcedQuery = null) {
             
             saveSearch(query);
             initAutoRefreshLoop();
+            renderFilterPills();
             statusText.textContent = currentLang === 'zh_TW' ? `已定位至搜尋地點: ${query}` : `Positioned to searched place: ${query}`;
             await refreshActiveTabData(false);
         } else {
@@ -396,12 +427,14 @@ locateBtn.addEventListener('click', () => {
         async (position) => {
             userCoordinates = { lat: position.coords.latitude, lng: position.coords.longitude };
             initAutoRefreshLoop();
+            renderFilterPills();
             await refreshActiveTabData(false);
         },
         async (error) => {
             console.warn("GPS tracking failed, falling back to Kowloon center coordinates.", error);
             userCoordinates = { lat: 22.3193, lng: 114.1694 };
             initAutoRefreshLoop();
+            renderFilterPills();
             statusText.textContent = currentLang === 'zh_TW' ? "定位未開啟，已顯示九龍中心數據" : "GPS failed, displaying Kowloon defaults.";
             await refreshActiveTabData(false);
         },
@@ -466,7 +499,18 @@ async function fetchCarParks(userLat, userLng) {
         return { ...park, distance, liveInfo };
     }).sort((a, b) => a.distance - b.distance);
 
-    displayResults(cachedAllParks.slice(0, 30), false);
+    let filteredParks = cachedAllParks;
+    if (activeOffstreetFilter === 'hide_full') {
+        filteredParks = cachedAllParks.filter(p => {
+            if (p.liveInfo && p.liveInfo.privateCar && p.liveInfo.privateCar.length > 0) {
+                const count = p.liveInfo.privateCar[0].vacancy;
+                return count === undefined || count === null || count > 0;
+            }
+            return true;
+        });
+    }
+
+    displayResults(filteredParks.slice(0, 30), false);
     renderFavorites();
 }
 
@@ -553,15 +597,32 @@ function generateCardHTML(park) {
     const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(displayAddress + " " + (park.name || ''))}`;
 
     let heightText = (park.heightRestrictions || []).map(h => h.height ? `${h.height}m` : '').filter(Boolean).join(', ');
+    
     let vacancyHTML = `<div class="vacancy-box">Notice: ${t.noVacancyData}</div>`;
+    let cardStatusClass = 'status-unknown';
+    let boxStatusClass = '';
+    let vacancyNumClass = '';
 
     if (park.liveInfo && park.liveInfo.privateCar && park.liveInfo.privateCar.length > 0) {
         const count = park.liveInfo.privateCar[0].vacancy;
         if (count !== undefined && count !== null && count >= 0) {
+            if (count >= 10) {
+                cardStatusClass = 'status-high';
+                boxStatusClass = 'available';
+                vacancyNumClass = '';
+            } else if (count > 0) {
+                cardStatusClass = 'status-medium';
+                boxStatusClass = 'moderate';
+                vacancyNumClass = 'medium';
+            } else {
+                cardStatusClass = 'status-empty';
+                boxStatusClass = 'full';
+                vacancyNumClass = 'none';
+            }
             vacancyHTML = `
-                <div class="vacancy-box ${count === 0 ? 'full' : 'available'}">
+                <div class="vacancy-box ${boxStatusClass}">
                     <strong>${t.liveVacancy}:</strong> 
-                    <span class="vacancy-num ${count === 0 ? 'none' : ''}">${count}</span> ${t.spaces}
+                    <span class="vacancy-num ${vacancyNumClass}">${count}</span> ${t.spaces}
                 </div>`;
         }
     }
@@ -579,7 +640,7 @@ function generateCardHTML(park) {
     if (contactHTML) infoGridItems += `<div class="info-label">${t.contact}:</div><div>${contactHTML}</div>`;
 
     return `
-        <div class="carpark-card">
+        <div class="carpark-card ${cardStatusClass}">
             <div class="card-header">
                 <div class="carpark-name">${park.name || '---'}</div>
                 <button class="card-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${park.park_Id}')">${isFav ? t.removeFav : t.addFav}</button>
@@ -596,12 +657,13 @@ function generateMeterCardHTML(meter) {
     const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(meter.address)}`;
     const isVacant = meter.vacancyStatus === 'V';
     const statusLabel = isVacant ? (currentLang === 'zh_TW' ? '空置' : 'Vacant') : (currentLang === 'zh_TW' ? '使用中' : 'Occupied');
+    const cardStatusClass = isVacant ? 'status-high' : 'status-empty';
 
     let distWarningHTML = meter.distance > 5 ? `<span class="distance-warning">${t.distWarning}</span>` : '';
     const distHTML = meter.distance !== Infinity ? `<span class="distance">${meter.distance.toFixed(2)} ${t.away}</span>${distWarningHTML}` : '';
 
     return `
-        <div class="carpark-card">
+        <div class="carpark-card ${cardStatusClass}">
             <div class="card-header">
                 <div class="carpark-name">${meter.name}</div>
                 <button class="card-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${meter.park_Id}')">${isFav ? t.removeFav : t.addFav}</button>

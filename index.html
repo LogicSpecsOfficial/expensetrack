@@ -1,73 +1,53 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>香港泊車資訊</title>
+    <title>HK Car Parks</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="app-container">
-        <!-- 頂部整合工具列 -->
-        <header class="header-container">
-            <h1 id="ui-title">香港泊車資訊</h1>
-            <div class="top-actions">
-                <button id="refreshBtn" class="icon-btn" title="重新整理"></button>
-                <button id="showFavBtn" class="icon-btn" title="我的收藏"></button>
-                <button id="themeToggleBtn" class="icon-btn" title="切換主題"></button>
-            </div>
-        </header>
 
-        <!-- 頁籤選擇 -->
-        <div class="tabs-container">
-            <button id="tabOffStreet" class="tab-btn active" onclick="switchTab('offstreet')">室內停車場</button>
-            <button id="tabMetered" class="tab-btn" onclick="switchTab('metered')">路邊咪錶</button>
-        </div>
-
-        <!-- 搜尋區域與嵌入式定位按鈕 -->
-        <div class="search-section">
-            <div class="search-bar-container">
-                <div class="input-wrapper">
-                    <input type="text" id="searchInput" placeholder="搜尋香港地址...">
-                    <button id="locateBtn" class="embedded-icon-btn" title="使用GPS定位"></button>
-                </div>
-                <button id="searchBtn" class="icon-btn primary-btn" title="搜尋"></button>
-            </div>
-
-            <!-- 歷史紀錄 -->
-            <div id="history-wrapper" class="history-container" style="display: none;">
-                <div class="history-header">
-                    <span id="ui-search-history-label" style="font-size: 12px; color: var(--secondary-text-color);">歷史紀錄：</span>
-                    <button id="clearHistoryBtn" class="text-link-btn">清除</button>
-                </div>
-                <div id="historyChips" class="chips-row"></div>
-            </div>
-        </div>
-
-        <!-- 我的收藏列表 -->
-        <div id="fav-wrapper" class="fav-section" style="display: none;">
-            <h2 id="ui-fav-title" class="section-title">我的收藏</h2>
-            <div id="favoritesList" class="cards-list"></div>
-        </div>
-
-        <!-- 主要搜尋結果 -->
-        <div class="main-content">
-            <div class="results-header">
-                <h2 id="ui-search-title" class="section-title">搜尋結果</h2>
-            </div>
-            
-            <!-- 篩選器 -->
-            <div id="filter-container" class="filters-section" style="display: none;"></div>
-
-            <!-- 狀態提示 -->
-            <div id="status" class="status-msg"></div>
-
-            <!-- 結果列表 -->
-            <div id="results" class="cards-list"></div>
-        </div>
+    <div class="header-container">
+        <h1 id="ui-title">最近的香港停車場</h1>
+        <button id="themeToggleBtn" class="theme-toggle-btn" onclick="toggleTheme()" aria-label="切換主題"></button>
     </div>
 
+    <div class="tab-container">
+        <button id="tabOffStreet" class="tab-btn active" onclick="switchTab('offstreet')">室內停車場</button>
+        <button id="tabMetered" class="tab-btn" onclick="switchTab('metered')">路邊咪錶位</button>
+    </div>
+    
+    <div class="action-group">
+        <button id="locateBtn" class="main-btn">GPS 定位</button>
+        <button id="showFavBtn" class="secondary-btn">我的收藏</button>
+        <button id="refreshBtn" class="secondary-btn">更新數據</button>
+    </div>
+
+    <div class="search-bar-container">
+        <input type="text" id="searchInput" placeholder="搜尋香港地址、大廈、商場或街道...">
+        <button id="searchBtn" class="search-action-btn">搜尋</button>
+    </div>
+
+    <div id="history-wrapper" class="history-container" style="display: none;">
+        <div id="historyChips" class="chips-row"></div>
+        <button id="clearHistoryBtn" class="clear-btn">清除</button>
+    </div>
+
+    <p id="status"></p>
+    
+    <div id="fav-wrapper" style="display:none;">
+        <div class="section-title" id="ui-fav-title">我的收藏夾</div>
+        <div id="favoritesList"></div>
+    </div>
+
+    <div id="filter-container" style="display: none;"></div>
+
+    <div class="section-title" id="ui-search-title">搜尋結果</div>
+    <div id="results"></div>
+
     <script src="config.js"></script>
+    <script src="api.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

@@ -128,21 +128,47 @@ button.secondary-btn:active { background-color: #e9ecef; }
 
 #filter-container {
     display: none;
-    align-items: center;
-    background-color: var(--surface);
-    padding: 10px 14px;
-    border-radius: var(--radius);
-    border: 1px solid var(--border-color);
+    gap: 8px;
+    margin-bottom: 16px;
+    width: 100%;
 }
 
-#meterFilter {
-    padding: 6px 12px;
-    font-size: 0.9rem;
-    border-radius: 8px;
+.pill-btn {
+    flex: 1;
+    padding: 8px 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border-radius: 50px;
     border: 1px solid var(--border-color);
     background-color: var(--surface);
-    color: var(--text-main);
+    color: var(--text-muted);
     cursor: pointer;
+    text-align: center;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    min-height: 38px;
+}
+
+.pill-btn:active {
+    transform: scale(0.97);
+}
+
+#pill-all.active {
+    background-color: var(--accent);
+    color: white;
+    border-color: var(--accent);
+}
+
+#pill-vacant.active {
+    background-color: var(--success);
+    color: white;
+    border-color: var(--success);
+}
+
+#pill-occupied.active {
+    background-color: var(--danger);
+    color: white;
+    border-color: var(--danger);
 }
 
 .section-title {

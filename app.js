@@ -42,7 +42,9 @@ const t = {
     dist1km: "1公里",
     dist2km: "2公里",
     distAll: "不限距離",
-    vacantMeters: "空置咪錶"
+    vacantMeters: "空置咪錶",
+    themeLight: "淺色",
+    themeDark: "深色"
 };
 
 let currentTab = 'offstreet';
@@ -76,6 +78,29 @@ const filterContainer = document.getElementById('filter-container');
 const searchInput = document.getElementById('searchInput');
 const searchBtn = document.getElementById('searchBtn');
 const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+const themeToggleBtn = document.getElementById('themeToggleBtn');
+
+function initTheme() {
+    const savedTheme = localStorage.getItem('hk_carpark_theme') || 'light';
+    if (savedTheme === 'dark') {
+        document.body.classList.add('dark-theme');
+        themeToggleBtn.textContent = t.themeLight;
+    } else {
+        document.body.classList.remove('dark-theme');
+        themeToggleBtn.textContent = t.themeDark;
+    }
+}
+
+function toggleTheme() {
+    const isDark = document.body.classList.toggle('dark-theme');
+    if (isDark) {
+        localStorage.setItem('hk_carpark_theme', 'dark');
+        themeToggleBtn.textContent = t.themeLight;
+    } else {
+        localStorage.setItem('hk_carpark_theme', 'light');
+        themeToggleBtn.textContent = t.themeDark;
+    }
+}
 
 function updateUIStaticText() {
     uiTitle.textContent = t.title;
@@ -797,5 +822,6 @@ async function silentFetchData() {
     } catch (e) {}
 }
 
+initTheme();
 updateUIStaticText();
 renderSearchHistory();

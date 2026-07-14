@@ -158,20 +158,24 @@ function parseCSV(text) {
     if (lines.length === 0) return [];
     
     const splitRegex = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/;
-    let headerIndex = 0;
+    let headerIndex = -1;
+    let headers = [];
     
-    let headers = lines[headerIndex].split(splitRegex).map(h => 
-        h.replace(/^["']|["']$/g, '').trim().toLowerCase()
-    );
-    
-    // Skip metadata rows (such as rows starting with '------' or lines that lack core column keys)
-    if (headers[0] === '------' || headers[0] === 'header' || headers.length < 3 || (!headers.includes('parkingspaceid') && !headers.includes('poleid') && !headers.includes('occupancystatus'))) {
-        headerIndex = 1;
-        if (lines.length > 1) {
-            headers = lines[headerIndex].split(splitRegex).map(h => 
-                h.replace(/^["']|["']$/g, '').trim().toLowerCase()
-            );
+    for (let i = 0; i < lines.length; i++) {
+        const cleanLine = lines[i].replace(/^\uFEFF/i, '').trim();
+        if (!cleanLine) continue;
+        const testHeaders = cleanLine.split(splitRegex).map(h => h.replace(/^["']|["']$/g, '').trim().toLowerCase());
+        
+        if (testHeaders.includes('parkingspaceid') || testHeaders.includes('parking_space_id') || testHeaders.includes('occupancystatus')) {
+            headerIndex = i;
+            headers = testHeaders;
+            break;
         }
+    }
+    
+    if (headerIndex === -1) {
+        headerIndex = 0;
+        headers = lines[0].split(splitRegex).map(h => h.replace(/^\uFEFF/i, '').replace(/^["']|["']$/g, '').trim().toLowerCase());
     }
     
     const results = [];
@@ -241,7 +245,17 @@ function calculateMeteredAIPrediction(status) {
 }
 
 async function fetchTextThroughProxy(rawUrl) {
-    // Attempt 1: AllOrigins JSON Wrapper API
+    try {
+        const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(rawUrl)}`;
+        const res = await fetch(proxyUrl);
+        if (res.ok) {
+            const text = await res.text();
+            if (text && text.trim().length > 100) return text;
+        }
+    } catch (e) {
+        console.warn("Primary proxy (corsproxy.io) failed, trying fallback...", e);
+    }
+
     try {
         const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(rawUrl)}`;
         const res = await fetch(proxyUrl);
@@ -250,18 +264,7 @@ async function fetchTextThroughProxy(rawUrl) {
             if (data && data.contents) return data.contents;
         }
     } catch (e) {
-        console.warn("Primary proxy failed, switching to backup...", e);
-    }
-
-    // Attempt 2: CorsProxy.io Backup API
-    try {
-        const backupUrl = `https://corsproxy.io/?url=${encodeURIComponent(rawUrl)}`;
-        const res = await fetch(backupUrl);
-        if (res.ok) {
-            return await res.text();
-        }
-    } catch (e) {
-        console.error("Backup proxy failed", e);
+        console.error("All proxies failed for " + rawUrl, e);
     }
 
     throw new Error("Unable to fetch metered parking datasets through proxy streams.");
@@ -320,6 +323,7 @@ async function refreshActiveTabData(isBackgroundRefresh = false) {
         if (!isBackgroundRefresh) {
             statusText.textContent = `${i18n[currentLang].apiError}${err.message}`;
         }
+        console.error("Data processing exception details:", err);
     } finally {
         if (!isBackgroundRefresh) {
             locateBtn.disabled = false;
@@ -372,7 +376,7 @@ async function fetchMeteredParking(userLat, userLng) {
     cachedAllMeters = [];
     infoRows.forEach(row => {
         const vehicleType = row['vehicle_type'] || row['vehicletype'] || '';
-        if (vehicleType !== 'A') return;
+        if (vehicleType.toUpperCase() !== 'A') return;
 
         const latVal = row['latitude'] || row['lat'] || '';
         const lngVal = row['longitude'] || row['lng'] || '';

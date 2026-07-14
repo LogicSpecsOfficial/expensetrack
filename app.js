@@ -15,7 +15,6 @@ const i18n = {
         gpsError: "定位錯誤: ",
         apiError: "處理數據出錯: ",
         noSupport: "您的瀏覽器不支援地理定位功能。",
-        showingResults: "顯示最近的 30 個地點：",
         noRecords: "未找到符合條件的地點紀錄。",
         noFavs: "此分類暫無收藏項目。",
         away: "公里外",
@@ -56,7 +55,6 @@ const i18n = {
         gpsError: "Location error: ",
         apiError: "Error processing data: ",
         noSupport: "Geolocation is not supported by your browser.",
-        showingResults: "Showing the nearest 30 records:",
         noRecords: "No matching records found nearby.",
         noFavs: "No favorited items in this tab.",
         away: "km away",
@@ -385,7 +383,6 @@ async function triggerAddressSearch(forcedQuery = null) {
             
             saveSearch(query);
             renderFilterPills();
-            statusText.textContent = currentLang === 'zh_TW' ? `已定位至搜尋地點: ${query}` : `Positioned to searched place: ${query}`;
             await refreshActiveTabData(false);
         } else {
             statusText.textContent = i18n[currentLang].addressError;
@@ -695,7 +692,9 @@ function generateMeterCardHTML(meter) {
 }
 
 function displayResults(items, isMeter = false) {
-    statusText.textContent = i18n[currentLang].showingResults;
+    statusText.textContent = ""; // Clear loading status text
+    uiSearchTitle.textContent = `${i18n[currentLang].searchTitle} (${items.length})`; // Merge count into title
+    
     if (items.length === 0) {
         resultsDiv.innerHTML = `<div class="empty-notice">${i18n[currentLang].noRecords}</div>`;
         return;

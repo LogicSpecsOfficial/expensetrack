@@ -286,7 +286,6 @@ async function triggerAddressSearch(forcedQuery = null) {
     const inputVal = typeof forcedQuery === 'string' ? forcedQuery : searchInput.value.trim();
     if (!inputVal) return;
 
-    // 將使用者輸入轉為小寫並移除所有空格進行字典對比
     const lookupKey = inputVal.toLowerCase().replace(/\s+/g, '');
     let query = inputVal;
     
@@ -316,7 +315,7 @@ async function triggerAddressSearch(forcedQuery = null) {
             const lng = parseFloat(lngMatch[1]);
             userCoordinates = { lat, lng };
             
-            saveSearch(inputVal); // 保存使用者最初輸入的原始字詞作歷史紀錄
+            saveSearch(inputVal); 
             renderFilterPills();
             await refreshActiveTabData(false);
             if (document.activeElement) document.activeElement.blur(); 
@@ -433,6 +432,43 @@ function toggleFavorite(id) {
     renderActiveTabDisplay();
 }
 
+// 摺疊並獲取最近的路口實時 CCTV
+function toggleCCTV(id, lat, lng) {
+    const safeId = 'cctv-' + String(id).replace(/[^a-zA-Z0-9]/g, '_');
+    const container = document.getElementById(safeId);
+    const btn = document.getElementById('btn-' + safeId);
+    if (!container || !btn) return;
+
+    if (container.style.display === 'block') {
+        container.style.display = 'none';
+        btn.textContent = t.viewCCTV;
+        return;
+    }
+
+    let nearestCam = null;
+    let minDistance = Infinity;
+
+    trafficCameras.forEach(cam => {
+        const dist = calculateDistance(lat, lng, cam.lat, cam.lng);
+        if (dist < minDistance) {
+            minDistance = dist;
+            nearestCam = cam;
+        }
+    });
+
+    if (nearestCam) {
+        const timestamp = new Date().getTime();
+        const imgUrl = `https://tdcctv.data.one.gov.hk/${nearestCam.id}.JPG?t=${timestamp}`;
+        
+        container.innerHTML = `
+            <div class="cctv-header">${nearestCam.name} (約 ${minDistance.toFixed(2)} 公里外)</div>
+            <img src="${imgUrl}" class="cctv-img" alt="CCTV" onload="this.style.opacity=1" onerror="this.src=''; this.alt='路況快照暫時無法加載';">
+        `;
+        container.style.display = 'block';
+        btn.textContent = t.hideCCTV;
+    }
+}
+
 function generateCardHTML(park) {
     const isFav = favorites.includes(park.park_Id);
     let displayAddress = park.displayAddress || (park.address && park.address.displayAddress) || '';
@@ -493,6 +529,8 @@ function generateCardHTML(park) {
     if (heightText) infoGridItems += `<div class="info-label">${t.maxHeight}:</div><div>${heightText}</div>`;
     if (contactHTML) infoGridItems += `<div class="info-label">${t.contact}:</div><div>${contactHTML}</div>`;
 
+    const safeId = 'cctv-' + String(park.park_Id).replace(/[^a-zA-Z0-9]/g, '_');
+
     return `
         <div class="carpark-card ${cardStatusClass}">
             <div class="card-body-split">
@@ -503,6 +541,8 @@ function generateCardHTML(park) {
                     </div>
                     <div class="tags-row">${distHTML} ${evBadgeHTML}</div>
                     ${infoGridItems ? `<div class="info-grid">${infoGridItems}</div>` : ''}
+                    <button id="btn-${safeId}" class="cctv-toggle-btn" onclick="toggleCCTV('${park.park_Id}', ${park.latitude}, ${park.longitude})">${t.viewCCTV}</button>
+                    <div id="${safeId}" class="cctv-container"></div>
                 </div>
                 <div class="card-right">
                     <button class="card-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${park.park_Id}')">${isFav ? t.removeFav : t.addFav}</button>
@@ -528,6 +568,7 @@ function generateMeterCardHTML(meterGroup) {
     const distHTML = meterGroup.distance !== Infinity ? `<span class="distance">${meterGroup.distance.toFixed(2)} ${t.away}</span>${distWarningHTML}` : '';
 
     const vacancyLabel = `${vacantCount}/${totalCount}`;
+    const safeId = 'cctv-' + String(meterGroup.park_Id).replace(/[^a-zA-Z0-9]/g, '_');
 
     return `
         <div class="carpark-card ${cardStatusClass}">
@@ -542,6 +583,8 @@ function generateMeterCardHTML(meterGroup) {
                         <div class="info-label">${t.address}:</div><div><a href="${mapUrl}" target="_blank" class="map-link">${meterGroup.address}</a></div>
                         <div class="info-label">${t.district}:</div><div>${meterGroup.district || '---'}</div>
                     </div>
+                    <button id="btn-${safeId}" class="cctv-toggle-btn" onclick="toggleCCTV('${meterGroup.park_Id}', ${meterGroup.latitude}, ${meterGroup.longitude})">${t.viewCCTV}</button>
+                    <div id="${safeId}" class="cctv-container"></div>
                 </div>
                 <div class="card-right">
                     <button class="card-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${meterGroup.park_Id}')">${isFav ? t.removeFav : t.addFav}</button>

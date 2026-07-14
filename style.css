@@ -500,6 +500,29 @@ body.dark-theme .vacancy-badge.unknown {
     white-space: nowrap;
 }
 
+/* 歡迎引導區域樣式 */
+.welcome-box {
+    text-align: center;
+    padding: 36px 20px;
+    background-color: var(--surface);
+    border-radius: var(--radius);
+    border: 1px dashed var(--border-color);
+    margin-top: 10px;
+}
+
+.welcome-box h3 {
+    font-size: 1.05rem;
+    margin-bottom: 8px;
+    color: var(--text-main);
+    font-weight: 700;
+}
+
+.welcome-box p {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+}
+
 .empty-notice {
     text-align: center;
     padding: 16px;

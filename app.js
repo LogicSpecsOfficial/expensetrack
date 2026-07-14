@@ -35,7 +35,8 @@ const i18n = {
         searchPlaceholder: "搜尋香港地址、大廈、商場或街道...",
         searchBtnText: "搜尋",
         clearBtnText: "清除",
-        openingHours: "營業時間"
+        openingHours: "營業時間",
+        closedNow: "現已關閉"
     },
     en_US: {
         title: "Nearest HK Car Parks",
@@ -73,7 +74,8 @@ const i18n = {
         searchPlaceholder: "Search HK address, building, mall, or street...",
         searchBtnText: "Search",
         clearBtnText: "Clear",
-        openingHours: "Opening Hours"
+        openingHours: "Opening Hours",
+        closedNow: "Closed Now"
     }
 };
 
@@ -626,6 +628,10 @@ function generateCardHTML(park) {
     let distWarningHTML = park.distance > 5 ? `<span class="distance-warning">${t.distWarning}</span>` : '';
     const distHTML = park.distance !== Infinity ? `<span class="distance">${park.distance.toFixed(2)} ${t.away}</span>${distWarningHTML}` : '';
 
+    // Check live opening status from government database
+    const isClosed = park.opening_status === 'CLOSED';
+    const statusBadgeHTML = isClosed ? `<span class="status-badge closed">${t.closedNow}</span>` : '';
+
     let infoGridItems = '';
     if (displayAddress) infoGridItems += `<div class="info-label">${t.address}:</div><div><a href="${mapUrl}" target="_blank" class="map-link">${displayAddress}</a></div>`;
     if (park.district) infoGridItems += `<div class="info-label">${t.district}:</div><div>${park.district}</div>`;
@@ -644,7 +650,7 @@ function generateCardHTML(park) {
                 <div class="carpark-name">${park.name || '---'}</div>
                 <button class="card-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${park.park_Id}')">${isFav ? t.removeFav : t.addFav}</button>
             </div>
-            <div class="tags-row">${distHTML}</div>
+            <div class="tags-row">${distHTML} ${statusBadgeHTML}</div>
             ${infoGridItems ? `<div class="info-grid">${infoGridItems}</div>` : ''}
             ${vacancyHTML}
         </div>`;

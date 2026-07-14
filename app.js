@@ -33,7 +33,8 @@ const i18n = {
         optVacant: "僅顯示空置",
         optOccupied: "僅顯示使用中",
         searchPlaceholder: "搜尋香港地址、大廈、商場或街道...",
-        searchBtnText: "搜尋"
+        searchBtnText: "搜尋",
+        clearBtnText: "清除"
     },
     en_US: {
         title: "Nearest HK Car Parks",
@@ -69,7 +70,8 @@ const i18n = {
         optVacant: "Vacant Only",
         optOccupied: "Occupied Only",
         searchPlaceholder: "Search HK address, building, mall, or street...",
-        searchBtnText: "Search"
+        searchBtnText: "Search",
+        clearBtnText: "Clear"
     }
 };
 
@@ -79,6 +81,7 @@ let userCoordinates = null;
 let cachedAllParks = [];
 let cachedAllMeters = [];
 let favorites = JSON.parse(localStorage.getItem('hk_carpark_favs')) || [];
+let searchHistory = JSON.parse(localStorage.getItem('hk_carpark_history')) || [];
 let activeMeterFilter = 'all';
 
 let refreshInterval = null;
@@ -100,6 +103,7 @@ const uiSearchTitle = document.getElementById('ui-search-title');
 const filterContainer = document.getElementById('filter-container');
 const searchInput = document.getElementById('searchInput');
 const searchBtn = document.getElementById('searchBtn');
+const clearHistoryBtn = document.getElementById('clearHistoryBtn');
 
 function updateUIStaticText() {
     uiTitle.textContent = i18n[currentLang].title;
@@ -116,6 +120,7 @@ function updateUIStaticText() {
     
     searchInput.placeholder = i18n[currentLang].searchPlaceholder;
     searchBtn.textContent = i18n[currentLang].searchBtnText;
+    clearHistoryBtn.textContent = i18n[currentLang].clearBtnText;
     
     updateCountdownUI();
 }
@@ -298,9 +303,39 @@ async function fetchTextThroughProxy(rawUrl, useJSONHeader = false) {
     throw new Error("Unable to fetch data through proxy connections.");
 }
 
-async function triggerAddressSearch() {
-    const query = searchInput.value.trim();
+function renderSearchHistory() {
+    const historyWrapper = document.getElementById('history-wrapper');
+    const historyChips = document.getElementById('historyChips');
+    
+    if (searchHistory.length === 0) {
+        historyWrapper.style.display = 'none';
+        return;
+    }
+    
+    historyWrapper.style.display = 'flex';
+    historyChips.innerHTML = searchHistory.map(item => {
+        const escapedItem = item.replace(/'/g, "\\'");
+        return `<button class="history-chip" onclick="triggerAddressSearch('${escapedItem}')">${item}</button>`;
+    }).join('');
+}
+
+function saveSearch(query) {
+    searchHistory = searchHistory.filter(item => item.toLowerCase() !== query.toLowerCase());
+    searchHistory.unshift(query);
+    if (searchHistory.length > 5) {
+        searchHistory = searchHistory.slice(0, 5);
+    }
+    localStorage.setItem('hk_carpark_history', JSON.stringify(searchHistory));
+    renderSearchHistory();
+}
+
+async function triggerAddressSearch(forcedQuery = null) {
+    const query = typeof forcedQuery === 'string' ? forcedQuery : searchInput.value.trim();
     if (!query) return;
+
+    if (typeof forcedQuery === 'string') {
+        searchInput.value = query;
+    }
 
     statusText.textContent = i18n[currentLang].addressSearching;
     resultsDiv.innerHTML = "";
@@ -319,6 +354,7 @@ async function triggerAddressSearch() {
             const lng = parseFloat(lngMatch[1]);
             userCoordinates = { lat, lng };
             
+            saveSearch(query);
             initAutoRefreshLoop();
             statusText.textContent = currentLang === 'zh_TW' ? `已定位至搜尋地點: ${query}` : `Positioned to searched place: ${query}`;
             await refreshActiveTabData(false);
@@ -328,17 +364,23 @@ async function triggerAddressSearch() {
     } catch (err) {
         statusText.textContent = i18n[currentLang].addressError;
         console.error("Address lookup error:", err);
-    } finally {
+    } finaly {
         locateBtn.disabled = false;
         searchBtn.disabled = false;
     }
 }
 
-searchBtn.addEventListener('click', triggerAddressSearch);
+searchBtn.addEventListener('click', () => triggerAddressSearch());
 searchInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
         triggerAddressSearch();
     }
+});
+
+clearHistoryBtn.addEventListener('click', () => {
+    searchHistory = [];
+    localStorage.removeItem('hk_carpark_history');
+    renderSearchHistory();
 });
 
 locateBtn.addEventListener('click', () => {
@@ -627,3 +669,4 @@ langSelect.addEventListener('change', async (e) => {
 });
 
 updateUIStaticText();
+renderSearchHistory();

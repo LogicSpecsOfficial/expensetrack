@@ -364,7 +364,7 @@ async function triggerAddressSearch(forcedQuery = null) {
     } catch (err) {
         statusText.textContent = i18n[currentLang].addressError;
         console.error("Address lookup error:", err);
-    } finaly {
+    } finally {
         locateBtn.disabled = false;
         searchBtn.disabled = false;
     }

@@ -22,8 +22,8 @@ const t = {
     maxHeight: "最高限高",
     contact: "聯絡電話",
     liveVacancy: "即時空位",
-    spaces: "個空置車位",
-    noVacancyData: "未有提供即時空位數據",
+    spaces: "個空位",
+    noVacancyData: "無數據",
     distWarning: "[提示: 距離較遠]",
     addFav: "收藏",
     removeFav: "取消收藏",
@@ -42,7 +42,7 @@ const t = {
     dist1km: "1公里",
     dist2km: "2公里",
     distAll: "不限距離",
-    vacantMeters: "空置咪錶位"
+    vacantMeters: "空置咪錶"
 };
 
 let currentTab = 'offstreet';
@@ -637,11 +637,16 @@ function generateCardHTML(park) {
 
     let heightText = (park.heightRestrictions || []).map(h => h.height ? `${h.height}m` : '').filter(Boolean).join(', ');
     
-    let vacancyHTML = `<div class="vacancy-box">Notice: ${t.noVacancyData}</div>`;
     let cardStatusClass = 'status-unknown';
     let boxStatusClass = '';
     let vacancyNumClass = '';
     let dotClass = 'dot-grey';
+    
+    let vacancyHTML = `
+        <div class="vacancy-badge unknown">
+            <span class="vacancy-num">--</span>
+            <span class="vacancy-label">${t.noVacancyData}</span>
+        </div>`;
 
     if (park.liveInfo && park.liveInfo.privateCar && park.liveInfo.privateCar.length > 0) {
         const count = park.liveInfo.privateCar[0].vacancy;
@@ -663,9 +668,9 @@ function generateCardHTML(park) {
                 dotClass = 'dot-red';
             }
             vacancyHTML = `
-                <div class="vacancy-box ${boxStatusClass}">
-                    <strong>${t.liveVacancy}:</strong> 
-                    <span class="vacancy-num ${vacancyNumClass}">${count}</span> ${t.spaces}
+                <div class="vacancy-badge ${boxStatusClass}">
+                    <span class="vacancy-num ${vacancyNumClass}">${count}</span>
+                    <span class="vacancy-label">${t.spaces}</span>
                 </div>`;
         }
     }
@@ -687,16 +692,20 @@ function generateCardHTML(park) {
 
     return `
         <div class="carpark-card ${cardStatusClass}">
-            <div class="card-header">
-                <div class="carpark-name">
-                    <span class="status-dot ${dotClass}"></span>
-                    ${park.name || '---'}
+            <div class="card-body-split">
+                <div class="card-left">
+                    <div class="carpark-name">
+                        <span class="status-dot ${dotClass}"></span>
+                        ${park.name || '---'}
+                    </div>
+                    <div class="tags-row">${distHTML} ${evBadgeHTML}</div>
+                    ${infoGridItems ? `<div class="info-grid">${infoGridItems}</div>` : ''}
                 </div>
-                <button class="card-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${park.park_Id}')">${isFav ? t.removeFav : t.addFav}</button>
+                <div class="card-right">
+                    <button class="card-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${park.park_Id}')">${isFav ? t.removeFav : t.addFav}</button>
+                    ${vacancyHTML}
+                </div>
             </div>
-            <div class="tags-row">${distHTML} ${evBadgeHTML}</div>
-            ${infoGridItems ? `<div class="info-grid">${infoGridItems}</div>` : ''}
-            ${vacancyHTML}
         </div>`;
 }
 
@@ -719,21 +728,25 @@ function generateMeterCardHTML(meterGroup) {
 
     return `
         <div class="carpark-card ${cardStatusClass}">
-            <div class="card-header">
-                <div class="carpark-name">
-                    <span class="status-dot ${dotClass}"></span>
-                    ${meterGroup.name}
+            <div class="card-body-split">
+                <div class="card-left">
+                    <div class="carpark-name">
+                        <span class="status-dot ${dotClass}"></span>
+                        ${meterGroup.name}
+                    </div>
+                    <div class="tags-row">${distHTML}</div>
+                    <div class="info-grid">
+                        <div class="info-label">${t.address}:</div><div><a href="${mapUrl}" target="_blank" class="map-link">${meterGroup.address}</a></div>
+                        <div class="info-label">${t.district}:</div><div>${meterGroup.district || '---'}</div>
+                    </div>
                 </div>
-                <button class="card-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${meterGroup.park_Id}')">${isFav ? t.removeFav : t.addFav}</button>
-            </div>
-            <div class="tags-row">${distHTML}</div>
-            <div class="info-grid">
-                <div class="info-label">${t.address}:</div><div><a href="${mapUrl}" target="_blank" class="map-link">${meterGroup.address}</a></div>
-                <div class="info-label">${t.district}:</div><div>${meterGroup.district || '---'}</div>
-            </div>
-            <div class="vacancy-box ${boxStatusClass}">
-                <strong>${t.liveVacancy}:</strong> 
-                <span class="vacancy-num ${!isAnyVacant ? 'none' : ''}">${vacancyLabel}</span> ${t.vacantMeters}
+                <div class="card-right">
+                    <button class="card-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${meterGroup.park_Id}')">${isFav ? t.removeFav : t.addFav}</button>
+                    <div class="vacancy-badge ${boxStatusClass}">
+                        <span class="vacancy-num ${!isAnyVacant ? 'none' : ''}">${vacancyLabel}</span>
+                        <span class="vacancy-label">${t.vacantMeters}</span>
+                    </div>
+                </div>
             </div>
         </div>`;
 }

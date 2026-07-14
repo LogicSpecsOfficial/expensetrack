@@ -47,3 +47,26 @@ const t = {
 
 const sunIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>`;
 const moonIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>`;
+
+// 離線智慧對照字典
+const synonymMap = {
+    "sogo": "銅鑼灣軒尼詩道555號",
+    "崇光": "銅鑼灣軒尼詩道555號",
+    "ifc": "中環金融街8號",
+    "國金": "中環金融街8號",
+    "海港城": "尖沙咀廣東道3號",
+    "harbourcity": "尖沙咀廣東道3號",
+    "朗豪坊": "旺角亞皆老街8號",
+    "langhamplace": "旺角亞皆老街8號",
+    "apm": "觀塘觀塘道418號",
+    "老尖": "尖沙咀",
+    "tst": "尖沙咀",
+    "mk": "旺角",
+    "cwb": "銅鑼灣",
+    "時代廣場": "銅鑼灣勿地臣街1號",
+    "timessquare": "銅鑼灣勿地臣街1號",
+    "新城市廣場": "沙田沙田正街",
+    "newtownplaza": "沙田沙田正街",
+    "太古廣場": "金鐘金鐘道88號",
+    "pacificplace": "金鐘金鐘道88號"
+};

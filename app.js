@@ -283,11 +283,19 @@ function saveSearch(query) {
 }
 
 async function triggerAddressSearch(forcedQuery = null) {
-    const query = typeof forcedQuery === 'string' ? forcedQuery : searchInput.value.trim();
-    if (!query) return;
+    const inputVal = typeof forcedQuery === 'string' ? forcedQuery : searchInput.value.trim();
+    if (!inputVal) return;
+
+    // 將使用者輸入轉為小寫並移除所有空格進行字典對比
+    const lookupKey = inputVal.toLowerCase().replace(/\s+/g, '');
+    let query = inputVal;
+    
+    if (synonymMap[lookupKey]) {
+        query = synonymMap[lookupKey];
+    }
 
     if (typeof forcedQuery === 'string') {
-        searchInput.value = query;
+        searchInput.value = inputVal;
     }
 
     statusText.textContent = t.addressSearching;
@@ -308,7 +316,7 @@ async function triggerAddressSearch(forcedQuery = null) {
             const lng = parseFloat(lngMatch[1]);
             userCoordinates = { lat, lng };
             
-            saveSearch(query);
+            saveSearch(inputVal); // 保存使用者最初輸入的原始字詞作歷史紀錄
             renderFilterPills();
             await refreshActiveTabData(false);
             if (document.activeElement) document.activeElement.blur(); 

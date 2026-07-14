@@ -312,6 +312,9 @@ body.dark-theme .clear-btn:active {
 .carpark-card.status-empty { border-left-color: var(--danger); }
 .carpark-card.status-unknown { border-left-color: var(--border-color); }
 
+/* 公廁專用左邊框配色 (使用主題色/藍色) */
+.carpark-card.status-toilet { border-left-color: var(--accent); }
+
 .card-body-split {
     display: flex;
     justify-content: space-between;
@@ -356,6 +359,9 @@ body.dark-theme .clear-btn:active {
 .dot-orange { background-color: var(--warning); }
 .dot-red { background-color: var(--danger); }
 .dot-grey { background-color: var(--text-muted); }
+
+/* 藍色狀態圓點 */
+.dot-blue { background-color: var(--accent); }
 
 .card-fav-btn {
     background-color: #f1f3f5;

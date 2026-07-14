@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FEHD Toilet XML Test</title>
+    <style>
+        body { font-family: -apple-system, sans-serif; padding: 16px; background: #f8f9fa; color: #212529; }
+        .log-panel { background: #e9ecef; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 0.8rem; margin-bottom: 16px; white-space: pre-wrap; max-height: 200px; overflow-y: auto; border: 1px solid #dee2e6; }
+        .card { background: white; padding: 12px; margin-bottom: 10px; border-radius: 6px; border: 1px solid #dee2e6; border-left: 4px solid #0d6efd; }
+        .name { font-weight: bold; font-size: 0.95rem; }
+        .addr { color: #6c757d; font-size: 0.85rem; margin-top: 4px; }
+        .meta { font-size: 0.75rem; margin-top: 4px; color: #198754; font-weight: 600; }
+    </style>
+</head>
+<body>
+
+    <h2>食環署公廁數據獨立測試</h2>
+    <div id="log" class="log-panel">正在初始化網路請求...</div>
+    
+    <div id="test-results"></div>
+
+    <script>
+        const logDiv = document.getElementById('log');
+        const resultsDiv = document.getElementById('test-results');
+
+        function logger(text) {
+            logDiv.textContent += "\n" + text;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        async function runToiletTest() {
+            const targetUrl = 'https://www.fehd.gov.hk/tc_chi/map/fehd_map_c.xml';
+            // 使用最直接的開放代理避開 CORS
+            const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(targetUrl);
+            
+            logger("1. 開始發送 Fetch 請求至公用代理伺服器...");
+            
+            try {
+                const response = await fetch(proxyUrl);
+                if (!response.ok) {
+                    logger("錯誤：伺服器回應失敗，狀態碼: " + response.status);
+                    return;
+                }
+                
+                const xmlText = await response.text();
+                logger("2. 成功接收數據流，總長度: " + xmlText.length + " 字元");
+
+                if (!xmlText.includes("<marker")) {
+                    logger("錯誤：接收到的內容不包含任何 <marker> 節點，可能是代理被主機拒絕。");
+                    return;
+                }
+
+                logger("3. 啟動 DOMParser 進行 XML 結構解析...");
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+                
+                if (xmlDoc.querySelector('parsererror')) {
+                    logger("錯誤：XML 語法解析失敗。");
+                    return;
+                }
+
+                const markers = xmlDoc.getElementsByTagName('marker');
+                logger("4. 解析完成。XML 內的總標記設施數: " + markers.length);
+
+                let toiletCount = 0;
+                let cardsHtml = "";
+
+                for (let i = 0; i < markers.length; i++) {
+                    const node = markers[i];
+                    const type = node.getAttribute('type') || '';
+                    const name = node.getAttribute('name') || '';
+                    const address = node.getAttribute('address') || '';
+                    const wheelchair = node.getAttribute('wheelchair') || '';
+
+                    // 食環署 XML 規範：type="1" 為公廁，type="2" 為旱廁
+                    if (type === '1' || type === '2' || name.includes('公廁') || name.includes('廁所')) {
+                        toiletCount++;
+                        cardsHtml += `
+                            <div class="card">
+                                <div class="name">${name} (類型代碼: ${type})</div>
+                                <div class="addr">地址: ${address}</div>
+                                <div class="meta">${wheelchair === 'Y' ? '設無障礙通道' : '未標示無障礙設施'}</div>
+                            </div>
+                        `;
+                    }
+                }
+
+                logger("5. 過濾篩選完畢。成功找到公廁設施數: " + toiletCount);
+                
+                if (toiletCount === 0) {
+                    resultsDiv.innerHTML = "<p style='color:red;'>未能篩選出公廁項目，請檢查屬性名稱是否匹配。</p>";
+                } else {
+                    resultsDiv.innerHTML = cardsHtml;
+                }
+
+            } catch (error) {
+                logger("異常中斷：連線或執行時發生錯誤: " + error.message);
+            }
+        }
+
+        // 頁面載入後自動執行測試
+        window.addEventListener('DOMContentLoaded', runToiletTest);
+    </script>
+</body>
+</html>

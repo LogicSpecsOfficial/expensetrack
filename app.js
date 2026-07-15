@@ -357,7 +357,8 @@ async function triggerAddressSearch(forcedQuery = null) {
 
         if (lat && lng) {
             userCoordinates = { lat, lng };
-            
+
+            // 同步修正：位置變更時清除快取，以利跨分頁重新請求新數據
             cachedAllParks = [];
             cachedAllMeters = [];
             cachedAllToilets = [];
@@ -416,7 +417,8 @@ locateBtn.addEventListener('click', () => {
     navigator.geolocation.getCurrentPosition(
         async (position) => {
             userCoordinates = { lat: position.coords.latitude, lng: position.coords.longitude };
-            
+
+            // 同步修正：定位變更時清除快取
             cachedAllParks = [];
             cachedAllMeters = [];
             cachedAllToilets = [];
@@ -427,7 +429,8 @@ locateBtn.addEventListener('click', () => {
         async (error) => {
             console.warn("GPS tracking failed, falling back to Kowloon center coordinates.", error);
             userCoordinates = { lat: 22.3193, lng: 114.1694 };
-            
+
+            // 同步修正：定位變更時清除快取
             cachedAllParks = [];
             cachedAllMeters = [];
             cachedAllToilets = [];
@@ -647,19 +650,44 @@ function renderFavorites() {
     favoritesList.innerHTML = html ? html : `<div class="empty-notice">${t.noFavs}</div>`;
 }
 
-// 根據右上角從左到右的實際排版順序（主題 -> 收藏 -> 搜尋 -> 更新 -> 定位）重新排列說明
+// 依照右上方功能鍵順序，直接以 Flexbox 與嵌入真實 SVG 元件取代括號文字說明
 function renderWelcomeMessage() {
     resultsDiv.innerHTML = `
-        <div class="welcome-box">
-            <h3>歡迎使用香港車位及公廁搜尋</h3>
-            <p>功能圖標說明如下：</p>
-            <ul style="list-style: none; padding: 0; margin: 15px 0; text-align: left; line-height: 2;">
-                <li><strong>主題按鈕（月亮或太陽）：</strong>切換深色或淺色視覺模式</li>
-                <li><strong>收藏按鈕（星星）：</strong>切換顯示或隱藏已收藏的清單</li>
-                <li><strong>搜尋按鈕（放大鏡）：</strong>展開或關閉地址搜尋欄</li>
-                <li><strong>更新按鈕（循環箭頭）：</strong>刷新並獲取最新的即時數據</li>
-                <li><strong>定位按鈕（導航箭頭）：</strong>尋找當前位置附近的車位與公廁</li>
-            </ul>
+        <div class="welcome-box" style="text-align: center; padding: 15px 10px;">
+            <h3 style="margin-bottom: 8px;">歡迎使用香港車位及公廁搜尋</h3>
+            <p style="opacity: 0.8; font-size: 14px; margin-bottom: 20px;">功能圖標說明如下：</p>
+            <div style="max-width: 420px; margin: 0 auto; text-align: left; font-size: 14px;">
+                <div style="display: flex; align-items: center; margin-bottom: 14px;">
+                    <div style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: rgba(128,128,128,0.12); border-radius: 6px; margin-right: 14px; flex-shrink: 0; color: inherit;">
+                        <div style="width: 18px; height: 18px; display: flex; align-items: center; justify-content: center;">${moonIcon}</div>
+                    </div>
+                    <div><strong>主題按鈕：</strong>切換深色或淺色視覺模式</div>
+                </div>
+                <div style="display: flex; align-items: center; margin-bottom: 14px;">
+                    <div style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: rgba(128,128,128,0.12); border-radius: 6px; margin-right: 14px; flex-shrink: 0; color: inherit;">
+                        <div style="width: 18px; height: 18px; display: flex; align-items: center; justify-content: center;">${svgStarOutline}</div>
+                    </div>
+                    <div><strong>收藏按鈕：</strong>切換顯示或隱藏已收藏的清單</div>
+                </div>
+                <div style="display: flex; align-items: center; margin-bottom: 14px;">
+                    <div style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: rgba(128,128,128,0.12); border-radius: 6px; margin-right: 14px; flex-shrink: 0; color: inherit;">
+                        <div style="width: 18px; height: 18px; display: flex; align-items: center; justify-content: center;">${svgSearch}</div>
+                    </div>
+                    <div><strong>搜尋按鈕：</strong>展開或關閉地址搜尋欄</div>
+                </div>
+                <div style="display: flex; align-items: center; margin-bottom: 14px;">
+                    <div style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: rgba(128,128,128,0.12); border-radius: 6px; margin-right: 14px; flex-shrink: 0; color: inherit;">
+                        <div style="width: 18px; height: 18px; display: flex; align-items: center; justify-content: center;">${svgRefresh}</div>
+                    </div>
+                    <div><strong>更新按鈕：</strong>刷新並獲取最新的即時數據</div>
+                </div>
+                <div style="display: flex; align-items: center; margin-bottom: 14px;">
+                    <div style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: rgba(128,128,128,0.12); border-radius: 6px; margin-right: 14px; flex-shrink: 0; color: inherit;">
+                        <div style="width: 18px; height: 18px; display: flex; align-items: center; justify-content: center;">${svgGps}</div>
+                    </div>
+                    <div><strong>定位按鈕：</strong>尋找當前位置附近的車位與公廁</div>
+                </div>
+            </div>
         </div>
     `;
 }

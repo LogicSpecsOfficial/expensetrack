@@ -3,103 +3,242 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>公廁數據直接直連測試</title>
+    <title>FEHD Toilet Location Test</title>
     <style>
-        body { font-family: -apple-system, sans-serif; padding: 16px; background: #f8f9fa; color: #212529; line-height: 1.5; }
-        .log-panel { background: #1e1e1e; color: #4af626; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 0.85rem; margin-bottom: 16px; white-space: pre-wrap; height: 180px; overflow-y: auto; }
-        .card { background: white; padding: 12px; margin-bottom: 10px; border-radius: 6px; border: 1px solid #dee2e6; border-left: 4px solid #0d6efd; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .name { font-weight: bold; font-size: 1rem; color: #0d6efd; }
-        .addr { color: #495057; font-size: 0.85rem; margin-top: 6px; }
-        .meta { font-size: 0.75rem; margin-top: 6px; display: inline-block; background: #eafaf1; color: #198754; padding: 3px 6px; border-radius: 4px; font-weight: bold; border: 1px solid #a3e4d7; }
-        button { background: #0d6efd; color: white; border: none; padding: 10px 16px; border-radius: 6px; font-size: 1rem; cursor: pointer; margin-bottom: 16px; font-weight: bold; width: 100%; }
-        button:active { background: #0b5ed7; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            padding: 16px;
+            background-color: #f8f9fa;
+            color: #212529;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .control-panel {
+            background-color: #ffffff;
+            padding: 16px;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .btn {
+            background-color: #0d6efd;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        .btn:active {
+            background-color: #0b5ed7;
+        }
+        .log-panel {
+            background-color: #1e1e1e;
+            color: #4af626;
+            padding: 12px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.8rem;
+            margin-bottom: 16px;
+            white-space: pre-wrap;
+            max-height: 180px;
+            overflow-y: auto;
+        }
+        .card {
+            background-color: #ffffff;
+            padding: 12px 16px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+            border-left: 4px solid #198754;
+        }
+        .name {
+            font-weight: bold;
+            font-size: 1rem;
+            color: #212529;
+            margin-bottom: 4px;
+        }
+        .distance {
+            font-size: 0.8rem;
+            color: #dc3545;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .addr {
+            color: #6c757d;
+            font-size: 0.85rem;
+        }
+        .map-link {
+            display: inline-block;
+            margin-top: 8px;
+            font-size: 0.8rem;
+            color: #0d6efd;
+            text-decoration: none;
+            font-weight: 500;
+        }
     </style>
 </head>
 <body>
 
-    <h2>官方直連測試 (免代理)</h2>
-    <button onclick="runToiletTest()">點擊開始獲取公廁數據</button>
-    <div id="log" class="log-panel">等待測試開始...</div>
-    <div id="test-results"></div>
+    <h2>公廁定位直連測試 (XML 解析修正版)</h2>
+    
+    <div class="control-panel">
+        <button id="gpsBtn" class="btn">1. 獲取當前 GPS 定位</button>
+        <button id="fetchBtn" class="btn" style="background-color: #198754;" disabled>2. 搜尋附近公廁</button>
+        <p id="coords-text" style="font-size: 0.85rem; text-align: center; color: #6c757d; margin: 0;">尚未獲取座標</p>
+    </div>
+
+    <div id="log" class="log-panel">等待操作...</div>
+    <div id="results"></div>
 
     <script>
         const logDiv = document.getElementById('log');
-        const resultsDiv = document.getElementById('test-results');
+        const resultsDiv = document.getElementById('results');
+        const gpsBtn = document.getElementById('gpsBtn');
+        const fetchBtn = document.getElementById('fetchBtn');
+        const coordsText = document.getElementById('coords-text');
+
+        let userCoords = null;
 
         function logger(text) {
             logDiv.textContent += "\n" + text;
             logDiv.scrollTop = logDiv.scrollHeight;
         }
 
-        async function runToiletTest() {
-            logDiv.textContent = "=== 測試開始 ===";
+        function calcDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; 
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
+        }
+
+        gpsBtn.addEventListener('click', () => {
+            logDiv.textContent = "=== GPS 定位中 ===";
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    userCoords = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    };
+                    coordsText.textContent = `緯度: ${userCoords.lat.toFixed(5)}, 經度: ${userCoords.lng.toFixed(5)}`;
+                    fetchBtn.disabled = false;
+                    logger("成功獲取 GPS 定位。");
+                },
+                (error) => {
+                    userCoords = { lat: 22.3193, lng: 114.1694 };
+                    coordsText.textContent = "已套用預設座標 (九龍中心)";
+                    fetchBtn.disabled = false;
+                    logger("無法獲取定位，已使用預設座標。");
+                }
+            );
+        });
+
+        fetchBtn.addEventListener('click', async () => {
+            if (!userCoords) return;
+            
+            logger("開始發送 XML 數據請求...");
             resultsDiv.innerHTML = "";
             
-            // 地政總署官方 GeoData 公廁 API，原生支援 CORS，無需代理
-            const geoDataUrl = 'https://geodata.gov.hk/gs/api/v1.0.0/geo/fehd-publictoilet';
-            
-            logger("1. 直接連線至地政總署伺服器: " + geoDataUrl);
+            const targetUrl = 'https://www.fehd.gov.hk/tc_chi/map/fehd_map_c.xml';
+            const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(targetUrl);
             
             try {
-                // 設定 5 秒超時限制
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 5000);
-                
-                logger("2. 發送請求中...");
-                const response = await fetch(geoDataUrl, { signal: controller.signal });
-                clearTimeout(timeoutId);
-                
+                const response = await fetch(proxyUrl);
                 if (!response.ok) {
-                    logger(`錯誤：伺服器狀態異常 (${response.status})`);
+                    logger("伺服器回應失敗。");
                     return;
                 }
                 
-                logger("3. 成功接收回應，開始解析 JSON...");
-                const data = await response.json();
+                const xmlText = await response.text();
+                logger(`數據下載完成，長度: ${xmlText.length} 字元。`);
+
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(xmlText, "text/xml");
                 
-                if (!data || !data.features) {
-                    logger("錯誤：JSON 數據格式不符合預期（缺少 features 欄位）。");
+                if (xmlDoc.querySelector('parsererror')) {
+                    logger("XML 語法解析失敗。");
                     return;
                 }
 
-                const features = data.features;
-                logger(`4. 成功讀取數據！共獲取到 ${features.length} 筆公廁資料。`);
+                // 修正：抓取 <map> 節點而非 <marker> 屬性
+                const mapNodes = xmlDoc.getElementsByTagName('map');
+                logger(`讀取到 XML 內設施總數: ${mapNodes.length}`);
+
+                const toiletList = [];
+
+                for (let i = 0; i < mapNodes.length; i++) {
+                    const node = mapNodes[i];
+                    
+                    const type = node.querySelector('type')?.textContent || '';
+                    const name = node.querySelector('name_c')?.textContent || '';
+                    const address = node.querySelector('address_c')?.textContent || '';
+                    const coordinateText = node.querySelector('map_coordinate')?.textContent || '';
+
+                    // 1 = 公廁, 2 = 旱廁
+                    if (type === '1' || type === '2') {
+                        let lat = 0;
+                        let lng = 0;
+
+                        if (coordinateText) {
+                            const parts = coordinateText.split(',');
+                            if (parts.length === 2) {
+                                lat = parseFloat(parts[0].trim());
+                                lng = parseFloat(parts[1].trim());
+                            }
+                        }
+
+                        if (lat !== 0 && lng !== 0) {
+                            const distance = calcDistance(userCoords.lat, userCoords.lng, lat, lng);
+                            toiletList.push({
+                                name: name,
+                                address: address,
+                                lat: lat,
+                                lng: lng,
+                                type: type === '1' ? '公廁' : '旱廁',
+                                distance: distance
+                            });
+                        }
+                    }
+                }
+
+                logger(`篩選出公廁設施數量: ${toiletList.length}`);
+
+                if (toiletList.length === 0) {
+                    resultsDiv.innerHTML = "<p style='color:red; text-align:center;'>未找到相符數據。</p>";
+                    return;
+                }
+
+                // 排序並顯示最近的 30 個公廁
+                toiletList.sort((a, b) => a.distance - b.distance);
+                const nearbyToilets = toiletList.slice(0, 30);
 
                 let cardsHtml = "";
-                let displayCount = 0;
-
-                // 隨機渲染前 30 筆資料作為預覽
-                for (let i = 0; i < features.length && displayCount < 30; i++) {
-                    const props = features[i].properties;
-                    if (!props) continue;
-
-                    // 地政總署的 JSON 屬性欄位提取
-                    const name = props['Name (TC)'] || props['Name (tc)'] || props['name_tc'] || props['Name (EN)'] || '公眾廁所';
-                    const address = props['Address (TC)'] || props['Address (tc)'] || props['address_tc'] || '無詳細地址';
-                    const rawWheelchair = props['Wheelchair Access'] || props['Wheelchair Accessible'] || props['wheelchair'] || '';
-                    const hasWheelchair = (rawWheelchair.toUpperCase() === 'YES' || rawWheelchair.toUpperCase() === 'Y');
-
-                    displayCount++;
+                nearbyToilets.forEach(toilet => {
+                    const mapUrl = `https://www.google.com/maps/search/?api=1&query=${toilet.lat},${toilet.lng}`;
                     cardsHtml += `
                         <div class="card">
-                            <div class="name">📍 ${name}</div>
-                            <div class="addr">地址：${address}</div>
-                            ${hasWheelchair ? `<div class="meta">♿ 設有無障礙通道</div>` : ''}
+                            <div class="name">${toilet.name} (${toilet.type})</div>
+                            <div class="distance">距離: ${toilet.distance.toFixed(2)} 公里</div>
+                            <div class="addr">地址: ${toilet.address}</div>
+                            <a href="${mapUrl}" target="_blank" class="map-link">在 Google 地圖中開啟</a>
                         </div>
                     `;
-                }
+                });
 
-                logger("5. 介面渲染完成。顯示前 30 筆結果。");
                 resultsDiv.innerHTML = cardsHtml;
+                logger("公廁數據渲染完畢。");
 
             } catch (error) {
-                if (error.name === 'AbortError') {
-                    logger("異常中斷：連線超過 5 秒逾時。");
-                } else {
-                    logger("異常中斷：" + error.message);
-                }
+                logger("異常中斷: " + error.message);
             }
-        }
+        });
     </script>
 </body>
 </html>

@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/toilet-xml",
+      "destination": "https://www.fehd.gov.hk/tc_chi/map/fehd_map_c.xml"
+    }
+  ]
+}

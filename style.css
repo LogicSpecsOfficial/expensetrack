@@ -34,6 +34,28 @@ body {
     transition: background-color 0.2s, color 0.2s;
 }
 
+/* 置頂包裝器基礎與過渡樣式 */
+.sticky-header-wrapper {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background-color: var(--bg-primary);
+    padding: 12px 12px 4px 12px;
+    margin: -12px -12px 12px -12px;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.2s;
+}
+
+/* 滾動時啟用陰影與底線 */
+.sticky-header-wrapper.scrolled {
+    border-bottom-color: var(--border-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+body.dark-theme .sticky-header-wrapper.scrolled {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
 .header-container {
     display: flex;
     justify-content: space-between;
@@ -44,14 +66,12 @@ body {
 
 h1 { font-size: 1.15rem; font-weight: 700; letter-spacing: -0.5px; white-space: nowrap; }
 
-/* 右上角工具列佈局 */
 .header-actions {
     display: flex;
     gap: 6px;
     align-items: center;
 }
 
-/* 延用原本的簡潔外框樣式 */
 .icon-btn {
     background-color: transparent;
     color: var(--text-main);
@@ -127,7 +147,6 @@ body.dark-theme .tab-container {
     text-align: center;
 }
 
-/* 搜尋框平滑過渡 */
 .search-dropdown {
     max-height: 0;
     overflow: hidden;
@@ -311,7 +330,6 @@ body.dark-theme .clear-btn:active {
 .carpark-card.status-medium { border-left-color: var(--warning); }
 .carpark-card.status-empty { border-left-color: var(--danger); }
 .carpark-card.status-unknown { border-left-color: var(--border-color); }
-.carpark-card.status-toilet { border-left-color: var(--accent); }
 
 .card-body-split {
     display: flex;
@@ -357,7 +375,6 @@ body.dark-theme .clear-btn:active {
 .dot-orange { background-color: var(--warning); }
 .dot-red { background-color: var(--danger); }
 .dot-grey { background-color: var(--text-muted); }
-.dot-blue { background-color: var(--accent); }
 
 .card-fav-btn {
     background-color: #f1f3f5;
@@ -534,4 +551,48 @@ body.dark-theme .vacancy-badge.unknown {
     color: var(--text-muted);
     font-style: italic;
     font-size: 0.85rem;
+}
+
+/* 回到頂部按鈕懸浮樣式 */
+.back-to-top {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background-color: var(--surface);
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 99;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease, background-color 0.2s;
+    transform: translateY(10px);
+}
+
+.back-to-top.visible {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+}
+
+.back-to-top:active {
+    transform: scale(0.95);
+    background-color: #e9ecef;
+}
+
+body.dark-theme .back-to-top:active {
+    background-color: #2d2d2d;
+}
+
+.back-to-top svg {
+    width: 20px;
+    height: 20px;
+    display: block;
 }

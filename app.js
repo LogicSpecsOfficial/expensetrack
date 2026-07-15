@@ -186,7 +186,6 @@ function hasEVCharging(park) {
     return evKeywords.some(kw => searchString.includes(kw));
 }
 
-// 修正：補上之前遺漏的變數聲明
 function getVacancyCount(park) {
     if (park.liveInfo && park.liveInfo.privateCar && park.liveInfo.privateCar.length > 0) {
         const count = park.liveInfo.privateCar[0].vacancy;
@@ -306,7 +305,6 @@ function renderSearchHistory() {
     }).join('');
 }
 
-// 修正：補上之前遺漏的變數聲明
 function saveSearch(query) {
     searchHistory = searchHistory.filter(item => item.toLowerCase() !== query.toLowerCase());
     searchHistory.unshift(query);
@@ -362,12 +360,6 @@ async function triggerAddressSearch(forcedQuery = null) {
 
         if (lat && lng) {
             userCoordinates = { lat, lng };
-            
-            // 修正：搜尋成功時立即清空所有分頁的舊快取陣列，強制切換分頁時重新向新地址抓取數據
-            cachedAllParks = [];
-            cachedAllMeters = [];
-            cachedAllToilets = [];
-
             saveSearch(inputVal);
             renderFilterPills();
             searchWrapper.classList.remove('open');
@@ -422,24 +414,12 @@ locateBtn.addEventListener('click', () => {
     navigator.geolocation.getCurrentPosition(
         async (position) => {
             userCoordinates = { lat: position.coords.latitude, lng: position.coords.longitude };
-            
-            // 修正：重新點擊定位時也清空所有快取
-            cachedAllParks = [];
-            cachedAllMeters = [];
-            cachedAllToilets = [];
-
             renderFilterPills();
             await refreshActiveTabData(false);
         },
         async (error) => {
             console.warn("GPS tracking failed, falling back to Kowloon center coordinates.", error);
             userCoordinates = { lat: 22.3193, lng: 114.1694 };
-            
-            // 修正：定位失敗套用預設座標時也清空快取
-            cachedAllParks = [];
-            cachedAllMeters = [];
-            cachedAllToilets = [];
-
             renderFilterPills();
             statusText.textContent = "定位未開啟，已顯示九龍中心數據";
             await refreshActiveTabData(false);

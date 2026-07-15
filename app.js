@@ -357,6 +357,12 @@ async function triggerAddressSearch(forcedQuery = null) {
 
         if (lat && lng) {
             userCoordinates = { lat, lng };
+            
+            // 清空舊數據快取，強制切換分頁時重新讀取新位置
+            cachedAllParks = [];
+            cachedAllMeters = [];
+            cachedAllToilets = [];
+
             saveSearch(inputVal);
             renderFilterPills();
             searchWrapper.classList.remove('open');
@@ -411,12 +417,24 @@ locateBtn.addEventListener('click', () => {
     navigator.geolocation.getCurrentPosition(
         async (position) => {
             userCoordinates = { lat: position.coords.latitude, lng: position.coords.longitude };
+            
+            // 清空舊數據快取，強制切換分頁時重新讀取新位置
+            cachedAllParks = [];
+            cachedAllMeters = [];
+            cachedAllToilets = [];
+
             renderFilterPills();
             await refreshActiveTabData(false);
         },
         async (error) => {
             console.warn("GPS tracking failed, falling back to Kowloon center coordinates.", error);
             userCoordinates = { lat: 22.3193, lng: 114.1694 };
+            
+            // 清空舊數據快取，強制切換分頁時重新讀取新位置
+            cachedAllParks = [];
+            cachedAllMeters = [];
+            cachedAllToilets = [];
+
             renderFilterPills();
             statusText.textContent = "定位未開啟，已顯示九龍中心數據";
             await refreshActiveTabData(false);

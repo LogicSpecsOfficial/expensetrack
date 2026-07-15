@@ -48,6 +48,7 @@ const svgSearch = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" f
 const svgClose = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
 const svgArrowUp = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>`;
 
+// 補齊缺失的主題 SVG 變數，防止 ReferenceError 崩潰
 const sunIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
 const moonIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
 
@@ -106,7 +107,8 @@ function renderFilterPills() {
         filterContainer.style.display = 'none';
         return;
     }
-    filterContainer.style.display = 'flex';
+    // 修正：改為 block 佈局，防止多行過濾器橫向並排擠壓變形，恢復正常上下兩行間距
+    filterContainer.style.display = 'block';
     let distHTML = `
         <div class="filter-row">
             <button class="pill-btn color-blue ${activeDistanceFilter === '0.5' ? 'active' : ''}" onclick="setDistanceFilter('0.5')">${t.dist500m}</button>
@@ -361,7 +363,7 @@ async function triggerAddressSearch(forcedQuery = null) {
         if (lat && lng) {
             userCoordinates = { lat, lng };
             
-            // 修正：搜尋新地址成功時，清空現有快取以利切換分頁重新加載數據
+            // 地點連動修正：當搜尋新地址成功時，清空現有快取，確保切換分頁時重新依據此中心點讀取
             cachedAllParks = [];
             cachedAllMeters = [];
             cachedAllToilets = [];
@@ -421,7 +423,7 @@ locateBtn.addEventListener('click', () => {
         async (position) => {
             userCoordinates = { lat: position.coords.latitude, lng: position.coords.longitude };
             
-            // 修正：重新 GPS 定位成功時，清空現有快取
+            // 當重新進行定位成功時，也清空快取
             cachedAllParks = [];
             cachedAllMeters = [];
             cachedAllToilets = [];
@@ -433,7 +435,6 @@ locateBtn.addEventListener('click', () => {
             console.warn("GPS tracking failed, falling back to Kowloon center coordinates.", error);
             userCoordinates = { lat: 22.3193, lng: 114.1694 };
             
-            // 修正：定位失敗套用預設座標時，清空現有快取
             cachedAllParks = [];
             cachedAllMeters = [];
             cachedAllToilets = [];
@@ -583,7 +584,6 @@ function generateCardHTML(park) {
         </div>`;
 }
 
-// 修正：回滾回您提供的高穩定版結構，防止按鈕與排版偏移
 function generateMeterCardHTML(meterGroup) {
     const isFav = favorites.includes(meterGroup.park_Id);
     const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(meterGroup.address)}`;
@@ -654,27 +654,7 @@ function renderFavorites() {
     favoritesList.innerHTML = html ? html : `<div class="empty-notice">${t.noFavs}</div>`;
 }
 
-function renderWelcomeMessage() {
-    resultsDiv.innerHTML = `
-        <div class="welcome-box">
-            <h3>${t.welcomeTitle}</h3>
-            <p>${t.welcomeDesc}</p>
-        </div>
-    `;
-}
-
-// === 下方為新增的公廁 API 抓取、解析、測量與渲染邏輯 ===
-
-function calcDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371; 
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-}
+// === 下方為公廁定位之抓取、解析、過濾、防禦與右上角對齊邏輯 ===
 
 async function fetchToilets(lat, lng) {
     const targetUrl = '/api/toilet-xml';
@@ -752,6 +732,7 @@ function generateToiletCardHTML(toilet) {
     let distWarningHTML = toilet.distance > 5 ? `<span class="distance-warning">${t.distWarning}</span>` : '';
     const distHTML = toilet.distance !== Infinity ? `<span class="distance">${toilet.distance.toFixed(2)} ${t.away}</span>${distWarningHTML}` : '';
 
+    // 類型防禦與隱藏：如果類型是 '設施' 或為空，則不會渲染該行
     let typeHTML = (toilet.type && toilet.type !== '設施') ? `
         <div class="info-label">類型:</div><div>${toilet.type}</div>
     ` : '';
@@ -770,6 +751,7 @@ function generateToiletCardHTML(toilet) {
                         ${typeHTML}
                     </div>
                 </div>
+                <!-- 結構修正：置入高度佔位符，確保收藏按鈕與室內車場一樣精準靠最右上角對齊 -->
                 <div class="card-right">
                     <button class="card-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${toilet.park_Id}')">${isFav ? t.removeFav : t.addFav}</button>
                     <div style="height: 40px; visibility: hidden;"></div>
@@ -789,7 +771,14 @@ function displayToiletResults(items) {
     resultsDiv.innerHTML = items.map(item => generateToiletCardHTML(item)).join('');
 }
 
-// === 上方為新增的公廁邏輯 ===
+function renderWelcomeMessage() {
+    resultsDiv.innerHTML = `
+        <div class="welcome-box">
+            <h3>${t.welcomeTitle}</h3>
+            <p>${t.welcomeDesc}</p>
+        </div>
+    `;
+}
 
 backToTopBtn.innerHTML = svgArrowUp;
 

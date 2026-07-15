@@ -12,6 +12,7 @@ let offstreetFilters = {
     evOnly: false,
     sortByVacancy: false
 };
+
 const uiTitle = document.getElementById('ui-title');
 const tabOffStreet = document.getElementById('tabOffStreet');
 const tabMetered = document.getElementById('tabMetered');

@@ -358,7 +358,6 @@ async function triggerAddressSearch(forcedQuery = null) {
         if (lat && lng) {
             userCoordinates = { lat, lng };
             
-            // 清空舊數據快取，強制切換分頁時重新讀取新位置
             cachedAllParks = [];
             cachedAllMeters = [];
             cachedAllToilets = [];
@@ -418,7 +417,6 @@ locateBtn.addEventListener('click', () => {
         async (position) => {
             userCoordinates = { lat: position.coords.latitude, lng: position.coords.longitude };
             
-            // 清空舊數據快取，強制切換分頁時重新讀取新位置
             cachedAllParks = [];
             cachedAllMeters = [];
             cachedAllToilets = [];
@@ -430,7 +428,6 @@ locateBtn.addEventListener('click', () => {
             console.warn("GPS tracking failed, falling back to Kowloon center coordinates.", error);
             userCoordinates = { lat: 22.3193, lng: 114.1694 };
             
-            // 清空舊數據快取，強制切換分頁時重新讀取新位置
             cachedAllParks = [];
             cachedAllMeters = [];
             cachedAllToilets = [];
@@ -650,11 +647,19 @@ function renderFavorites() {
     favoritesList.innerHTML = html ? html : `<div class="empty-notice">${t.noFavs}</div>`;
 }
 
+// 根據右上角從左到右的實際排版順序（主題 -> 收藏 -> 搜尋 -> 更新 -> 定位）重新排列說明
 function renderWelcomeMessage() {
     resultsDiv.innerHTML = `
         <div class="welcome-box">
-            <h3>${t.welcomeTitle}</h3>
-            <p>${t.welcomeDesc}</p>
+            <h3>歡迎使用香港車位及公廁搜尋</h3>
+            <p>功能圖標說明如下：</p>
+            <ul style="list-style: none; padding: 0; margin: 15px 0; text-align: left; line-height: 2;">
+                <li><strong>主題按鈕（月亮或太陽）：</strong>切換深色或淺色視覺模式</li>
+                <li><strong>收藏按鈕（星星）：</strong>切換顯示或隱藏已收藏的清單</li>
+                <li><strong>搜尋按鈕（放大鏡）：</strong>展開或關閉地址搜尋欄</li>
+                <li><strong>更新按鈕（循環箭頭）：</strong>刷新並獲取最新的即時數據</li>
+                <li><strong>定位按鈕（導航箭頭）：</strong>尋找當前位置附近的車位與公廁</li>
+            </ul>
         </div>
     `;
 }
@@ -748,7 +753,6 @@ function generateToiletCardHTML(toilet) {
     let distWarningHTML = toilet.distance > 5 ? `<span class="distance-warning">${t.distWarning}</span>` : '';
     const distHTML = toilet.distance !== Infinity ? `<span class="distance">${toilet.distance.toFixed(2)} ${t.away}</span>${distWarningHTML}` : '';
 
-    // 類型防禦：如果類型是 '設施'、空值或未定義，則不會渲染該行
     let typeHTML = (toilet.type && toilet.type !== '設施') ? `
         <div class="info-label">類型:</div><div>${toilet.type}</div>
     ` : '';
@@ -767,7 +771,6 @@ function generateToiletCardHTML(toilet) {
                         ${typeHTML}
                     </div>
                 </div>
-                <!-- 與停車場一致的 layout，搭配隱藏的高度佔位符，使按鈕無縫對齊最右上角 -->
                 <div class="card-right">
                     <button class="card-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${toilet.park_Id}')">${isFav ? t.removeFav : t.addFav}</button>
                     <div style="height: 40px; visibility: hidden;"></div>

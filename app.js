@@ -730,6 +730,11 @@ function generateToiletCardHTML(toilet) {
     let distWarningHTML = toilet.distance > 5 ? `<span class="distance-warning">${t.distWarning}</span>` : '';
     const distHTML = toilet.distance !== Infinity ? `<span class="distance">${toilet.distance.toFixed(2)} ${t.away}</span>${distWarningHTML}` : '';
 
+    // 類型防禦：如果類型是 '設施'、空值或未定義，則不會渲染該行
+    let typeHTML = (toilet.type && toilet.type !== '設施') ? `
+        <div class="info-label">類型:</div><div>${toilet.type}</div>
+    ` : '';
+
     return `
         <div class="carpark-card ${cardStatusClass}">
             <div class="card-body-split">
@@ -741,12 +746,13 @@ function generateToiletCardHTML(toilet) {
                     <div class="tags-row">${distHTML}</div>
                     <div class="info-grid">
                         <div class="info-label">${t.address || '地址'}:</div><div><a href="${mapUrl}" target="_blank" class="map-link">${toilet.address}</a></div>
-                        <div class="info-label">類型:</div><div>${toilet.type}</div>
+                        ${typeHTML}
                     </div>
                 </div>
-                <!-- 修改為 flex-start，確保按鈕對齊在卡片右上角 -->
-                <div class="card-right" style="justify-content: flex-start;">
+                <!-- 與停車場一致的 layout，搭配隱藏的高度佔位符，使按鈕無縫對齊最右上角 -->
+                <div class="card-right">
                     <button class="card-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${toilet.park_Id}')">${isFav ? t.removeFav : t.addFav}</button>
+                    <div style="height: 40px; visibility: hidden;"></div>
                 </div>
             </div>
         </div>`;

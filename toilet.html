@@ -83,7 +83,7 @@
 </head>
 <body>
 
-    <h2>公廁定位直連測試 (XML 解析修正版)</h2>
+    <h2>公廁定位直連測試 (Vercel 轉發版)</h2>
     
     <div class="control-panel">
         <button id="gpsBtn" class="btn">1. 獲取當前 GPS 定位</button>
@@ -143,16 +143,16 @@
         fetchBtn.addEventListener('click', async () => {
             if (!userCoords) return;
             
-            logger("開始發送 XML 數據請求...");
+            logger("開始發送本機轉發請求...");
             resultsDiv.innerHTML = "";
             
-            const targetUrl = 'https://www.fehd.gov.hk/tc_chi/map/fehd_map_c.xml';
-            const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(targetUrl);
+            // 直接請求 Vercel 的同源代理路徑
+            const targetUrl = '/api/toilet-xml';
             
             try {
-                const response = await fetch(proxyUrl);
+                const response = await fetch(targetUrl);
                 if (!response.ok) {
-                    logger("伺服器回應失敗。");
+                    logger("伺服器回應失敗。狀態碼: " + response.status);
                     return;
                 }
                 
@@ -167,7 +167,6 @@
                     return;
                 }
 
-                // 修正：抓取 <map> 節點而非 <marker> 屬性
                 const mapNodes = xmlDoc.getElementsByTagName('map');
                 logger(`讀取到 XML 內設施總數: ${mapNodes.length}`);
 
@@ -181,7 +180,6 @@
                     const address = node.querySelector('address_c')?.textContent || '';
                     const coordinateText = node.querySelector('map_coordinate')?.textContent || '';
 
-                    // 1 = 公廁, 2 = 旱廁
                     if (type === '1' || type === '2') {
                         let lat = 0;
                         let lng = 0;
@@ -215,7 +213,6 @@
                     return;
                 }
 
-                // 排序並顯示最近的 30 個公廁
                 toiletList.sort((a, b) => a.distance - b.distance);
                 const nearbyToilets = toiletList.slice(0, 30);
 

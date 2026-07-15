@@ -34,6 +34,10 @@ const themeToggleBtn = document.getElementById('themeToggleBtn');
 const searchToggleBtn = document.getElementById('searchToggleBtn');
 const searchWrapper = document.getElementById('searchWrapper');
 
+// 新增回到頂部與置頂容器元件
+const backToTopBtn = document.getElementById('backToTopBtn');
+const stickyHeader = document.querySelector('.sticky-header-wrapper');
+
 // SVG 圖標代碼
 const svgGps = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 19-9-9 19-2-8-8-2z"/></svg>`;
 const svgStarOutline = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
@@ -41,6 +45,7 @@ const svgStarFilled = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 2
 const svgRefresh = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>`;
 const svgSearch = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`;
 const svgClose = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+const svgArrowUp = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>`;
 
 function initTheme() {
     const savedTheme = localStorage.getItem('hk_carpark_theme') || 'light';
@@ -573,3 +578,107 @@ function generateMeterCardHTML(meterGroup) {
     const vacantCount = meterGroup.vacantSpaces;
     const totalCount = meterGroup.totalSpaces;
     const isAnyVacant = vacantCount > 0;
+    
+    const cardStatusClass = isAnyVacant ? 'status-high' : 'status-empty';
+    const boxStatusClass = isAnyVacant ? 'available' : 'full';
+    const dotClass = isAnyVacant ? 'dot-green' : 'dot-red';
+
+    let distWarningHTML = meterGroup.distance > 5 ? `<span class="distance-warning">${t.distWarning}</span>` : '';
+    const distHTML = meterGroup.distance !== Infinity ? `<span class="distance">${meterGroup.distance.toFixed(2)} ${t.away}</span>${distWarningHTML}` : '';
+
+    const vacancyLabel = `${vacantCount}/${totalCount}`;
+
+    return `
+        <div class="carpark-card ${cardStatusClass}">
+            <div class="card-body-split">
+                <div class="card-left">
+                    <div class="carpark-name">
+                        <span class="status-dot ${dotClass}"></span>
+                        ${meterGroup.name}
+                    </div>
+                    <div class="tags-row">${distHTML}</div>
+                    <div class="info-grid">
+                        <div class="info-label">${t.address}:</div><div><a href="${mapUrl}" target="_blank" class="map-link">${meterGroup.address}</a></div>
+                        <div class="info-label">${t.district}:</div><div>${meterGroup.district || '---'}</div>
+                    </div>
+                </div>
+                <div class="card-right">
+                    <button class="card-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${meterGroup.park_Id}')">${isFav ? t.removeFav : t.addFav}</button>
+                    <div class="vacancy-badge ${boxStatusClass}">
+                        <span class="vacancy-num ${!isAnyVacant ? 'none' : ''}">${vacancyLabel}</span>
+                        <span class="vacancy-label">${t.vacantMeters}</span>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+}
+
+function displayResults(items, isMeter = false) {
+    statusText.textContent = ""; 
+    uiSearchTitle.textContent = `${t.searchTitle} (${items.length})`; 
+    
+    if (items.length === 0) {
+        resultsDiv.innerHTML = `<div class="empty-notice">${t.noRecords}</div>`;
+        return;
+    }
+    resultsDiv.innerHTML = items.map(item => isMeter ? generateMeterCardHTML(item) : generateCardHTML(item)).join('');
+}
+
+function renderFavorites() {
+    if (favorites.length === 0) {
+        favoritesList.innerHTML = `<div class="empty-notice">${t.noFavs}</div>`;
+        return;
+    }
+    
+    let html = '';
+    if (currentTab === 'offstreet') {
+        const favOffstreet = cachedAllParks.filter(park => favorites.includes(park.park_Id));
+        favOffstreet.forEach(p => html += generateCardHTML(p));
+    } else if (currentTab === 'metered') {
+        const groupedMeters = groupMeteredParking(cachedAllMeters);
+        const favMeters = groupedMeters.filter(meterGroup => favorites.includes(meterGroup.park_Id));
+        favMeters.forEach(m => html += generateMeterCardHTML(m));
+    }
+    
+    favoritesList.innerHTML = html ? html : `<div class="empty-notice">${t.noFavs}</div>`;
+}
+
+function renderWelcomeMessage() {
+    resultsDiv.innerHTML = `
+        <div class="welcome-box">
+            <h3>${t.welcomeTitle}</h3>
+            <p>${t.welcomeDesc}</p>
+        </div>
+    `;
+}
+
+// 初始化回到頂部圖標
+backToTopBtn.innerHTML = svgArrowUp;
+
+// 監聽滾動事件：控制置頂陰影與回到頂部按鈕顯隱
+window.addEventListener('scroll', () => {
+    if (window.scrollY > 20) {
+        stickyHeader.classList.add('scrolled');
+    } else {
+        stickyHeader.classList.remove('scrolled');
+    }
+
+    if (window.scrollY > 300) {
+        backToTopBtn.classList.add('visible');
+    } else {
+        backToTopBtn.classList.remove('visible');
+    }
+});
+
+// 回到頂部平滑滾動事件
+backToTopBtn.addEventListener('click', () => {
+    window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+    });
+});
+
+initTheme();
+updateUIStaticText();
+renderSearchHistory();
+renderWelcomeMessage();

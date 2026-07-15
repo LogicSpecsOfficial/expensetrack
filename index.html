@@ -8,34 +8,35 @@
 </head>
 <body>
 
-    <div class="header-container">
-        <h1 id="ui-title">最近的香港停車場</h1>
-        <div class="header-actions">
-            <!-- 依序為：深淺色、我的收藏、搜尋、更新數據、GPS 定位 -->
-            <button id="themeToggleBtn" class="icon-btn" onclick="toggleTheme()" aria-label="切換主題"></button>
-            <button id="showFavBtn" class="icon-btn" aria-label="我的收藏"></button>
-            <button id="searchToggleBtn" class="icon-btn" aria-label="展開搜尋"></button>
-            <button id="refreshBtn" class="icon-btn" aria-label="更新數據"></button>
-            <button id="locateBtn" class="icon-btn" aria-label="GPS 定位"></button>
+    <!-- 新增置頂包裝器，將頭部、分頁及搜尋框統一置頂 -->
+    <div class="sticky-header-wrapper">
+        <div class="header-container">
+            <h1 id="ui-title">最近的香港停車場</h1>
+            <div class="header-actions">
+                <button id="themeToggleBtn" class="icon-btn" onclick="toggleTheme()" aria-label="切換主題"></button>
+                <button id="showFavBtn" class="icon-btn" aria-label="我的收藏"></button>
+                <button id="searchToggleBtn" class="icon-btn" aria-label="展開搜尋"></button>
+                <button id="refreshBtn" class="icon-btn" aria-label="更新數據"></button>
+                <button id="locateBtn" class="icon-btn" aria-label="GPS 定位"></button>
+            </div>
         </div>
-    </div>
 
-    <div class="tab-container">
-        <button id="tabOffStreet" class="tab-btn active" onclick="switchTab('offstreet')">室內停車場</button>
-        <button id="tabMetered" class="tab-btn" onclick="switchTab('metered')">路邊咪錶位</button>
-    </div>
-    
-    <!-- 隱藏並可平滑下拉的搜尋區域 -->
-    <div id="searchWrapper" class="search-dropdown">
-        <div class="search-bar-container">
-            <input type="text" id="searchInput" placeholder="搜尋香港地址、大廈、商場或街道...">
-            <button id="searchBtn" class="search-action-btn">搜尋</button>
+        <div class="tab-container">
+            <button id="tabOffStreet" class="tab-btn active" onclick="switchTab('offstreet')">室內停車場</button>
+            <button id="tabMetered" class="tab-btn" onclick="switchTab('metered')">路邊咪錶位</button>
         </div>
-    </div>
+        
+        <div id="searchWrapper" class="search-dropdown">
+            <div class="search-bar-container">
+                <input type="text" id="searchInput" placeholder="搜尋香港地址、大廈、商場或街道...">
+                <button id="searchBtn" class="search-action-btn">搜尋</button>
+            </div>
+        </div>
 
-    <div id="history-wrapper" class="history-container" style="display: none;">
-        <div id="historyChips" class="chips-row"></div>
-        <button id="clearHistoryBtn" class="clear-btn">清除</button>
+        <div id="history-wrapper" class="history-container" style="display: none;">
+            <div id="historyChips" class="chips-row"></div>
+            <button id="clearHistoryBtn" class="clear-btn">清除</button>
+        </div>
     </div>
 
     <p id="status"></p>
@@ -50,9 +51,11 @@
     <div class="section-title" id="ui-search-title">搜尋結果</div>
     <div id="results"></div>
 
+    <!-- 新增回到頂部按鈕 -->
+    <button id="backToTopBtn" class="back-to-top" aria-label="回到頂部"></button>
+
     <script src="config.js"></script>
     <script src="api.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
-

@@ -34,7 +34,6 @@ const themeToggleBtn = document.getElementById('themeToggleBtn');
 const searchToggleBtn = document.getElementById('searchToggleBtn');
 const searchWrapper = document.getElementById('searchWrapper');
 
-// 新增回到頂部與置頂容器元件
 const backToTopBtn = document.getElementById('backToTopBtn');
 const stickyHeader = document.querySelector('.sticky-header-wrapper');
 
@@ -652,10 +651,8 @@ function renderWelcomeMessage() {
     `;
 }
 
-// 初始化回到頂部圖標
 backToTopBtn.innerHTML = svgArrowUp;
 
-// 監聽滾動事件：控制置頂陰影與回到頂部按鈕顯隱
 window.addEventListener('scroll', () => {
     if (window.scrollY > 20) {
         stickyHeader.classList.add('scrolled');
@@ -670,7 +667,6 @@ window.addEventListener('scroll', () => {
     }
 });
 
-// 回到頂部平滑滾動事件
 backToTopBtn.addEventListener('click', () => {
     window.scrollTo({
         top: 0,

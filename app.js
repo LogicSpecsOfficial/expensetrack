@@ -17,7 +17,7 @@ let offstreetFilters = {
 const uiTitle = document.getElementById('ui-title');
 const tabOffStreet = document.getElementById('tabOffStreet');
 const tabMetered = document.getElementById('tabMetered');
-const tabToilet = document.getElementById('tabToilet');
+const tabToilet = document.getElementById('tabToilet'); // 補上此處變數宣告以防 ReferenceError
 const locateBtn = document.getElementById('locateBtn');
 const showFavBtn = document.getElementById('showFavBtn');
 const refreshBtn = document.getElementById('refreshBtn');
@@ -140,7 +140,7 @@ function renderFilterPills() {
                 <button class="pill-btn color-red ${activeMeterFilter === 'occupied' ? 'active' : ''}" onclick="setMeterFilter('occupied')">${t.optOccupied}</button>
             </div>
         `;
-    } // 'toilet' 分頁下不顯示任何狀態過濾按鈕
+    }
     
     filterContainer.innerHTML = distHTML + statusHTML;
 }
@@ -302,7 +302,7 @@ async function renderActiveTabDisplay() {
             
             if (activeDistanceFilter !== 'all') {
                 const limit = parseFloat(activeDistanceFilter);
-                filteredToilets = filteredToilets.filter(t => t.distance <= limit);
+                filteredToilets = filteredToilets.filter(item => item.distance <= limit);
             }
             
             filteredToilets.sort((a, b) => a.distance - b.distance);
@@ -682,8 +682,6 @@ function renderWelcomeMessage() {
     `;
 }
 
-// === 下方為新增的公廁 API 抓取、解析、測量與渲染邏輯 ===
-
 function calcDistance(lat1, lon1, lat2, lon2) {
     const R = 6371; 
     const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -755,7 +753,7 @@ async function fetchToilets(lat, lng) {
     let filteredToilets = [...cachedAllToilets];
     if (activeDistanceFilter !== 'all') {
         const limit = parseFloat(activeDistanceFilter);
-        filteredToilets = filteredToilets.filter(t => t.distance <= limit);
+        filteredToilets = filteredToilets.filter(item => item.distance <= limit);
     }
     filteredToilets.sort((a, b) => a.distance - b.distance);
     displayToiletResults(filteredToilets.slice(0, 30));
@@ -806,8 +804,6 @@ function displayToiletResults(items) {
     }
     resultsDiv.innerHTML = items.map(item => generateToiletCardHTML(item)).join('');
 }
-
-// === 上方為新增的公廁邏輯 ===
 
 backToTopBtn.innerHTML = svgArrowUp;
 

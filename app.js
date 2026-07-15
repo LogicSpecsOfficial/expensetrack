@@ -122,7 +122,7 @@ function renderFilterPills() {
                 <button class="pill-btn color-blue ${offstreetFilters.sortByVacancy ? 'active' : ''}" onclick="toggleOffstreetFilter('sortByVacancy')">${t.optSortVacancy}</button>
             </div>
         `;
-    } else if (currentTab === 'metered') {
+    } else {
         statusHTML = `
             <div class="filter-row">
                 <button class="pill-btn color-blue ${activeMeterFilter === 'all' ? 'active' : ''}" onclick="setMeterFilter('all')">${t.optAll}</button>
@@ -137,16 +137,13 @@ function renderFilterPills() {
 
 async function switchTab(tabName) {
     currentTab = tabName;
-    
-    tabOffStreet.classList.remove('active');
-    tabMetered.classList.remove('active');
-    
     if (currentTab === 'offstreet') {
         tabOffStreet.classList.add('active');
-    } else if (currentTab === 'metered') {
+        tabMetered.classList.remove('active');
+    } else {
         tabMetered.classList.add('active');
+        tabOffStreet.classList.remove('active');
     }
-    
     renderFilterPills();
     renderFavorites();
     await renderActiveTabDisplay();
@@ -260,11 +257,11 @@ async function renderActiveTabDisplay() {
                 filteredParks.sort((a, b) => a.distance - b.distance);
             }
             
-            displayResults(filteredParks.slice(0, 30), 'offstreet');
+            displayResults(filteredParks.slice(0, 30), false);
         } else {
             await refreshActiveTabData(false);
         }
-    } else if (currentTab === 'metered') {
+    } else {
         if (cachedAllMeters.length > 0) {
             let groupedMeters = groupMeteredParking(cachedAllMeters);
             
@@ -279,7 +276,7 @@ async function renderActiveTabDisplay() {
                 groupedMeters = groupedMeters.filter(m => m.vacantSpaces === 0);
             }
             
-            displayResults(groupedMeters.slice(0, 30), 'metered');
+            displayResults(groupedMeters.slice(0, 30), true);
         } else {
             await refreshActiveTabData(false);
         }
@@ -441,7 +438,11 @@ refreshBtn.addEventListener('click', async () => {
 showFavBtn.addEventListener('click', () => {
     if (favWrapper.style.display === 'none') {
         favWrapper.style.display = 'block';
-        renderFavorites();
+        if (cachedAllParks.length === 0) {
+            silentFetchData();
+        } else {
+            renderFavorites();
+        }
     } else {
         favWrapper.style.display = 'none';
     }
@@ -458,7 +459,7 @@ async function refreshActiveTabData(isBackgroundRefresh = false) {
     try {
         if (currentTab === 'offstreet') {
             await fetchCarParks(userCoordinates.lat, userCoordinates.lng);
-        } else if (currentTab === 'metered') {
+        } else {
             await fetchMeteredParking(userCoordinates.lat, userCoordinates.lng);
         }
     } catch (err) {
@@ -572,87 +573,3 @@ function generateMeterCardHTML(meterGroup) {
     const vacantCount = meterGroup.vacantSpaces;
     const totalCount = meterGroup.totalSpaces;
     const isAnyVacant = vacantCount > 0;
-    
-    const cardStatusClass = isAnyVacant ? 'status-high' : 'status-empty';
-    const boxStatusClass = isAnyVacant ? 'available' : 'full';
-    const dotClass = isAnyVacant ? 'dot-green' : 'dot-red';
-
-    let distWarningHTML = meterGroup.distance > 5 ? `<span class="distance-warning">${t.distWarning}</span>` : '';
-    const distHTML = meterGroup.distance !== Infinity ? `<span class="distance">${meterGroup.distance.toFixed(2)} ${t.away}</span>${distWarningHTML}` : '';
-
-    const vacancyLabel = `${vacantCount}/${totalCount}`;
-
-    return `
-        <div class="carpark-card ${cardStatusClass}">
-            <div class="card-body-split">
-                <div class="card-left">
-                    <div class="carpark-name">
-                        <span class="status-dot ${dotClass}"></span>
-                        ${meterGroup.name}
-                    </div>
-                    <div class="tags-row">${distHTML}</div>
-                    <div class="info-grid">
-                        <div class="info-label">${t.address}:</div><div><a href="${mapUrl}" target="_blank" class="map-link">${meterGroup.address}</a></div>
-                        <div class="info-label">${t.district}:</div><div>${meterGroup.district || '---'}</div>
-                    </div>
-                </div>
-                <div class="card-right">
-                    <button class="card-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${meterGroup.park_Id}')">${isFav ? t.removeFav : t.addFav}</button>
-                    <div class="vacancy-badge ${boxStatusClass}">
-                        <span class="vacancy-num ${!isAnyVacant ? 'none' : ''}">${vacancyLabel}</span>
-                        <span class="vacancy-label">${t.vacantMeters}</span>
-                    </div>
-                </div>
-            </div>
-        </div>`;
-}
-
-function displayResults(items, type = 'offstreet') {
-    statusText.textContent = ""; 
-    uiSearchTitle.textContent = `${t.searchTitle} (${items.length})`; 
-    
-    if (items.length === 0) {
-        resultsDiv.innerHTML = `<div class="empty-notice">${t.noRecords}</div>`;
-        return;
-    }
-    resultsDiv.innerHTML = items.map(item => {
-        if (type === 'metered' || type === true) {
-            return generateMeterCardHTML(item);
-        } else {
-            return generateCardHTML(item);
-        }
-    }).join('');
-}
-
-function renderFavorites() {
-    if (favorites.length === 0) {
-        favoritesList.innerHTML = `<div class="empty-notice">${t.noFavs}</div>`;
-        return;
-    }
-    
-    let html = '';
-    if (currentTab === 'offstreet') {
-        const favOffstreet = cachedAllParks.filter(park => favorites.includes(park.park_Id));
-        favOffstreet.forEach(p => html += generateCardHTML(p));
-    } else if (currentTab === 'metered') {
-        const groupedMeters = groupMeteredParking(cachedAllMeters);
-        const favMeters = groupedMeters.filter(meterGroup => favorites.includes(meterGroup.park_Id));
-        favMeters.forEach(m => html += generateMeterCardHTML(m));
-    }
-    
-    favoritesList.innerHTML = html ? html : `<div class="empty-notice">${t.noFavs}</div>`;
-}
-
-function renderWelcomeMessage() {
-    resultsDiv.innerHTML = `
-        <div class="welcome-box">
-            <h3>${t.welcomeTitle}</h3>
-            <p>${t.welcomeDesc}</p>
-        </div>
-    `;
-}
-
-initTheme();
-updateUIStaticText();
-renderSearchHistory();
-renderWelcomeMessage();

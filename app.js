@@ -2,7 +2,7 @@ let currentTab = 'offstreet';
 let userCoordinates = null;
 let cachedAllParks = [];
 let cachedAllMeters = [];
-let cachedAllToilets = []; // 宣告公廁快取變數
+let cachedAllToilets = [];
 let favorites = JSON.parse(localStorage.getItem('hk_carpark_favs')) || [];
 let searchHistory = JSON.parse(localStorage.getItem('hk_carpark_history')) || [];
 let activeMeterFilter = 'all';
@@ -17,7 +17,7 @@ let offstreetFilters = {
 const uiTitle = document.getElementById('ui-title');
 const tabOffStreet = document.getElementById('tabOffStreet');
 const tabMetered = document.getElementById('tabMetered');
-const tabToilet = document.getElementById('tabToilet'); // 安全獲取公廁分頁按鈕
+const tabToilet = document.getElementById('tabToilet');
 const locateBtn = document.getElementById('locateBtn');
 const showFavBtn = document.getElementById('showFavBtn');
 const refreshBtn = document.getElementById('refreshBtn');
@@ -90,7 +90,7 @@ function updateUIStaticText() {
     uiSearchTitle.textContent = t.searchTitle;
     tabOffStreet.textContent = t.tabOffStreet;
     tabMetered.textContent = t.tabMetered;
-    if (tabToilet) tabToilet.textContent = t.tabToilet || "公廁"; // 安全賦值
+    if (tabToilet) tabToilet.textContent = t.tabToilet || "公廁";
 
     searchInput.placeholder = t.searchPlaceholder;
     searchBtn.textContent = t.searchBtnText;
@@ -137,14 +137,14 @@ async function switchTab(tabName) {
     currentTab = tabName;
     tabOffStreet.classList.remove('active');
     tabMetered.classList.remove('active');
-    if (tabToilet) tabToilet.classList.remove('active'); // 安全移除
+    if (tabToilet) tabToilet.classList.remove('active');
 
     if (currentTab === 'offstreet') {
         tabOffStreet.classList.add('active');
     } else if (currentTab === 'metered') {
         tabMetered.classList.add('active');
     } else if (currentTab === 'toilet') {
-        if (tabToilet) tabToilet.classList.add('active'); // 安全加入
+        if (tabToilet) tabToilet.classList.add('active');
     }
     renderFilterPills();
     renderFavorites();
@@ -274,7 +274,6 @@ async function renderActiveTabDisplay() {
             await refreshActiveTabData(false);
         }
     } else if (currentTab === 'toilet') {
-        // 渲染公廁結果
         if (cachedAllToilets.length > 0) {
             let filteredToilets = [...cachedAllToilets];
             if (activeDistanceFilter !== 'all') {
@@ -461,7 +460,7 @@ async function refreshActiveTabData(isBackgroundRefresh = false) {
         } else if (currentTab === 'metered') {
             await fetchMeteredParking(userCoordinates.lat, userCoordinates.lng);
         } else if (currentTab === 'toilet') {
-            await fetchToilets(userCoordinates.lat, userCoordinates.lng); // 獲取公廁數據
+            await fetchToilets(userCoordinates.lat, userCoordinates.lng);
         }
     } catch (err) {
         if (!isBackgroundRefresh) {
@@ -628,7 +627,7 @@ function renderFavorites() {
         favMeters.forEach(m => html += generateMeterCardHTML(m));
     } else if (currentTab === 'toilet') {
         const favToilets = cachedAllToilets.filter(toilet => favorites.includes(toilet.park_Id));
-        favToilets.forEach(toilet => html += generateToiletCardHTML(toilet)); // 渲染收藏的公廁
+        favToilets.forEach(toilet => html += generateToiletCardHTML(toilet));
     }
     favoritesList.innerHTML = html ? html : `<div class="empty-notice">${t.noFavs}</div>`;
 }
@@ -745,12 +744,8 @@ function generateToiletCardHTML(toilet) {
                         <div class="info-label">類型:</div><div>${toilet.type}</div>
                     </div>
                 </div>
-                <div class="card-right">
+                <div class="card-right" style="justify-content: center;">
                     <button class="card-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${toilet.park_Id}')">${isFav ? t.removeFav : t.addFav}</button>
-                    <div class="vacancy-badge available">
-                        <span class="vacancy-num">🚻</span>
-                        <span class="vacancy-label">免費使用</span>
-                    </div>
                 </div>
             </div>
         </div>`;

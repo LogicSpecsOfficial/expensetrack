@@ -2,11 +2,11 @@ let currentTab = 'offstreet';
 let userCoordinates = null;
 let cachedAllParks = [];
 let cachedAllMeters = [];
-let cachedAllToilets = [];
+let cachedAllToilets = []; // 宣告公廁快取變數
 let favorites = JSON.parse(localStorage.getItem('hk_carpark_favs')) || [];
 let searchHistory = JSON.parse(localStorage.getItem('hk_carpark_history')) || [];
 let activeMeterFilter = 'all';
-let activeDistanceFilter = '1'; 
+let activeDistanceFilter = '1';
 
 let offstreetFilters = {
     hideFull: false,
@@ -17,7 +17,7 @@ let offstreetFilters = {
 const uiTitle = document.getElementById('ui-title');
 const tabOffStreet = document.getElementById('tabOffStreet');
 const tabMetered = document.getElementById('tabMetered');
-const tabToilet = document.getElementById('tabToilet'); // 補上此處變數宣告以防 ReferenceError
+const tabToilet = document.getElementById('tabToilet'); // 安全獲取公廁分頁按鈕
 const locateBtn = document.getElementById('locateBtn');
 const showFavBtn = document.getElementById('showFavBtn');
 const refreshBtn = document.getElementById('refreshBtn');
@@ -48,9 +48,6 @@ const svgSearch = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" f
 const svgClose = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
 const svgArrowUp = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>`;
 
-const sunIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
-const moonIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
-
 function initTheme() {
     const savedTheme = localStorage.getItem('hk_carpark_theme') || 'light';
     if (savedTheme === 'dark') {
@@ -75,19 +72,15 @@ function toggleTheme() {
 
 function updateUIStaticText() {
     uiTitle.textContent = t.title;
-    
     locateBtn.innerHTML = svgGps;
     locateBtn.title = t.btnText || "GPS 定位";
     locateBtn.setAttribute('aria-label', t.btnText || "GPS 定位");
-    
     refreshBtn.innerHTML = svgRefresh;
     refreshBtn.title = t.refreshBtnText || "更新數據";
     refreshBtn.setAttribute('aria-label', t.refreshBtnText || "更新數據");
-    
     showFavBtn.innerHTML = favWrapper.style.display === 'none' ? svgStarOutline : svgStarFilled;
     showFavBtn.title = favWrapper.style.display === 'none' ? (t.btnFavShow || "顯示收藏") : (t.btnFavHide || "隱藏收藏");
     showFavBtn.setAttribute('aria-label', favWrapper.style.display === 'none' ? (t.btnFavShow || "顯示收藏") : (t.btnFavHide || "隱藏收藏"));
-    
     const isOpen = searchWrapper.classList.contains('open');
     searchToggleBtn.innerHTML = isOpen ? svgClose : svgSearch;
     searchToggleBtn.title = isOpen ? "關閉搜尋" : "展開搜尋";
@@ -95,15 +88,13 @@ function updateUIStaticText() {
 
     uiFavTitle.textContent = t.favTitle;
     uiSearchTitle.textContent = t.searchTitle;
-    
     tabOffStreet.textContent = t.tabOffStreet;
     tabMetered.textContent = t.tabMetered;
-    if (tabToilet) tabToilet.textContent = t.tabToilet || "公廁";
-    
+    if (tabToilet) tabToilet.textContent = t.tabToilet || "公廁"; // 安全賦值
+
     searchInput.placeholder = t.searchPlaceholder;
     searchBtn.textContent = t.searchBtnText;
     clearHistoryBtn.textContent = t.clearBtnText;
-    
     renderFilterPills();
 }
 
@@ -113,7 +104,6 @@ function renderFilterPills() {
         return;
     }
     filterContainer.style.display = 'flex';
-    
     let distHTML = `
         <div class="filter-row">
             <button class="pill-btn color-blue ${activeDistanceFilter === '0.5' ? 'active' : ''}" onclick="setDistanceFilter('0.5')">${t.dist500m}</button>
@@ -122,7 +112,6 @@ function renderFilterPills() {
             <button class="pill-btn color-blue ${activeDistanceFilter === 'all' ? 'active' : ''}" onclick="setDistanceFilter('all')">${t.distAll}</button>
         </div>
     `;
-    
     let statusHTML = '';
     if (currentTab === 'offstreet') {
         statusHTML = `
@@ -141,25 +130,22 @@ function renderFilterPills() {
             </div>
         `;
     }
-    
     filterContainer.innerHTML = distHTML + statusHTML;
 }
 
 async function switchTab(tabName) {
     currentTab = tabName;
-    
     tabOffStreet.classList.remove('active');
     tabMetered.classList.remove('active');
-    if (tabToilet) tabToilet.classList.remove('active');
-    
+    if (tabToilet) tabToilet.classList.remove('active'); // 安全移除
+
     if (currentTab === 'offstreet') {
         tabOffStreet.classList.add('active');
     } else if (currentTab === 'metered') {
         tabMetered.classList.add('active');
     } else if (currentTab === 'toilet') {
-        if (tabToilet) tabToilet.classList.add('active');
+        if (tabToilet) tabToilet.classList.add('active'); // 安全加入
     }
-    
     renderFilterPills();
     renderFavorites();
     await renderActiveTabDisplay();
@@ -185,7 +171,6 @@ function setDistanceFilter(distanceValue) {
 
 function hasEVCharging(park) {
     const evKeywords = ['EV', 'ELECTRIC', '充電', '充电', 'CHARG'];
-    
     if (park.facilities && Array.isArray(park.facilities)) {
         if (park.facilities.some(f => evKeywords.some(kw => String(f).toUpperCase().includes(kw)))) {
             return true;
@@ -209,10 +194,10 @@ function getVacancyCount(park) {
 function groupMeteredParking(meters) {
     const groups = {};
     meters.forEach(m => {
-        const key = m.address; 
+        const key = m.address;
         if (!groups[key]) {
             groups[key] = {
-                park_Id: m.address, 
+                park_Id: m.address,
                 name: m.rawStreet,
                 address: m.address,
                 district: m.district,
@@ -242,26 +227,22 @@ async function renderActiveTabDisplay() {
     if (currentTab === 'offstreet') {
         if (cachedAllParks.length > 0) {
             let filteredParks = [...cachedAllParks];
-            
             if (activeDistanceFilter !== 'all') {
                 const limit = parseFloat(activeDistanceFilter);
                 filteredParks = filteredParks.filter(p => p.distance <= limit);
             }
-            
             if (offstreetFilters.hideFull) {
                 filteredParks = filteredParks.filter(p => {
                     if (p.liveInfo && p.liveInfo.privateCar && p.liveInfo.privateCar.length > 0) {
                         const count = p.liveInfo.privateCar[0].vacancy;
                         return count === undefined || count === null || count > 0;
                     }
-                    return true; 
+                    return true;
                 });
             }
-            
             if (offstreetFilters.evOnly) {
                 filteredParks = filteredParks.filter(p => hasEVCharging(p));
             }
-            
             if (offstreetFilters.sortByVacancy) {
                 filteredParks.sort((a, b) => {
                     const vacA = getVacancyCount(a);
@@ -272,7 +253,6 @@ async function renderActiveTabDisplay() {
             } else {
                 filteredParks.sort((a, b) => a.distance - b.distance);
             }
-            
             displayResults(filteredParks.slice(0, 30), false);
         } else {
             await refreshActiveTabData(false);
@@ -280,31 +260,27 @@ async function renderActiveTabDisplay() {
     } else if (currentTab === 'metered') {
         if (cachedAllMeters.length > 0) {
             let groupedMeters = groupMeteredParking(cachedAllMeters);
-            
             if (activeDistanceFilter !== 'all') {
                 const limit = parseFloat(activeDistanceFilter);
                 groupedMeters = groupedMeters.filter(m => m.distance <= limit);
             }
-            
             if (activeMeterFilter === 'vacant') {
                 groupedMeters = groupedMeters.filter(m => m.vacantSpaces > 0);
             } else if (activeMeterFilter === 'occupied') {
                 groupedMeters = groupedMeters.filter(m => m.vacantSpaces === 0);
             }
-            
             displayResults(groupedMeters.slice(0, 30), true);
         } else {
             await refreshActiveTabData(false);
         }
     } else if (currentTab === 'toilet') {
+        // 渲染公廁結果
         if (cachedAllToilets.length > 0) {
             let filteredToilets = [...cachedAllToilets];
-            
             if (activeDistanceFilter !== 'all') {
                 const limit = parseFloat(activeDistanceFilter);
                 filteredToilets = filteredToilets.filter(item => item.distance <= limit);
             }
-            
             filteredToilets.sort((a, b) => a.distance - b.distance);
             displayToiletResults(filteredToilets.slice(0, 30));
         } else {
@@ -316,12 +292,10 @@ async function renderActiveTabDisplay() {
 function renderSearchHistory() {
     const historyWrapper = document.getElementById('history-wrapper');
     const historyChips = document.getElementById('historyChips');
-    
     if (searchHistory.length === 0) {
         historyWrapper.style.display = 'none';
         return;
     }
-    
     historyWrapper.style.display = 'flex';
     historyChips.innerHTML = searchHistory.map(item => {
         const escapedItem = item.replace(/'/g, "\\'");
@@ -345,7 +319,6 @@ async function triggerAddressSearch(forcedQuery = null) {
 
     const lookupKey = inputVal.toLowerCase().replace(/\s+/g, '');
     let query = inputVal;
-    
     if (synonymMap[lookupKey]) {
         query = synonymMap[lookupKey];
     }
@@ -363,7 +336,6 @@ async function triggerAddressSearch(forcedQuery = null) {
     try {
         const searchUrl = `https://www.als.gov.hk/lookup?q=${encodeURIComponent(query)}`;
         const responseText = await fetchTextThroughProxy(searchUrl, true);
-        
         let latMatch = responseText.match(/"Latitude"\s*:\s*"?([0-9.]+)"?/i) || responseText.match(/<Latitude>([0-9.]+)<\/Latitude>/i);
         let lngMatch = responseText.match(/"Longitude"\s*:\s*"?([0-9.]+)"?/i) || responseText.match(/<Longitude>([0-9.]+)<\/Longitude>/i);
 
@@ -377,7 +349,6 @@ async function triggerAddressSearch(forcedQuery = null) {
             const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=1`;
             const photonRes = await fetch(photonUrl);
             const photonData = await photonRes.json();
-            
             if (photonData.features && photonData.features.length > 0) {
                 const coordinates = photonData.features[0].geometry.coordinates;
                 lng = coordinates[0];
@@ -387,14 +358,12 @@ async function triggerAddressSearch(forcedQuery = null) {
 
         if (lat && lng) {
             userCoordinates = { lat, lng };
-            saveSearch(inputVal); 
+            saveSearch(inputVal);
             renderFilterPills();
-            
             searchWrapper.classList.remove('open');
             searchToggleBtn.innerHTML = svgSearch;
-            
             await refreshActiveTabData(false);
-            if (document.activeElement) document.activeElement.blur(); 
+            if (document.activeElement) document.activeElement.blur();
         } else {
             statusText.textContent = t.addressError;
         }
@@ -492,7 +461,7 @@ async function refreshActiveTabData(isBackgroundRefresh = false) {
         } else if (currentTab === 'metered') {
             await fetchMeteredParking(userCoordinates.lat, userCoordinates.lng);
         } else if (currentTab === 'toilet') {
-            await fetchToilets(userCoordinates.lat, userCoordinates.lng);
+            await fetchToilets(userCoordinates.lat, userCoordinates.lng); // 獲取公廁數據
         }
     } catch (err) {
         if (!isBackgroundRefresh) {
@@ -514,7 +483,6 @@ function toggleFavorite(id) {
         favorites.push(id);
     }
     localStorage.setItem('hk_carpark_favs', JSON.stringify(favorites));
-    
     renderFavorites();
     renderActiveTabDisplay();
 }
@@ -525,12 +493,10 @@ function generateCardHTML(park) {
     const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(displayAddress + " " + (park.name || ''))}`;
 
     let heightText = (park.heightRestrictions || []).map(h => h.height ? `${h.height}m` : '').filter(Boolean).join(', ');
-    
     let cardStatusClass = 'status-unknown';
     let boxStatusClass = '';
     let vacancyNumClass = '';
     let dotClass = 'dot-grey';
-    
     let vacancyHTML = `
         <div class="vacancy-badge unknown">
             <span class="vacancy-num">--</span>
@@ -565,7 +531,6 @@ function generateCardHTML(park) {
     }
 
     let contactHTML = park.contactNo ? `<a href="tel:${park.contactNo.replace(/\s+/g, '')}" class="phone-link">${park.contactNo}</a>` : '';
-    
     let distWarningHTML = park.distance > 5 ? `<span class="distance-warning">${t.distWarning}</span>` : '';
     const distHTML = park.distance !== Infinity ? `<span class="distance">${park.distance.toFixed(2)} ${t.away}</span>${distWarningHTML}` : '';
 
@@ -601,11 +566,9 @@ function generateCardHTML(park) {
 function generateMeterCardHTML(meterGroup) {
     const isFav = favorites.includes(meterGroup.park_Id);
     const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(meterGroup.address)}`;
-    
     const vacantCount = meterGroup.vacantSpaces;
     const totalCount = meterGroup.totalSpaces;
     const isAnyVacant = vacantCount > 0;
-    
     const cardStatusClass = isAnyVacant ? 'status-high' : 'status-empty';
     const boxStatusClass = isAnyVacant ? 'available' : 'full';
     const dotClass = isAnyVacant ? 'dot-green' : 'dot-red';
@@ -641,9 +604,8 @@ function generateMeterCardHTML(meterGroup) {
 }
 
 function displayResults(items, isMeter = false) {
-    statusText.textContent = ""; 
-    uiSearchTitle.textContent = `${t.searchTitle} (${items.length})`; 
-    
+    statusText.textContent = "";
+    uiSearchTitle.textContent = `${t.searchTitle} (${items.length})`;
     if (items.length === 0) {
         resultsDiv.innerHTML = `<div class="empty-notice">${t.noRecords}</div>`;
         return;
@@ -656,7 +618,6 @@ function renderFavorites() {
         favoritesList.innerHTML = `<div class="empty-notice">${t.noFavs}</div>`;
         return;
     }
-    
     let html = '';
     if (currentTab === 'offstreet') {
         const favOffstreet = cachedAllParks.filter(park => favorites.includes(park.park_Id));
@@ -667,9 +628,8 @@ function renderFavorites() {
         favMeters.forEach(m => html += generateMeterCardHTML(m));
     } else if (currentTab === 'toilet') {
         const favToilets = cachedAllToilets.filter(toilet => favorites.includes(toilet.park_Id));
-        favToilets.forEach(toilet => html += generateToiletCardHTML(toilet));
+        favToilets.forEach(toilet => html += generateToiletCardHTML(toilet)); // 渲染收藏的公廁
     }
-    
     favoritesList.innerHTML = html ? html : `<div class="empty-notice">${t.noFavs}</div>`;
 }
 
@@ -681,6 +641,8 @@ function renderWelcomeMessage() {
         </div>
     `;
 }
+
+// === 下方為新增的公廁 API 抓取、解析、測量與渲染邏輯 ===
 
 function calcDistance(lat1, lon1, lat2, lon2) {
     const R = 6371; 
@@ -804,6 +766,8 @@ function displayToiletResults(items) {
     }
     resultsDiv.innerHTML = items.map(item => generateToiletCardHTML(item)).join('');
 }
+
+// === 上方為新增的公廁邏輯 ===
 
 backToTopBtn.innerHTML = svgArrowUp;
 

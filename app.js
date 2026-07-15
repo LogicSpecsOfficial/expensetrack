@@ -39,7 +39,7 @@ const searchWrapper = document.getElementById('searchWrapper');
 const backToTopBtn = document.getElementById('backToTopBtn');
 const stickyHeader = document.querySelector('.sticky-header-wrapper');
 
-// SVG 圖標代碼
+// SVG 圖擺代碼
 const svgGps = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 19-9-9 19-2-8-8-2z"/></svg>`;
 const svgStarOutline = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
 const svgStarFilled = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#ff9f43" stroke="#ff9f43" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
@@ -48,7 +48,6 @@ const svgSearch = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" f
 const svgClose = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
 const svgArrowUp = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>`;
 
-// 補齊缺失的主題 SVG 變數，防止 ReferenceError 崩潰
 const sunIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
 const moonIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
 
@@ -107,8 +106,7 @@ function renderFilterPills() {
         filterContainer.style.display = 'none';
         return;
     }
-    // 修正：改為 block 佈局，防止多行過濾器橫向並排擠壓變形，恢復正常上下兩行間距
-    filterContainer.style.display = 'block';
+    filterContainer.style.display = 'flex';
     let distHTML = `
         <div class="filter-row">
             <button class="pill-btn color-blue ${activeDistanceFilter === '0.5' ? 'active' : ''}" onclick="setDistanceFilter('0.5')">${t.dist500m}</button>
@@ -363,7 +361,7 @@ async function triggerAddressSearch(forcedQuery = null) {
         if (lat && lng) {
             userCoordinates = { lat, lng };
             
-            // 地點連動修正：當搜尋新地址成功時，清空現有快取，確保切換分頁時重新依據此中心點讀取
+            // 修正：搜尋新地址成功時，立即清空所有舊快取，強迫各分頁切換時依據新座標重新抓取
             cachedAllParks = [];
             cachedAllMeters = [];
             cachedAllToilets = [];
@@ -423,7 +421,7 @@ locateBtn.addEventListener('click', () => {
         async (position) => {
             userCoordinates = { lat: position.coords.latitude, lng: position.coords.longitude };
             
-            // 當重新進行定位成功時，也清空快取
+            // 修正：重新點擊 GPS 定位時，也清空所有快取
             cachedAllParks = [];
             cachedAllMeters = [];
             cachedAllToilets = [];
@@ -624,37 +622,18 @@ function generateMeterCardHTML(meterGroup) {
         </div>`;
 }
 
-function displayResults(items, isMeter = false) {
-    statusText.textContent = "";
-    uiSearchTitle.textContent = `${t.searchTitle} (${items.length})`;
-    if (items.length === 0) {
-        resultsDiv.innerHTML = `<div class="empty-notice">${t.noRecords}</div>`;
-        return;
-    }
-    resultsDiv.innerHTML = items.map(item => isMeter ? generateMeterCardHTML(item) : generateCardHTML(item)).join('');
-}
+// === 下方為新增的公廁 API 抓取、解析、測量與渲染邏輯 ===
 
-function renderFavorites() {
-    if (favorites.length === 0) {
-        favoritesList.innerHTML = `<div class="empty-notice">${t.noFavs}</div>`;
-        return;
-    }
-    let html = '';
-    if (currentTab === 'offstreet') {
-        const favOffstreet = cachedAllParks.filter(park => favorites.includes(park.park_Id));
-        favOffstreet.forEach(p => html += generateCardHTML(p));
-    } else if (currentTab === 'metered') {
-        const groupedMeters = groupMeteredParking(cachedAllMeters);
-        const favMeters = groupedMeters.filter(meterGroup => favorites.includes(meterGroup.park_Id));
-        favMeters.forEach(m => html += generateMeterCardHTML(m));
-    } else if (currentTab === 'toilet') {
-        const favToilets = cachedAllToilets.filter(toilet => favorites.includes(toilet.park_Id));
-        favToilets.forEach(toilet => html += generateToiletCardHTML(toilet));
-    }
-    favoritesList.innerHTML = html ? html : `<div class="empty-notice">${t.noFavs}</div>`;
+function calcDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371; 
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
 }
-
-// === 下方為公廁定位之抓取、解析、過濾、防禦與右上角對齊邏輯 ===
 
 async function fetchToilets(lat, lng) {
     const targetUrl = '/api/toilet-xml';
@@ -732,7 +711,6 @@ function generateToiletCardHTML(toilet) {
     let distWarningHTML = toilet.distance > 5 ? `<span class="distance-warning">${t.distWarning}</span>` : '';
     const distHTML = toilet.distance !== Infinity ? `<span class="distance">${toilet.distance.toFixed(2)} ${t.away}</span>${distWarningHTML}` : '';
 
-    // 類型防禦與隱藏：如果類型是 '設施' 或為空，則不會渲染該行
     let typeHTML = (toilet.type && toilet.type !== '設施') ? `
         <div class="info-label">類型:</div><div>${toilet.type}</div>
     ` : '';
@@ -751,7 +729,6 @@ function generateToiletCardHTML(toilet) {
                         ${typeHTML}
                     </div>
                 </div>
-                <!-- 結構修正：置入高度佔位符，確保收藏按鈕與室內車場一樣精準靠最右上角對齊 -->
                 <div class="card-right">
                     <button class="card-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${toilet.park_Id}')">${isFav ? t.removeFav : t.addFav}</button>
                     <div style="height: 40px; visibility: hidden;"></div>
@@ -769,6 +746,38 @@ function displayToiletResults(items) {
         return;
     }
     resultsDiv.innerHTML = items.map(item => generateToiletCardHTML(item)).join('');
+}
+
+// === 上方為新增的公廁邏輯 ===
+
+function displayResults(items, isMeter = false) {
+    statusText.textContent = "";
+    uiSearchTitle.textContent = `${t.searchTitle} (${items.length})`;
+    if (items.length === 0) {
+        resultsDiv.innerHTML = `<div class="empty-notice">${t.noRecords}</div>`;
+        return;
+    }
+    resultsDiv.innerHTML = items.map(item => isMeter ? generateMeterCardHTML(item) : generateCardHTML(item)).join('');
+}
+
+function renderFavorites() {
+    if (favorites.length === 0) {
+        favoritesList.innerHTML = `<div class="empty-notice">${t.noFavs}</div>`;
+        return;
+    }
+    let html = '';
+    if (currentTab === 'offstreet') {
+        const favOffstreet = cachedAllParks.filter(park => favorites.includes(park.park_Id));
+        favOffstreet.forEach(p => html += generateCardHTML(p));
+    } else if (currentTab === 'metered') {
+        const groupedMeters = groupMeteredParking(cachedAllMeters);
+        const favMeters = groupedMeters.filter(meterGroup => favorites.includes(meterGroup.park_Id));
+        favMeters.forEach(m => html += generateMeterCardHTML(m));
+    } else if (currentTab === 'toilet') {
+        const favToilets = cachedAllToilets.filter(toilet => favorites.includes(toilet.park_Id));
+        favToilets.forEach(toilet => html += generateToiletCardHTML(toilet));
+    }
+    favoritesList.innerHTML = html ? html : `<div class="empty-notice">${t.noFavs}</div>`;
 }
 
 function renderWelcomeMessage() {

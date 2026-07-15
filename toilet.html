@@ -44,7 +44,7 @@
             font-size: 0.8rem;
             margin-bottom: 16px;
             white-space: pre-wrap;
-            max-height: 180px;
+            max-height: 220px;
             overflow-y: auto;
         }
         .card {
@@ -83,7 +83,7 @@
 </head>
 <body>
 
-    <h2>公廁定位直連測試 (Vercel 轉發版)</h2>
+    <h2>公廁定位直連測試 (診斷版)</h2>
     
     <div class="control-panel">
         <button id="gpsBtn" class="btn">1. 獲取當前 GPS 定位</button>
@@ -146,7 +146,6 @@
             logger("開始發送本機轉發請求...");
             resultsDiv.innerHTML = "";
             
-            // 直接請求 Vercel 的同源代理路徑
             const targetUrl = '/api/toilet-xml';
             
             try {
@@ -170,6 +169,18 @@
                 const mapNodes = xmlDoc.getElementsByTagName('map');
                 logger(`讀取到 XML 內設施總數: ${mapNodes.length}`);
 
+                // 結構診斷：印出第一個 map 節點的所有子節點結構
+                if (mapNodes.length > 0) {
+                    const firstNode = mapNodes[0];
+                    let diagText = "=== 結構診斷：第一個設施的 XML 標籤如下 ===\n";
+                    for (let j = 0; j < firstNode.children.length; j++) {
+                        const child = firstNode.children[j];
+                        diagText += `<${child.tagName}>: "${child.textContent.substring(0, 60)}"\n`;
+                    }
+                    diagText += "=========================================";
+                    logger(diagText);
+                }
+
                 const toiletList = [];
 
                 for (let i = 0; i < mapNodes.length; i++) {
@@ -180,7 +191,9 @@
                     const address = node.querySelector('address_c')?.textContent || '';
                     const coordinateText = node.querySelector('map_coordinate')?.textContent || '';
 
-                    if (type === '1' || type === '2') {
+                    const isToiletByName = name.includes('公廁') || name.includes('廁所') || name.toLowerCase().includes('toilet');
+
+                    if (type === '1' || type === '2' || isToiletByName) {
                         let lat = 0;
                         let lng = 0;
 
@@ -199,7 +212,7 @@
                                 address: address,
                                 lat: lat,
                                 lng: lng,
-                                type: type === '1' ? '公廁' : '旱廁',
+                                type: type === '1' ? '公廁' : '設施',
                                 distance: distance
                             });
                         }

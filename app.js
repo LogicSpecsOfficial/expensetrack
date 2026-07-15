@@ -744,7 +744,8 @@ function generateToiletCardHTML(toilet) {
                         <div class="info-label">類型:</div><div>${toilet.type}</div>
                     </div>
                 </div>
-                <div class="card-right" style="justify-content: center;">
+                <!-- 修改為 flex-start，確保按鈕對齊在卡片右上角 -->
+                <div class="card-right" style="justify-content: flex-start;">
                     <button class="card-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${toilet.park_Id}')">${isFav ? t.removeFav : t.addFav}</button>
                 </div>
             </div>

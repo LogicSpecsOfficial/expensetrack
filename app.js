@@ -39,7 +39,7 @@ const searchWrapper = document.getElementById('searchWrapper');
 const backToTopBtn = document.getElementById('backToTopBtn');
 const stickyHeader = document.querySelector('.sticky-header-wrapper');
 
-// SVG 圖標代碼
+// SVG 圖擺代碼
 const svgGps = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 19-9-9 19-2-8-8-2z"/></svg>`;
 const svgStarOutline = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
 const svgStarFilled = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#ff9f43" stroke="#ff9f43" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
@@ -360,6 +360,12 @@ async function triggerAddressSearch(forcedQuery = null) {
 
         if (lat && lng) {
             userCoordinates = { lat, lng };
+            
+            // 修正：搜尋新地址成功時，立即清空所有舊快取，強迫各分頁切換時依據新座標重新抓取
+            cachedAllParks = [];
+            cachedAllMeters = [];
+            cachedAllToilets = [];
+
             saveSearch(inputVal);
             renderFilterPills();
             searchWrapper.classList.remove('open');
@@ -414,12 +420,23 @@ locateBtn.addEventListener('click', () => {
     navigator.geolocation.getCurrentPosition(
         async (position) => {
             userCoordinates = { lat: position.coords.latitude, lng: position.coords.longitude };
+            
+            // 修正：重新點擊 GPS 定位時，也清空所有快取
+            cachedAllParks = [];
+            cachedAllMeters = [];
+            cachedAllToilets = [];
+
             renderFilterPills();
             await refreshActiveTabData(false);
         },
         async (error) => {
             console.warn("GPS tracking failed, falling back to Kowloon center coordinates.", error);
             userCoordinates = { lat: 22.3193, lng: 114.1694 };
+            
+            cachedAllParks = [];
+            cachedAllMeters = [];
+            cachedAllToilets = [];
+
             renderFilterPills();
             statusText.textContent = "定位未開啟，已顯示九龍中心數據";
             await refreshActiveTabData(false);
@@ -605,45 +622,6 @@ function generateMeterCardHTML(meterGroup) {
         </div>`;
 }
 
-function displayResults(items, isMeter = false) {
-    statusText.textContent = "";
-    uiSearchTitle.textContent = `${t.searchTitle} (${items.length})`;
-    if (items.length === 0) {
-        resultsDiv.innerHTML = `<div class="empty-notice">${t.noRecords}</div>`;
-        return;
-    }
-    resultsDiv.innerHTML = items.map(item => isMeter ? generateMeterCardHTML(item) : generateCardHTML(item)).join('');
-}
-
-function renderFavorites() {
-    if (favorites.length === 0) {
-        favoritesList.innerHTML = `<div class="empty-notice">${t.noFavs}</div>`;
-        return;
-    }
-    let html = '';
-    if (currentTab === 'offstreet') {
-        const favOffstreet = cachedAllParks.filter(park => favorites.includes(park.park_Id));
-        favOffstreet.forEach(p => html += generateCardHTML(p));
-    } else if (currentTab === 'metered') {
-        const groupedMeters = groupMeteredParking(cachedAllMeters);
-        const favMeters = groupedMeters.filter(meterGroup => favorites.includes(meterGroup.park_Id));
-        favMeters.forEach(m => html += generateMeterCardHTML(m));
-    } else if (currentTab === 'toilet') {
-        const favToilets = cachedAllToilets.filter(toilet => favorites.includes(toilet.park_Id));
-        favToilets.forEach(toilet => html += generateToiletCardHTML(toilet));
-    }
-    favoritesList.innerHTML = html ? html : `<div class="empty-notice">${t.noFavs}</div>`;
-}
-
-function renderWelcomeMessage() {
-    resultsDiv.innerHTML = `
-        <div class="welcome-box">
-            <h3>${t.welcomeTitle}</h3>
-            <p>${t.welcomeDesc}</p>
-        </div>
-    `;
-}
-
 // === 下方為新增的公廁 API 抓取、解析、測量與渲染邏輯 ===
 
 function calcDistance(lat1, lon1, lat2, lon2) {
@@ -771,6 +749,45 @@ function displayToiletResults(items) {
 }
 
 // === 上方為新增的公廁邏輯 ===
+
+function displayResults(items, isMeter = false) {
+    statusText.textContent = "";
+    uiSearchTitle.textContent = `${t.searchTitle} (${items.length})`;
+    if (items.length === 0) {
+        resultsDiv.innerHTML = `<div class="empty-notice">${t.noRecords}</div>`;
+        return;
+    }
+    resultsDiv.innerHTML = items.map(item => isMeter ? generateMeterCardHTML(item) : generateCardHTML(item)).join('');
+}
+
+function renderFavorites() {
+    if (favorites.length === 0) {
+        favoritesList.innerHTML = `<div class="empty-notice">${t.noFavs}</div>`;
+        return;
+    }
+    let html = '';
+    if (currentTab === 'offstreet') {
+        const favOffstreet = cachedAllParks.filter(park => favorites.includes(park.park_Id));
+        favOffstreet.forEach(p => html += generateCardHTML(p));
+    } else if (currentTab === 'metered') {
+        const groupedMeters = groupMeteredParking(cachedAllMeters);
+        const favMeters = groupedMeters.filter(meterGroup => favorites.includes(meterGroup.park_Id));
+        favMeters.forEach(m => html += generateMeterCardHTML(m));
+    } else if (currentTab === 'toilet') {
+        const favToilets = cachedAllToilets.filter(toilet => favorites.includes(toilet.park_Id));
+        favToilets.forEach(toilet => html += generateToiletCardHTML(toilet));
+    }
+    favoritesList.innerHTML = html ? html : `<div class="empty-notice">${t.noFavs}</div>`;
+}
+
+function renderWelcomeMessage() {
+    resultsDiv.innerHTML = `
+        <div class="welcome-box">
+            <h3>${t.welcomeTitle}</h3>
+            <p>${t.welcomeDesc}</p>
+        </div>
+    `;
+}
 
 backToTopBtn.innerHTML = svgArrowUp;
 

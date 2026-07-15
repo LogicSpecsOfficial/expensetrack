@@ -358,7 +358,6 @@ async function triggerAddressSearch(forcedQuery = null) {
         if (lat && lng) {
             userCoordinates = { lat, lng };
 
-            // 同步修正：位置變更時清除快取，以利跨分頁重新請求新數據
             cachedAllParks = [];
             cachedAllMeters = [];
             cachedAllToilets = [];
@@ -418,7 +417,6 @@ locateBtn.addEventListener('click', () => {
         async (position) => {
             userCoordinates = { lat: position.coords.latitude, lng: position.coords.longitude };
 
-            // 同步修正：定位變更時清除快取
             cachedAllParks = [];
             cachedAllMeters = [];
             cachedAllToilets = [];
@@ -430,7 +428,6 @@ locateBtn.addEventListener('click', () => {
             console.warn("GPS tracking failed, falling back to Kowloon center coordinates.", error);
             userCoordinates = { lat: 22.3193, lng: 114.1694 };
 
-            // 同步修正：定位變更時清除快取
             cachedAllParks = [];
             cachedAllMeters = [];
             cachedAllToilets = [];
@@ -630,68 +627,6 @@ function displayResults(items, isMeter = false) {
     resultsDiv.innerHTML = items.map(item => isMeter ? generateMeterCardHTML(item) : generateCardHTML(item)).join('');
 }
 
-function renderFavorites() {
-    if (favorites.length === 0) {
-        favoritesList.innerHTML = `<div class="empty-notice">${t.noFavs}</div>`;
-        return;
-    }
-    let html = '';
-    if (currentTab === 'offstreet') {
-        const favOffstreet = cachedAllParks.filter(park => favorites.includes(park.park_Id));
-        favOffstreet.forEach(p => html += generateCardHTML(p));
-    } else if (currentTab === 'metered') {
-        const groupedMeters = groupMeteredParking(cachedAllMeters);
-        const favMeters = groupedMeters.filter(meterGroup => favorites.includes(meterGroup.park_Id));
-        favMeters.forEach(m => html += generateMeterCardHTML(m));
-    } else if (currentTab === 'toilet') {
-        const favToilets = cachedAllToilets.filter(toilet => favorites.includes(toilet.park_Id));
-        favToilets.forEach(toilet => html += generateToiletCardHTML(toilet));
-    }
-    favoritesList.innerHTML = html ? html : `<div class="empty-notice">${t.noFavs}</div>`;
-}
-
-// 依照右上方功能鍵順序，直接以 Flexbox 與嵌入真實 SVG 元件取代括號文字說明
-function renderWelcomeMessage() {
-    resultsDiv.innerHTML = `
-        <div class="welcome-box" style="text-align: center; padding: 15px 10px;">
-            <h3 style="margin-bottom: 8px;">歡迎使用香港車位及公廁搜尋</h3>
-            <p style="opacity: 0.8; font-size: 14px; margin-bottom: 20px;">功能圖標說明如下：</p>
-            <div style="max-width: 420px; margin: 0 auto; text-align: left; font-size: 14px;">
-                <div style="display: flex; align-items: center; margin-bottom: 14px;">
-                    <div style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: rgba(128,128,128,0.12); border-radius: 6px; margin-right: 14px; flex-shrink: 0; color: inherit;">
-                        <div style="width: 18px; height: 18px; display: flex; align-items: center; justify-content: center;">${moonIcon}</div>
-                    </div>
-                    <div><strong>主題按鈕：</strong>切換深色或淺色視覺模式</div>
-                </div>
-                <div style="display: flex; align-items: center; margin-bottom: 14px;">
-                    <div style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: rgba(128,128,128,0.12); border-radius: 6px; margin-right: 14px; flex-shrink: 0; color: inherit;">
-                        <div style="width: 18px; height: 18px; display: flex; align-items: center; justify-content: center;">${svgStarOutline}</div>
-                    </div>
-                    <div><strong>收藏按鈕：</strong>切換顯示或隱藏已收藏的清單</div>
-                </div>
-                <div style="display: flex; align-items: center; margin-bottom: 14px;">
-                    <div style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: rgba(128,128,128,0.12); border-radius: 6px; margin-right: 14px; flex-shrink: 0; color: inherit;">
-                        <div style="width: 18px; height: 18px; display: flex; align-items: center; justify-content: center;">${svgSearch}</div>
-                    </div>
-                    <div><strong>搜尋按鈕：</strong>展開或關閉地址搜尋欄</div>
-                </div>
-                <div style="display: flex; align-items: center; margin-bottom: 14px;">
-                    <div style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: rgba(128,128,128,0.12); border-radius: 6px; margin-right: 14px; flex-shrink: 0; color: inherit;">
-                        <div style="width: 18px; height: 18px; display: flex; align-items: center; justify-content: center;">${svgRefresh}</div>
-                    </div>
-                    <div><strong>更新按鈕：</strong>刷新並獲取最新的即時數據</div>
-                </div>
-                <div style="display: flex; align-items: center; margin-bottom: 14px;">
-                    <div style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: rgba(128,128,128,0.12); border-radius: 6px; margin-right: 14px; flex-shrink: 0; color: inherit;">
-                        <div style="width: 18px; height: 18px; display: flex; align-items: center; justify-content: center;">${svgGps}</div>
-                    </div>
-                    <div><strong>定位按鈕：</strong>尋找當前位置附近的車位與公廁</div>
-                </div>
-            </div>
-        </div>
-    `;
-}
-
 // === 下方為新增的公廁 API 抓取、解析、測量與渲染邏輯 ===
 
 function calcDistance(lat1, lon1, lat2, lon2) {
@@ -819,6 +754,75 @@ function displayToiletResults(items) {
 }
 
 // === 上方為新增的公廁邏輯 ===
+
+function renderFavorites() {
+    if (favorites.length === 0) {
+        favoritesList.innerHTML = `<div class="empty-notice">${t.noFavs}</div>`;
+        return;
+    }
+    let html = '';
+    if (currentTab === 'offstreet') {
+        const favOffstreet = cachedAllParks.filter(park => favorites.includes(park.park_Id));
+        favOffstreet.forEach(p => html += generateCardHTML(p));
+    } else if (currentTab === 'metered') {
+        const groupedMeters = groupMeteredParking(cachedAllMeters);
+        const favMeters = groupedMeters.filter(meterGroup => favorites.includes(meterGroup.park_Id));
+        favMeters.forEach(m => html += generateMeterCardHTML(m));
+    } else if (currentTab === 'toilet') {
+        const favToilets = cachedAllToilets.filter(toilet => favorites.includes(toilet.park_Id));
+        favToilets.forEach(toilet => html += generateToiletCardHTML(toilet));
+    }
+    favoritesList.innerHTML = html ? html : `<div class="empty-notice">${t.noFavs}</div>`;
+}
+
+// 修正內嵌樣式以防止 iOS 瀏覽器中的 SVG 自動壓縮坍塌
+function renderWelcomeMessage() {
+    resultsDiv.innerHTML = `
+        <div class="welcome-box" style="text-align: center; padding: 15px 10px;">
+            <style>
+                .welcome-box-item svg {
+                    width: 20px !important;
+                    height: 20px !important;
+                    display: block !important;
+                }
+            </style>
+            <h3 style="margin-bottom: 8px;">歡迎使用香港車位及公廁搜尋</h3>
+            <p style="opacity: 0.8; font-size: 14px; margin-bottom: 20px;">功能圖標說明如下：</p>
+            <div style="max-width: 420px; margin: 0 auto; text-align: left; font-size: 14px;">
+                <div class="welcome-box-item" style="display: flex; align-items: center; margin-bottom: 14px;">
+                    <div style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: rgba(128,128,128,0.12); border-radius: 6px; margin-right: 14px; flex-shrink: 0; color: inherit;">
+                        ${sunIcon}
+                    </div>
+                    <div><strong>主題按鈕：</strong>切換深色或淺色視覺模式</div>
+                </div>
+                <div class="welcome-box-item" style="display: flex; align-items: center; margin-bottom: 14px;">
+                    <div style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: rgba(128,128,128,0.12); border-radius: 6px; margin-right: 14px; flex-shrink: 0; color: inherit;">
+                        ${svgStarOutline}
+                    </div>
+                    <div><strong>收藏按鈕：</strong>切換顯示或隱藏已收藏的清單</div>
+                </div>
+                <div class="welcome-box-item" style="display: flex; align-items: center; margin-bottom: 14px;">
+                    <div style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: rgba(128,128,128,0.12); border-radius: 6px; margin-right: 14px; flex-shrink: 0; color: inherit;">
+                        ${svgSearch}
+                    </div>
+                    <div><strong>搜尋按鈕：</strong>展開或關閉地址搜尋欄</div>
+                </div>
+                <div class="welcome-box-item" style="display: flex; align-items: center; margin-bottom: 14px;">
+                    <div style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: rgba(128,128,128,0.12); border-radius: 6px; margin-right: 14px; flex-shrink: 0; color: inherit;">
+                        ${svgRefresh}
+                    </div>
+                    <div><strong>更新按鈕：</strong>刷新並獲取最新的即時數據</div>
+                </div>
+                <div class="welcome-box-item" style="display: flex; align-items: center; margin-bottom: 14px;">
+                    <div style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: rgba(128,128,128,0.12); border-radius: 6px; margin-right: 14px; flex-shrink: 0; color: inherit;">
+                        ${svgGps}
+                    </div>
+                    <div><strong>定位按鈕：</strong>尋找當前位置附近的車位與公廁</div>
+                </div>
+            </div>
+        </div>
+    `;
+}
 
 backToTopBtn.innerHTML = svgArrowUp;
 

@@ -53,10 +53,10 @@ function initTheme() {
     const savedTheme = localStorage.getItem('hk_carpark_theme') || 'light';
     if (savedTheme === 'dark') {
         document.body.classList.add('dark-theme');
-        themeToggleBtn.innerHTML = sunIcon;
+        if (themeToggleBtn) themeToggleBtn.innerHTML = sunIcon;
     } else {
         document.body.classList.remove('dark-theme');
-        themeToggleBtn.innerHTML = moonIcon;
+        if (themeToggleBtn) themeToggleBtn.innerHTML = moonIcon;
     }
 }
 
@@ -64,47 +64,57 @@ function toggleTheme() {
     const isDark = document.body.classList.toggle('dark-theme');
     if (isDark) {
         localStorage.setItem('hk_carpark_theme', 'dark');
-        themeToggleBtn.innerHTML = sunIcon;
+        if (themeToggleBtn) themeToggleBtn.innerHTML = sunIcon;
     } else {
         localStorage.setItem('hk_carpark_theme', 'light');
-        themeToggleBtn.innerHTML = moonIcon;
+        if (themeToggleBtn) themeToggleBtn.innerHTML = moonIcon;
     }
 }
 
 function updateUIStaticText() {
-    uiTitle.textContent = t.title;
+    if (uiTitle) uiTitle.textContent = t.title;
     
-    locateBtn.innerHTML = svgGps;
-    locateBtn.title = t.btnText || "GPS 定位";
-    locateBtn.setAttribute('aria-label', t.btnText || "GPS 定位");
+    if (locateBtn) {
+        locateBtn.innerHTML = svgGps;
+        locateBtn.title = t.btnText || "GPS 定位";
+        locateBtn.setAttribute('aria-label', t.btnText || "GPS 定位");
+    }
     
-    refreshBtn.innerHTML = svgRefresh;
-    refreshBtn.title = t.refreshBtnText || "更新數據";
-    refreshBtn.setAttribute('aria-label', t.refreshBtnText || "更新數據");
+    if (refreshBtn) {
+        refreshBtn.innerHTML = svgRefresh;
+        refreshBtn.title = t.refreshBtnText || "更新數據";
+        refreshBtn.setAttribute('aria-label', t.refreshBtnText || "更新數據");
+    }
     
-    showFavBtn.innerHTML = favWrapper.style.display === 'none' ? svgStarOutline : svgStarFilled;
-    showFavBtn.title = favWrapper.style.display === 'none' ? (t.btnFavShow || "顯示收藏") : (t.btnFavHide || "隱藏收藏");
-    showFavBtn.setAttribute('aria-label', favWrapper.style.display === 'none' ? (t.btnFavShow || "顯示收藏") : (t.btnFavHide || "隱藏收藏"));
+    if (showFavBtn) {
+        const isFavHidden = !favWrapper || favWrapper.style.display === 'none';
+        showFavBtn.innerHTML = isFavHidden ? svgStarOutline : svgStarFilled;
+        showFavBtn.title = isFavHidden ? (t.btnFavShow || "顯示收藏") : (t.btnFavHide || "隱藏收藏");
+        showFavBtn.setAttribute('aria-label', isFavHidden ? (t.btnFavShow || "顯示收藏") : (t.btnFavHide || "隱藏收藏"));
+    }
     
-    const isOpen = searchWrapper.classList.contains('open');
-    searchToggleBtn.innerHTML = isOpen ? svgClose : svgSearch;
-    searchToggleBtn.title = isOpen ? "關閉搜尋" : "展開搜尋";
-    searchToggleBtn.setAttribute('aria-label', isOpen ? "關閉搜尋" : "展開搜尋");
+    if (searchToggleBtn && searchWrapper) {
+        const isOpen = searchWrapper.classList.contains('open');
+        searchToggleBtn.innerHTML = isOpen ? svgClose : svgSearch;
+        searchToggleBtn.title = isOpen ? "關閉搜尋" : "展開搜尋";
+        searchToggleBtn.setAttribute('aria-label', isOpen ? "關閉搜尋" : "展開搜尋");
+    }
 
-    uiFavTitle.textContent = t.favTitle;
-    uiSearchTitle.textContent = t.searchTitle;
+    if (uiFavTitle) uiFavTitle.textContent = t.favTitle;
+    if (uiSearchTitle) uiSearchTitle.textContent = t.searchTitle;
     
-    tabOffStreet.textContent = t.tabOffStreet;
-    tabMetered.textContent = t.tabMetered;
+    if (tabOffStreet) tabOffStreet.textContent = t.tabOffStreet;
+    if (tabMetered) tabMetered.textContent = t.tabMetered;
     
-    searchInput.placeholder = t.searchPlaceholder;
-    searchBtn.textContent = t.searchBtnText;
-    clearHistoryBtn.textContent = t.clearBtnText;
+    if (searchInput) searchInput.placeholder = t.searchPlaceholder;
+    if (searchBtn) searchBtn.textContent = t.searchBtnText;
+    if (clearHistoryBtn) clearHistoryBtn.textContent = t.clearBtnText;
     
     renderFilterPills();
 }
 
 function renderFilterPills() {
+    if (!filterContainer) return;
     if (!userCoordinates) {
         filterContainer.style.display = 'none';
         return;
@@ -145,11 +155,11 @@ function renderFilterPills() {
 async function switchTab(tabName) {
     currentTab = tabName;
     if (currentTab === 'offstreet') {
-        tabOffStreet.classList.add('active');
-        tabMetered.classList.remove('active');
+        if (tabOffStreet) tabOffStreet.classList.add('active');
+        if (tabMetered) tabMetered.classList.remove('active');
     } else {
-        tabMetered.classList.add('active');
-        tabOffStreet.classList.remove('active');
+        if (tabMetered) tabMetered.classList.add('active');
+        if (tabOffStreet) tabOffStreet.classList.remove('active');
     }
     renderFilterPills();
     renderFavorites();
@@ -294,6 +304,7 @@ function renderSearchHistory() {
     const historyWrapper = document.getElementById('history-wrapper');
     const historyChips = document.getElementById('historyChips');
     
+    if (!historyWrapper || !historyChips) return;
     if (searchHistory.length === 0) {
         historyWrapper.style.display = 'none';
         return;
@@ -328,14 +339,14 @@ async function triggerAddressSearch(forcedQuery = null) {
     }
 
     if (typeof forcedQuery === 'string') {
-        searchInput.value = inputVal;
+        if (searchInput) searchInput.value = inputVal;
     }
 
-    statusText.textContent = t.addressSearching;
-    resultsDiv.innerHTML = "";
-    locateBtn.disabled = true;
-    searchBtn.disabled = true;
-    refreshBtn.disabled = true;
+    if (statusText) statusText.textContent = t.addressSearching;
+    if (resultsDiv) resultsDiv.innerHTML = "";
+    if (locateBtn) locateBtn.disabled = true;
+    if (searchBtn) searchBtn.disabled = true;
+    if (refreshBtn) refreshBtn.disabled = true;
 
     try {
         const searchUrl = `https://www.als.gov.hk/lookup?q=${encodeURIComponent(query)}`;
@@ -367,117 +378,139 @@ async function triggerAddressSearch(forcedQuery = null) {
             saveSearch(inputVal); 
             renderFilterPills();
             
-            searchWrapper.classList.remove('open');
-            searchToggleBtn.innerHTML = svgSearch;
+            if (searchWrapper) searchWrapper.classList.remove('open');
+            if (searchToggleBtn) searchToggleBtn.innerHTML = svgSearch;
             
             await refreshActiveTabData(false);
             if (document.activeElement) document.activeElement.blur(); 
         } else {
-            statusText.textContent = t.addressError;
+            if (statusText) statusText.textContent = t.addressError;
         }
     } catch (err) {
-        statusText.textContent = t.addressError;
+        if (statusText) statusText.textContent = t.addressError;
         console.error("Address lookup error:", err);
     } finally {
-        locateBtn.disabled = false;
-        searchBtn.disabled = false;
-        refreshBtn.disabled = false;
+        if (locateBtn) locateBtn.disabled = false;
+        if (searchBtn) searchBtn.disabled = false;
+        if (refreshBtn) refreshBtn.disabled = false;
     }
 }
 
-searchToggleBtn.addEventListener('click', () => {
-    searchWrapper.classList.toggle('open');
-    const isOpen = searchWrapper.classList.contains('open');
-    searchToggleBtn.innerHTML = isOpen ? svgClose : svgSearch;
-    if (isOpen) {
-        searchInput.focus();
-    }
-});
-
-searchBtn.addEventListener('click', () => triggerAddressSearch());
-searchInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-        triggerAddressSearch();
-    }
-});
-
-clearHistoryBtn.addEventListener('click', () => {
-    searchHistory = [];
-    localStorage.removeItem('hk_carpark_history');
-    renderSearchHistory();
-});
-
-locateBtn.addEventListener('click', () => {
-    if (!navigator.geolocation) {
-        statusText.textContent = t.noSupport;
-        return;
-    }
-    locateBtn.disabled = true;
-    refreshBtn.disabled = true;
-    statusText.textContent = t.gpsLocating;
-    resultsDiv.innerHTML = "";
-
-    navigator.geolocation.getCurrentPosition(
-        async (position) => {
-            userCoordinates = { lat: position.coords.latitude, lng: position.coords.longitude };
-            renderFilterPills();
-            await refreshActiveTabData(false);
-        },
-        async (error) => {
-            console.warn("GPS tracking failed, falling back to Kowloon center coordinates.", error);
-            userCoordinates = { lat: 22.3193, lng: 114.1694 };
-            renderFilterPills();
-            statusText.textContent = "定位未開啟，已顯示九龍中心數據";
-            await refreshActiveTabData(false);
-        },
-        { enableHighAccuracy: true }
-    );
-});
-
-refreshBtn.addEventListener('click', async () => {
-    if (!userCoordinates) {
-        locateBtn.click();
-    } else {
-        await refreshActiveTabData(false);
-    }
-});
-
-showFavBtn.addEventListener('click', () => {
-    if (favWrapper.style.display === 'none') {
-        favWrapper.style.display = 'block';
-        if (cachedAllParks.length === 0) {
-            silentFetchData();
-        } else {
-            renderFavorites();
+if (searchToggleBtn) {
+    searchToggleBtn.addEventListener('click', () => {
+        if (searchWrapper) {
+            searchWrapper.classList.toggle('open');
+            const isOpen = searchWrapper.classList.contains('open');
+            searchToggleBtn.innerHTML = isOpen ? svgClose : svgSearch;
+            if (isOpen && searchInput) {
+                searchInput.focus();
+            }
         }
-    } else {
-        favWrapper.style.display = 'none';
-    }
-    updateUIStaticText();
-});
+    });
+}
+
+if (searchBtn) {
+    searchBtn.addEventListener('click', () => triggerAddressSearch());
+}
+
+if (searchInput) {
+    searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            triggerAddressSearch();
+        }
+    });
+}
+
+if (clearHistoryBtn) {
+    clearHistoryBtn.addEventListener('click', () => {
+        searchHistory = [];
+        localStorage.removeItem('hk_carpark_history');
+        renderSearchHistory();
+    });
+}
+
+if (locateBtn) {
+    locateBtn.addEventListener('click', () => {
+        if (!navigator.geolocation) {
+            if (statusText) statusText.textContent = t.noSupport;
+            return;
+        }
+        locateBtn.disabled = true;
+        if (refreshBtn) refreshBtn.disabled = true;
+        if (statusText) statusText.textContent = t.gpsLocating;
+        if (resultsDiv) resultsDiv.innerHTML = "";
+
+        navigator.geolocation.getCurrentPosition(
+            async (position) => {
+                userCoordinates = { lat: position.coords.latitude, lng: position.coords.longitude };
+                renderFilterPills();
+                await refreshActiveTabData(false);
+            },
+            async (error) => {
+                console.warn("GPS tracking failed, falling back to Kowloon center coordinates.", error);
+                userCoordinates = { lat: 22.3193, lng: 114.1694 };
+                renderFilterPills();
+                if (statusText) statusText.textContent = "定位未開啟，已顯示九龍中心數據";
+                await refreshActiveTabData(false);
+            },
+            { enableHighAccuracy: true }
+        );
+    });
+}
+
+if (refreshBtn) {
+    refreshBtn.addEventListener('click', async () => {
+        if (!userCoordinates) {
+            if (locateBtn) locateBtn.click();
+        } else {
+            await refreshActiveTabData(false);
+        }
+    });
+}
+
+if (showFavBtn) {
+    showFavBtn.addEventListener('click', () => {
+        if (favWrapper) {
+            if (favWrapper.style.display === 'none') {
+                favWrapper.style.display = 'block';
+                if (cachedAllParks.length === 0) {
+                    if (typeof silentFetchData === 'function') {
+                        silentFetchData();
+                    }
+                } else {
+                    renderFavorites();
+                }
+            } else {
+                favWrapper.style.display = 'none';
+            }
+        }
+        updateUIStaticText();
+    });
+}
 
 async function refreshActiveTabData(isBackgroundRefresh = false) {
     if (!userCoordinates) return;
     if (!isBackgroundRefresh) {
-        statusText.textContent = t.apiFetching;
-        locateBtn.disabled = true;
-        refreshBtn.disabled = true;
+        if (statusText) statusText.textContent = t.apiFetching;
+        if (locateBtn) locateBtn.disabled = true;
+        if (refreshBtn) refreshBtn.disabled = true;
     }
     try {
         if (currentTab === 'offstreet') {
             await fetchCarParks(userCoordinates.lat, userCoordinates.lng);
         } else {
-            await refreshActiveTabData(true);
+            // 修正錯誤：路邊咪錶分頁此處應正確呼叫咪錶 API 函數，而非自我無限呼叫
+            await fetchMeteredParking(userCoordinates.lat, userCoordinates.lng);
         }
     } catch (err) {
-        if (!isBackgroundRefresh) {
+        if (!isBackgroundRefresh && statusText) {
             statusText.textContent = `${t.apiError}${err.message}`;
         }
         console.error("Data processing error log:", err);
     } finally {
         if (!isBackgroundRefresh) {
-            locateBtn.disabled = false;
-            refreshBtn.disabled = false;
+            if (locateBtn) locateBtn.disabled = false;
+            if (refreshBtn) refreshBtn.disabled = false;
         }
     }
 }
@@ -616,9 +649,10 @@ function generateMeterCardHTML(meterGroup) {
 }
 
 function displayResults(items, isMeter = false) {
-    statusText.textContent = ""; 
-    uiSearchTitle.textContent = `${t.searchTitle} (${items.length})`; 
+    if (statusText) statusText.textContent = ""; 
+    if (uiSearchTitle) uiSearchTitle.textContent = `${t.searchTitle} (${items.length})`; 
     
+    if (!resultsDiv) return;
     if (items.length === 0) {
         resultsDiv.innerHTML = `<div class="empty-notice">${t.noRecords}</div>`;
         return;
@@ -627,6 +661,7 @@ function displayResults(items, isMeter = false) {
 }
 
 function renderFavorites() {
+    if (!favoritesList) return;
     if (favorites.length === 0) {
         favoritesList.innerHTML = `<div class="empty-notice">${t.noFavs}</div>`;
         return;
@@ -646,37 +681,45 @@ function renderFavorites() {
 }
 
 function renderWelcomeMessage() {
-    resultsDiv.innerHTML = `
-        <div class="welcome-box">
-            <h3>${t.welcomeTitle}</h3>
-            <p>${t.welcomeDesc}</p>
-        </div>
-    `;
+    if (resultsDiv) {
+        resultsDiv.innerHTML = `
+            <div class="welcome-box">
+                <h3>${t.welcomeTitle}</h3>
+                <p>${t.welcomeDesc}</p>
+            </div>
+        `;
+    }
 }
 
-backToTopBtn.innerHTML = svgArrowUp;
+// 防錯保護：確保按鈕與容器存在才執行相關處理
+if (backToTopBtn) {
+    backToTopBtn.innerHTML = svgArrowUp;
+    backToTopBtn.addEventListener('click', () => {
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
+    });
+}
 
 window.addEventListener('scroll', () => {
     const scrollTop = window.scrollY || window.pageYOffset || document.documentElement.scrollTop;
 
-    if (scrollTop > 20) {
-        stickyHeader.classList.add('scrolled');
-    } else {
-        stickyHeader.classList.remove('scrolled');
+    if (stickyHeader) {
+        if (scrollTop > 20) {
+            stickyHeader.classList.add('scrolled');
+        } else {
+            stickyHeader.classList.remove('scrolled');
+        }
     }
 
-    if (scrollTop > 300) {
-        backToTopBtn.classList.add('visible');
-    } else {
-        backToTopBtn.classList.remove('visible');
+    if (backToTopBtn) {
+        if (scrollTop > 300) {
+            backToTopBtn.classList.add('visible');
+        } else {
+            backToTopBtn.classList.remove('visible');
+        }
     }
-});
-
-backToTopBtn.addEventListener('click', () => {
-    window.scrollTo({
-        top: 0,
-        behavior: 'smooth'
-    });
 });
 
 initTheme();

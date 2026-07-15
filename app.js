@@ -7,6 +7,7 @@ let favorites = JSON.parse(localStorage.getItem('hk_carpark_favs')) || [];
 let searchHistory = JSON.parse(localStorage.getItem('hk_carpark_history')) || [];
 let activeMeterFilter = 'all';
 let activeDistanceFilter = '1';
+let isFetching = false; // 防止並行重複請求的狀態鎖
 
 let offstreetFilters = {
     hideFull: false,
@@ -47,6 +48,33 @@ const svgRefresh = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" 
 const svgSearch = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`;
 const svgClose = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
 const svgArrowUp = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>`;
+
+const sunIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
+const moonIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
+
+// XSS 防護：安全字符轉義函式
+function escapeHTML(str) {
+    if (str === null || str === undefined) return '';
+    return String(str).replace(/[&<>"'`=\/]/g, s => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;',
+        "'": '&#39;', '/': '&#x2F;', '`': '&#x60;', '=': '&#x3D;'
+    })[s]);
+}
+
+// 健全連線：超時中斷連線工具
+async function fetchWithTimeout(url, options = {}, timeout = 8000) {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    try {
+        const res = await fetch(url, { ...options, signal: controller.signal });
+        clearTimeout(id);
+        if (!res.ok) throw new Error(`Status ${res.status}`);
+        return res;
+    } catch (e) {
+        clearTimeout(id);
+        throw e;
+    }
+}
 
 function initTheme() {
     const savedTheme = localStorage.getItem('hk_carpark_theme') || 'light';
@@ -106,32 +134,43 @@ function renderFilterPills() {
     filterContainer.style.display = 'flex';
     let distHTML = `
         <div class="filter-row">
-            <button class="pill-btn color-blue ${activeDistanceFilter === '0.5' ? 'active' : ''}" onclick="setDistanceFilter('0.5')">${t.dist500m}</button>
-            <button class="pill-btn color-blue ${activeDistanceFilter === '1' ? 'active' : ''}" onclick="setDistanceFilter('1')">${t.dist1km}</button>
-            <button class="pill-btn color-blue ${activeDistanceFilter === '2' ? 'active' : ''}" onclick="setDistanceFilter('2')">${t.dist2km}</button>
-            <button class="pill-btn color-blue ${activeDistanceFilter === 'all' ? 'active' : ''}" onclick="setDistanceFilter('all')">${t.distAll}</button>
+            <button class="pill-btn color-blue ${activeDistanceFilter === '0.5' ? 'active' : ''}" data-action="distance" data-value="0.5">${escapeHTML(t.dist500m)}</button>
+            <button class="pill-btn color-blue ${activeDistanceFilter === '1' ? 'active' : ''}" data-action="distance" data-value="1">${escapeHTML(t.dist1km)}</button>
+            <button class="pill-btn color-blue ${activeDistanceFilter === '2' ? 'active' : ''}" data-action="distance" data-value="2">${escapeHTML(t.dist2km)}</button>
+            <button class="pill-btn color-blue ${activeDistanceFilter === 'all' ? 'active' : ''}" data-action="distance" data-value="all">${escapeHTML(t.distAll)}</button>
         </div>
     `;
     let statusHTML = '';
     if (currentTab === 'offstreet') {
         statusHTML = `
             <div class="filter-row">
-                <button class="pill-btn color-red ${offstreetFilters.hideFull ? 'active' : ''}" onclick="toggleOffstreetFilter('hideFull')">${t.optHideFull}</button>
-                <button class="pill-btn color-green ${offstreetFilters.evOnly ? 'active' : ''}" onclick="toggleOffstreetFilter('evOnly')">${t.optEVOnly}</button>
-                <button class="pill-btn color-blue ${offstreetFilters.sortByVacancy ? 'active' : ''}" onclick="toggleOffstreetFilter('sortByVacancy')">${t.optSortVacancy}</button>
+                <button class="pill-btn color-red ${offstreetFilters.hideFull ? 'active' : ''}" data-action="offstreetFilter" data-value="hideFull">${escapeHTML(t.optHideFull)}</button>
+                <button class="pill-btn color-green ${offstreetFilters.evOnly ? 'active' : ''}" data-action="offstreetFilter" data-value="evOnly">${escapeHTML(t.optEVOnly)}</button>
+                <button class="pill-btn color-blue ${offstreetFilters.sortByVacancy ? 'active' : ''}" data-action="offstreetFilter" data-value="sortByVacancy">${escapeHTML(t.optSortVacancy)}</button>
             </div>
         `;
     } else if (currentTab === 'metered') {
         statusHTML = `
             <div class="filter-row">
-                <button class="pill-btn color-blue ${activeMeterFilter === 'all' ? 'active' : ''}" onclick="setMeterFilter('all')">${t.optAll}</button>
-                <button class="pill-btn color-green ${activeMeterFilter === 'vacant' ? 'active' : ''}" onclick="setMeterFilter('vacant')">${t.optVacant}</button>
-                <button class="pill-btn color-red ${activeMeterFilter === 'occupied' ? 'active' : ''}" onclick="setMeterFilter('occupied')">${t.optOccupied}</button>
+                <button class="pill-btn color-blue ${activeMeterFilter === 'all' ? 'active' : ''}" data-action="meterFilter" data-value="all">${escapeHTML(t.optAll)}</button>
+                <button class="pill-btn color-green ${activeMeterFilter === 'vacant' ? 'active' : ''}" data-action="meterFilter" data-value="vacant">${escapeHTML(t.optVacant)}</button>
+                <button class="pill-btn color-red ${activeMeterFilter === 'occupied' ? 'active' : ''}" data-action="meterFilter" data-value="occupied">${escapeHTML(t.optOccupied)}</button>
             </div>
         `;
     }
     filterContainer.innerHTML = distHTML + statusHTML;
 }
+
+// 事件委託：統一監聽過濾按鈕容器
+filterContainer.addEventListener('click', (e) => {
+    const btn = e.target.closest('.pill-btn');
+    if (!btn) return;
+    const action = btn.dataset.action;
+    const value = btn.dataset.value;
+    if (action === 'distance') setDistanceFilter(value);
+    if (action === 'offstreetFilter') toggleOffstreetFilter(value);
+    if (action === 'meterFilter') setMeterFilter(value);
+});
 
 async function switchTab(tabName) {
     currentTab = tabName;
@@ -297,10 +336,17 @@ function renderSearchHistory() {
     }
     historyWrapper.style.display = 'flex';
     historyChips.innerHTML = searchHistory.map(item => {
-        const escapedItem = item.replace(/'/g, "\\'");
-        return `<button class="history-chip" onclick="triggerAddressSearch('${escapedItem}')">${item}</button>`;
+        return `<button class="history-chip" data-action="searchHistory" data-value="${escapeHTML(item)}">${escapeHTML(item)}</button>`;
     }).join('');
 }
+
+// 事件委託：搜尋歷史氣泡按鈕監聽
+document.getElementById('historyChips').addEventListener('click', (e) => {
+    const btn = e.target.closest('.history-chip');
+    if (btn && btn.dataset.action === 'searchHistory') {
+        triggerAddressSearch(btn.dataset.value);
+    }
+});
 
 function saveSearch(query) {
     searchHistory = searchHistory.filter(item => item.toLowerCase() !== query.toLowerCase());
@@ -357,6 +403,12 @@ async function triggerAddressSearch(forcedQuery = null) {
 
         if (lat && lng) {
             userCoordinates = { lat, lng };
+            
+            // 位置連動：搜尋成功時清除舊快取，切換分頁時自適應新座標
+            cachedAllParks = [];
+            cachedAllMeters = [];
+            cachedAllToilets = [];
+
             saveSearch(inputVal);
             renderFilterPills();
             searchWrapper.classList.remove('open');
@@ -411,12 +463,23 @@ locateBtn.addEventListener('click', () => {
     navigator.geolocation.getCurrentPosition(
         async (position) => {
             userCoordinates = { lat: position.coords.latitude, lng: position.coords.longitude };
+            
+            // 位置連動：GPS 定位成功時清空快取
+            cachedAllParks = [];
+            cachedAllMeters = [];
+            cachedAllToilets = [];
+
             renderFilterPills();
             await refreshActiveTabData(false);
         },
         async (error) => {
             console.warn("GPS tracking failed, falling back to Kowloon center coordinates.", error);
             userCoordinates = { lat: 22.3193, lng: 114.1694 };
+            
+            cachedAllParks = [];
+            cachedAllMeters = [];
+            cachedAllToilets = [];
+
             renderFilterPills();
             statusText.textContent = "定位未開啟，已顯示九龍中心數據";
             await refreshActiveTabData(false);
@@ -448,12 +511,13 @@ showFavBtn.addEventListener('click', () => {
 });
 
 async function refreshActiveTabData(isBackgroundRefresh = false) {
-    if (!userCoordinates) return;
+    if (!userCoordinates || isFetching) return; // 狀態鎖啟動：若連線中則阻斷新請求
     if (!isBackgroundRefresh) {
         statusText.textContent = t.apiFetching;
         locateBtn.disabled = true;
         refreshBtn.disabled = true;
     }
+    isFetching = true;
     try {
         if (currentTab === 'offstreet') {
             await fetchCarParks(userCoordinates.lat, userCoordinates.lng);
@@ -468,6 +532,7 @@ async function refreshActiveTabData(isBackgroundRefresh = false) {
         }
         console.error("Data processing error log:", err);
     } finally {
+        isFetching = false;
         if (!isBackgroundRefresh) {
             locateBtn.disabled = false;
             refreshBtn.disabled = false;
@@ -486,6 +551,20 @@ function toggleFavorite(id) {
     renderActiveTabDisplay();
 }
 
+// 事件委託：統一管理列表與收藏夾內的「收藏變更」動作點擊
+function bindFavDelegation(element) {
+    if (element) {
+        element.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-action="toggleFav"]');
+            if (btn) {
+                toggleFavorite(btn.dataset.id);
+            }
+        });
+    }
+}
+bindFavDelegation(resultsDiv);
+bindFavDelegation(favoritesList);
+
 function generateCardHTML(park) {
     const isFav = favorites.includes(park.park_Id);
     let displayAddress = park.displayAddress || (park.address && park.address.displayAddress) || '';
@@ -499,7 +578,7 @@ function generateCardHTML(park) {
     let vacancyHTML = `
         <div class="vacancy-badge unknown">
             <span class="vacancy-num">--</span>
-            <span class="vacancy-label">${t.noVacancyData}</span>
+            <span class="vacancy-label">${escapeHTML(t.noVacancyData)}</span>
         </div>`;
 
     if (park.liveInfo && park.liveInfo.privateCar && park.liveInfo.privateCar.length > 0) {
@@ -524,24 +603,25 @@ function generateCardHTML(park) {
             vacancyHTML = `
                 <div class="vacancy-badge ${boxStatusClass}">
                     <span class="vacancy-num ${vacancyNumClass}">${count}</span>
-                    <span class="vacancy-label">${t.spaces}</span>
+                    <span class="vacancy-label">${escapeHTML(t.spaces)}</span>
                 </div>`;
         }
     }
 
-    let contactHTML = park.contactNo ? `<a href="tel:${park.contactNo.replace(/\s+/g, '')}" class="phone-link">${park.contactNo}</a>` : '';
-    let distWarningHTML = park.distance > 5 ? `<span class="distance-warning">${t.distWarning}</span>` : '';
-    const distHTML = park.distance !== Infinity ? `<span class="distance">${park.distance.toFixed(2)} ${t.away}</span>${distWarningHTML}` : '';
+    let contactNoClean = park.contactNo ? park.contactNo.replace(/\s+/g, '') : '';
+    let contactHTML = park.contactNo ? `<a href="tel:${escapeHTML(contactNoClean)}" class="phone-link">${escapeHTML(park.contactNo)}</a>` : '';
+    let distWarningHTML = park.distance > 5 ? `<span class="distance-warning">${escapeHTML(t.distWarning)}</span>` : '';
+    const distHTML = park.distance !== Infinity ? `<span class="distance">${park.distance.toFixed(2)} ${escapeHTML(t.away)}</span>${distWarningHTML}` : '';
 
     const hasEV = hasEVCharging(park);
-    const evBadgeHTML = hasEV ? `<span class="status-badge ev-charger">${t.evBadge}</span>` : '';
+    const evBadgeHTML = hasEV ? `<span class="status-badge ev-charger">${escapeHTML(t.evBadge)}</span>` : '';
 
     let infoGridItems = '';
-    if (displayAddress) infoGridItems += `<div class="info-label">${t.address}:</div><div><a href="${mapUrl}" target="_blank" class="map-link">${displayAddress}</a></div>`;
-    if (park.district) infoGridItems += `<div class="info-label">${t.district}:</div><div>${park.district}</div>`;
-    if (park.carpark_Type) infoGridItems += `<div class="info-label">類型:</div><div>${park.carpark_Type}</div>`;
-    if (heightText) infoGridItems += `<div class="info-label">${t.maxHeight}:</div><div>${heightText}</div>`;
-    if (contactHTML) infoGridItems += `<div class="info-label">${t.contact}:</div><div>${contactHTML}</div>`;
+    if (displayAddress) infoGridItems += `<div class="info-label">${escapeHTML(t.address)}:</div><div><a href="${escapeHTML(mapUrl)}" target="_blank" class="map-link">${escapeHTML(displayAddress)}</a></div>`;
+    if (park.district) infoGridItems += `<div class="info-label">${escapeHTML(t.district)}:</div><div>${escapeHTML(park.district)}</div>`;
+    if (park.carpark_Type) infoGridItems += `<div class="info-label">類型:</div><div>${escapeHTML(park.carpark_Type)}</div>`;
+    if (heightText) infoGridItems += `<div class="info-label">${escapeHTML(t.maxHeight)}:</div><div>${escapeHTML(heightText)}</div>`;
+    if (contactHTML) infoGridItems += `<div class="info-label">${escapeHTML(t.contact)}:</div><div>${contactHTML}</div>`;
 
     return `
         <div class="carpark-card ${cardStatusClass}">
@@ -549,13 +629,13 @@ function generateCardHTML(park) {
                 <div class="card-left">
                     <div class="carpark-name">
                         <span class="status-dot ${dotClass}"></span>
-                        ${park.name || '---'}
+                        ${escapeHTML(park.name || '---')}
                     </div>
                     <div class="tags-row">${distHTML} ${evBadgeHTML}</div>
                     ${infoGridItems ? `<div class="info-grid">${infoGridItems}</div>` : ''}
                 </div>
                 <div class="card-right">
-                    <button class="card-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${park.park_Id}')">${isFav ? t.removeFav : t.addFav}</button>
+                    <button class="card-fav-btn ${isFav ? 'active' : ''}" data-action="toggleFav" data-id="${escapeHTML(park.park_Id)}" type="button">${isFav ? escapeHTML(t.removeFav) : escapeHTML(t.addFav)}</button>
                     ${vacancyHTML}
                 </div>
             </div>
@@ -572,8 +652,8 @@ function generateMeterCardHTML(meterGroup) {
     const boxStatusClass = isAnyVacant ? 'available' : 'full';
     const dotClass = isAnyVacant ? 'dot-green' : 'dot-red';
 
-    let distWarningHTML = meterGroup.distance > 5 ? `<span class="distance-warning">${t.distWarning}</span>` : '';
-    const distHTML = meterGroup.distance !== Infinity ? `<span class="distance">${meterGroup.distance.toFixed(2)} ${t.away}</span>${distWarningHTML}` : '';
+    let distWarningHTML = meterGroup.distance > 5 ? `<span class="distance-warning">${escapeHTML(t.distWarning)}</span>` : '';
+    const distHTML = meterGroup.distance !== Infinity ? `<span class="distance">${meterGroup.distance.toFixed(2)} ${escapeHTML(t.away)}</span>${distWarningHTML}` : '';
 
     const vacancyLabel = `${vacantCount}/${totalCount}`;
 
@@ -583,19 +663,19 @@ function generateMeterCardHTML(meterGroup) {
                 <div class="card-left">
                     <div class="carpark-name">
                         <span class="status-dot ${dotClass}"></span>
-                        ${meterGroup.name}
+                        ${escapeHTML(meterGroup.name)}
                     </div>
                     <div class="tags-row">${distHTML}</div>
                     <div class="info-grid">
-                        <div class="info-label">${t.address}:</div><div><a href="${mapUrl}" target="_blank" class="map-link">${meterGroup.address}</a></div>
-                        <div class="info-label">${t.district}:</div><div>${meterGroup.district || '---'}</div>
+                        <div class="info-label">${escapeHTML(t.address)}:</div><div><a href="${escapeHTML(mapUrl)}" target="_blank" class="map-link">${escapeHTML(meterGroup.address)}</a></div>
+                        <div class="info-label">${escapeHTML(t.district)}:</div><div>${escapeHTML(meterGroup.district || '---')}</div>
                     </div>
                 </div>
                 <div class="card-right">
-                    <button class="card-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${meterGroup.park_Id}')">${isFav ? t.removeFav : t.addFav}</button>
+                    <button class="card-fav-btn ${isFav ? 'active' : ''}" data-action="toggleFav" data-id="${escapeHTML(meterGroup.park_Id)}" type="button">${isFav ? escapeHTML(t.removeFav) : escapeHTML(t.addFav)}</button>
                     <div class="vacancy-badge ${boxStatusClass}">
                         <span class="vacancy-num ${!isAnyVacant ? 'none' : ''}">${vacancyLabel}</span>
-                        <span class="vacancy-label">${t.vacantMeters}</span>
+                        <span class="vacancy-label">${escapeHTML(t.vacantMeters)}</span>
                     </div>
                 </div>
             </div>
@@ -643,20 +723,9 @@ function renderWelcomeMessage() {
 
 // === 下方為新增的公廁 API 抓取、解析、測量與渲染邏輯 ===
 
-function calcDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371; 
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-}
-
 async function fetchToilets(lat, lng) {
     const targetUrl = '/api/toilet-xml';
-    const response = await fetch(targetUrl);
+    const response = await fetchWithTimeout(targetUrl);
     if (!response.ok) {
         throw new Error("無法連接公廁伺服器 (狀態碼: " + response.status + ")");
     }
@@ -727,12 +796,11 @@ function generateToiletCardHTML(toilet) {
     const cardStatusClass = 'status-high'; 
     const dotClass = 'dot-green';
     
-    let distWarningHTML = toilet.distance > 5 ? `<span class="distance-warning">${t.distWarning}</span>` : '';
-    const distHTML = toilet.distance !== Infinity ? `<span class="distance">${toilet.distance.toFixed(2)} ${t.away}</span>${distWarningHTML}` : '';
+    let distWarningHTML = toilet.distance > 5 ? `<span class="distance-warning">${escapeHTML(t.distWarning)}</span>` : '';
+    const distHTML = toilet.distance !== Infinity ? `<span class="distance">${toilet.distance.toFixed(2)} ${escapeHTML(t.away)}</span>${distWarningHTML}` : '';
 
-    // 類型防禦：如果類型是 '設施'、空值或未定義，則不會渲染該行
     let typeHTML = (toilet.type && toilet.type !== '設施') ? `
-        <div class="info-label">類型:</div><div>${toilet.type}</div>
+        <div class="info-label">類型:</div><div>${escapeHTML(toilet.type)}</div>
     ` : '';
 
     return `
@@ -741,17 +809,16 @@ function generateToiletCardHTML(toilet) {
                 <div class="card-left">
                     <div class="carpark-name">
                         <span class="status-dot ${dotClass}"></span>
-                        ${toilet.name}
+                        ${escapeHTML(toilet.name)}
                     </div>
                     <div class="tags-row">${distHTML}</div>
                     <div class="info-grid">
-                        <div class="info-label">${t.address || '地址'}:</div><div><a href="${mapUrl}" target="_blank" class="map-link">${toilet.address}</a></div>
+                        <div class="info-label">${escapeHTML(t.address || '地址')}:</div><div><a href="${escapeHTML(mapUrl)}" target="_blank" class="map-link">${escapeHTML(toilet.address)}</a></div>
                         ${typeHTML}
                     </div>
                 </div>
-                <!-- 與停車場一致的 layout，搭配隱藏的高度佔位符，使按鈕無縫對齊最右上角 -->
                 <div class="card-right">
-                    <button class="card-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${toilet.park_Id}')">${isFav ? t.removeFav : t.addFav}</button>
+                    <button class="card-fav-btn ${isFav ? 'active' : ''}" data-action="toggleFav" data-id="${escapeHTML(toilet.park_Id)}" type="button">${isFav ? escapeHTML(t.removeFav) : escapeHTML(t.addFav)}</button>
                     <div style="height: 40px; visibility: hidden;"></div>
                 </div>
             </div>

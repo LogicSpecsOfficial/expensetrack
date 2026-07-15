@@ -8,7 +8,6 @@
 </head>
 <body>
 
-    <!-- 新增置頂包裝器，將頭部、分頁及搜尋框統一置頂 -->
     <div class="sticky-header-wrapper">
         <div class="header-container">
             <h1 id="ui-title">最近的香港停車場</h1>
@@ -21,9 +20,11 @@
             </div>
         </div>
 
+        <!-- 新增第三個公廁分頁按鈕 -->
         <div class="tab-container">
             <button id="tabOffStreet" class="tab-btn active" onclick="switchTab('offstreet')">室內停車場</button>
             <button id="tabMetered" class="tab-btn" onclick="switchTab('metered')">路邊咪錶位</button>
+            <button id="tabToilet" class="tab-btn" onclick="switchTab('toilet')">公廁</button>
         </div>
         
         <div id="searchWrapper" class="search-dropdown">
@@ -51,7 +52,6 @@
     <div class="section-title" id="ui-search-title">搜尋結果</div>
     <div id="results"></div>
 
-    <!-- 新增回到頂部按鈕 -->
     <button id="backToTopBtn" class="back-to-top" aria-label="回到頂部"></button>
 
     <script src="config.js"></script>

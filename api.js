@@ -1,4 +1,5 @@
-// 計算兩個經緯度之間的距離（公里）
+// api.js
+
 function calculateDistance(lat1, lon1, lat2, lon2) {
     const R = 6371; 
     const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -10,190 +11,139 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
     return R * c;
 }
 
-// 解析 CSV 格式數據
 function parseCSV(text) {
     const lines = text.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
     if (lines.length === 0) return [];
-    
     const splitRegex = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/;
-    let headerIndex = -1;
-    let headers = [];
-    
+    let headerIndex = -1, headers = [];
     for (let i = 0; i < lines.length; i++) {
         const cleanLine = lines[i].replace(/^\uFEFF/i, '').trim();
         if (!cleanLine) continue;
         const testHeaders = cleanLine.split(splitRegex).map(h => h.replace(/^["']|["']$/g, '').trim().toLowerCase());
-        
         if (testHeaders.includes('parkingspaceid') || testHeaders.includes('parking_space_id') || testHeaders.includes('occupancystatus')) {
-            headerIndex = i;
-            headers = testHeaders;
-            break;
+            headerIndex = i; headers = testHeaders; break;
         }
     }
-    
     if (headerIndex === -1) {
-        headerIndex = 0;
-        headers = lines[0].split(splitRegex).map(h => h.replace(/^\uFEFF/i).replace(/^["']|["']$/g, '').trim().toLowerCase());
+        headerIndex = 0; headers = lines[0].split(splitRegex).map(h => h.replace(/^\uFEFF/i).replace(/^["']|["']$/g, '').trim().toLowerCase());
     }
-    
     const results = [];
     for (let i = headerIndex + 1; i < lines.length; i++) {
-        const line = lines[i];
-        const currentline = line.split(splitRegex);
+        const currentline = lines[i].split(splitRegex);
         if (currentline.length < headers.length) continue;
-        
         const obj = {};
         for (let j = 0; j < headers.length; j++) {
-            const val = currentline[j] ? currentline[j].replace(/^["']|["']$/g, '').trim() : '';
-            obj[headers[j]] = val;
+            obj[headers[j]] = currentline[j] ? currentline[j].replace(/^["']|["']$/g, '').trim() : '';
         }
         results.push(obj);
     }
     return results;
 }
 
-// 代理伺服器抓取文字數據
 async function fetchTextThroughProxy(rawUrl, useJSONHeader = false) {
     const fetchOptions = useJSONHeader ? { headers: { 'Accept': 'application/json' } } : {};
-
     try {
         const res = await fetch(rawUrl, fetchOptions);
-        if (res.ok) {
-            const text = await res.text();
-            if (text && text.trim().length > 20) return text;
-        }
-    } catch (e) {
-        console.warn("Direct native request failed, applying proxies.");
+        if (res.ok) { const text = await res.text(); if (text && text.trim().length > 20) return text; }
+    } catch (e) { console.warn("Direct native request failed, applying proxies."); }
+    const proxies = [
+        `https://corsproxy.io/?${encodeURIComponent(rawUrl)}`,
+        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(rawUrl)}`
+    ];
+    for (let proxy of proxies) {
+        try {
+            const res = await fetch(proxy, fetchOptions);
+            if (res.ok) { const text = await res.text(); if (text && text.trim().length > 20) return text; }
+        } catch (e) { console.warn("Proxy connection failed, trying next fallback."); }
     }
-
     try {
-        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(rawUrl)}`;
-        const res = await fetch(proxyUrl, fetchOptions);
-        if (res.ok) {
-            const text = await res.text();
-            if (text && text.trim().length > 20) return text;
-        }
-    } catch (e) {
-        console.warn("Proxy A failed, trying fallback.");
-    }
-
-    try {
-        const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(rawUrl)}`;
-        const res = await fetch(proxyUrl, fetchOptions);
-        if (res.ok) {
-            const text = await res.text();
-            if (text && text.trim().length > 20) return text;
-        }
-    } catch (e) {
-        console.warn("Proxy B failed, trying fallback.");
-    }
-
-    try {
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(rawUrl)}`;
-        const res = await fetch(proxyUrl);
-        if (res.ok) {
-            const data = await res.json();
-            if (data && data.contents && data.contents.trim().length > 20) return data.contents;
-        }
-    } catch (e) {
-        console.error("All proxies failed.");
-    }
-
+        const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(rawUrl)}`);
+        if (res.ok) { const data = await res.json(); if (data && data.contents && data.contents.trim().length > 20) return data.contents; }
+    } catch (e) { console.error("All proxies failed."); }
     throw new Error("Unable to fetch data through proxy connections.");
 }
 
-// 獲取室內停車場數據
 async function fetchCarParks(userLat, userLng) {
-    const infoUrl = 'https://api.data.gov.hk/v1/carpark-info-vacancy?data=info&lang=zh_TW';
-    const vacancyUrl = 'https://api.data.gov.hk/v1/carpark-info-vacancy?data=vacancy&lang=zh_TW';
-
-    const [infoRes, vacancyRes] = await Promise.all([fetch(infoUrl), fetch(vacancyUrl)]);
+    const [infoRes, vacancyRes] = await Promise.all([
+        fetch('https://api.data.gov.hk/v1/carpark-info-vacancy?data=info&lang=zh_TW'),
+        fetch('https://api.data.gov.hk/v1/carpark-info-vacancy?data=vacancy&lang=zh_TW')
+    ]);
     if (!infoRes.ok || !vacancyRes.ok) throw new Error("API network failure");
-    
-    const infoData = await infoRes.json();
-    const vacancyData = await vacancyRes.json();
-
+    const infoData = await infoRes.json(), vacancyData = await vacancyRes.json();
     const vacancyMap = new Map();
     (vacancyData.results || []).forEach(v => vacancyMap.set(v.park_Id, v));
-
     cachedAllParks = (infoData.results || []).map(park => {
-        const distance = calculateDistance(userLat, userLng, park.latitude, park.longitude);
-        const liveInfo = vacancyMap.get(park.park_Id);
-        return { ...park, distance, liveInfo };
+        return { ...park, distance: calculateDistance(userLat, userLng, park.latitude, park.longitude), liveInfo: vacancyMap.get(park.park_Id) };
     }).sort((a, b) => a.distance - b.distance);
-
     await renderActiveTabDisplay();
     renderFavorites();
 }
 
-// 獲取路邊咪錶數據
 async function fetchMeteredParking(userLat, userLng) {
-    const rawInfoUrl = 'https://resource.data.one.gov.hk/td/psiparkingspaces/spaceinfo/parkingspaces.csv';
-    const rawVacancyUrl = 'https://resource.data.one.gov.hk/td/psiparkingspaces/occupancystatus/occupancystatus.csv';
-
     const [infoText, vacancyText] = await Promise.all([
-        fetchTextThroughProxy(rawInfoUrl),
-        fetchTextThroughProxy(rawVacancyUrl)
+        fetchTextThroughProxy('https://resource.data.one.gov.hk/td/psiparkingspaces/spaceinfo/parkingspaces.csv'),
+        fetchTextThroughProxy('https://resource.data.one.gov.hk/td/psiparkingspaces/occupancystatus/occupancystatus.csv')
     ]);
-
-    const infoRows = parseCSV(infoText);
-    const vacancyRows = parseCSV(vacancyText);
-
-    const occupancyMap = new Map();
+    const infoRows = parseCSV(infoText), vacancyRows = parseCSV(vacancyText), occupancyMap = new Map();
     vacancyRows.forEach(row => {
         const spaceId = row['parking_space_id'] || row['parkingspaceid'] || '';
         const status = row['occupancy_status'] || row['occupancystatus'] || '';
         if (spaceId) occupancyMap.set(spaceId, status);
     });
-
     cachedAllMeters = [];
     infoRows.forEach(row => {
-        const vehicleType = row['vehicle_type'] || row['vehicletype'] || '';
-        if (vehicleType.toUpperCase() !== 'A') return;
-
-        const latVal = row['latitude'] || row['lat'] || '';
-        const lngVal = row['longitude'] || row['lng'] || '';
-        const lat = parseFloat(latVal);
-        const lng = parseFloat(lngVal);
+        if ((row['vehicle_type'] || row['vehicletype'] || '').toUpperCase() !== 'A') return;
+        const lat = parseFloat(row['latitude'] || row['lat'] || ''), lng = parseFloat(row['longitude'] || row['lng'] || '');
         if (isNaN(lat) || isNaN(lng)) return;
-
-        const distance = calculateDistance(userLat, userLng, lat, lng);
         const spaceId = row['parking_space_id'] || row['parkingspaceid'] || '';
-        const status = occupancyMap.get(spaceId) || 'V';
-
-        const streetTc = row['street_tc'] || '';
-        const districtTc = row['district_tc'] || '';
-
         cachedAllMeters.push({
-            park_Id: spaceId,
-            name: `${streetTc} ${spaceId}`,
-            address: `${districtTc} ${streetTc}`,
-            district: districtTc,
-            latitude: lat,
-            longitude: lng,
-            distance: distance,
-            vacancyStatus: status,
-            rawStreet: streetTc,
-            rawDistrict: districtTc
+            park_Id: spaceId, name: `${row['street_tc'] || ''} ${spaceId}`, address: `${row['district_tc'] || ''} ${row['street_tc'] || ''}`,
+            district: row['district_tc'] || '', latitude: lat, longitude: lng, distance: calculateDistance(userLat, userLng, lat, lng),
+            vacancyStatus: occupancyMap.get(spaceId) || 'V', rawStreet: row['street_tc'] || '', rawDistrict: row['district_tc'] || ''
         });
     });
-
     cachedAllMeters.sort((a, b) => a.distance - b.distance);
-    
     await renderActiveTabDisplay();
     renderFavorites();
 }
 
-// 背景靜態加載收藏夾數據
+async function fetchToilets(lat, lng) {
+    const response = await fetch('/api/toilet-xml');
+    if (!response.ok) throw new Error("無法連接公廁伺服器 (狀態碼: " + response.status + ")");
+    const xmlText = await response.text(), xmlDoc = (new DOMParser()).parseFromString(xmlText, "text/xml");
+    if (xmlDoc.querySelector('parsererror')) throw new Error("XML 語法解析失敗");
+    const mapNodes = xmlDoc.getElementsByTagName('map'), tempToilets = [];
+    for (let i = 0; i < mapNodes.length; i++) {
+        const node = mapNodes[i], name = node.querySelector('name_c')?.textContent || '', type = node.querySelector('type')?.textContent || '';
+        const isToilet = name.includes('公廁') || name.includes('廁所') || name.toLowerCase().includes('toilet');
+        if (type === '1' || type === '2' || isToilet) {
+            const coord = (node.querySelector('map_coordinate')?.textContent || '').split(',');
+            if (coord.length === 2) {
+                const tLat = parseFloat(coord[0].trim()), tLng = parseFloat(coord[1].trim());
+                if (tLat && tLng) {
+                    tempToilets.push({
+                        park_Id: `toilet-${tLat}-${tLng}`, name: name, address: node.querySelector('address_c')?.textContent || '',
+                        latitude: tLat, longitude: tLng, type: type === '1' ? '公廁' : (type === '2' ? '旱廁' : '設施'), distance: calculateDistance(lat, lng, tLat, tLng)
+                    });
+                }
+            }
+        }
+    }
+    cachedAllToilets = tempToilets;
+    let filteredToilets = [...cachedAllToilets];
+    if (activeDistanceFilter !== 'all') { filteredToilets = filteredToilets.filter(item => item.distance <= parseFloat(activeDistanceFilter)); }
+    filteredToilets.sort((a, b) => a.distance - b.distance);
+    displayToiletResults(filteredToilets.slice(0, 30));
+}
+
 async function silentFetchData() {
     try {
-        const infoUrl = 'https://api.data.gov.hk/v1/carpark-info-vacancy?data=info&lang=zh_TW';
-        const vacancyUrl = 'https://api.data.gov.hk/v1/carpark-info-vacancy?data=vacancy&lang=zh_TW';
-        const [infoRes, vacancyRes] = await Promise.all([fetch(infoUrl), fetch(vacancyUrl)]);
+        const [infoRes, vacancyRes] = await Promise.all([
+            fetch('https://api.data.gov.hk/v1/carpark-info-vacancy?data=info&lang=zh_TW'),
+            fetch('https://api.data.gov.hk/v1/carpark-info-vacancy?data=vacancy&lang=zh_TW')
+        ]);
         if (infoRes.ok && vacancyRes.ok) {
-            const infoData = await infoRes.json();
-            const vacancyData = await vacancyRes.json();
-            const vacancyMap = new Map();
+            const infoData = await infoRes.json(), vacancyData = await vacancyRes.json(), vacancyMap = new Map();
             (vacancyData.results || []).forEach(v => vacancyMap.set(v.park_Id, v));
             cachedAllParks = (infoData.results || []).map(p => ({ ...p, distance: Infinity, liveInfo: vacancyMap.get(p.park_Id) }));
             renderFavorites();

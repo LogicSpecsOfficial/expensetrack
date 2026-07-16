@@ -5,18 +5,30 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
     return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
 }
 
+// 恢復至完全穩定的 CSV 解析邏輯，確保大小寫相容性與正確清除 BOM 字元
 function parseCSV(text) {
-    const lines = text.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0); if (lines.length === 0) return [];
-    const splitRegex = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/; let headerIndex = -1, headers = [];
+    const lines = text.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
+    if (lines.length === 0) return [];
+    const splitRegex = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/;
+    let headerIndex = -1; let headers = [];
     for (let i = 0; i < lines.length; i++) {
         const cleanLine = lines[i].replace(/^\uFEFF/i, '').trim();
-        if (cleanLine.includes('parkingspaceid') || cleanLine.includes('parking_space_id') || cleanLine.includes('occupancystatus')) { headerIndex = i; headers = cleanLine.split(splitRegex).map(h => h.replace(/^["']|["']$/g, '').trim().toLowerCase()); break; }
+        if (!cleanLine) continue;
+        const testHeaders = cleanLine.split(splitRegex).map(h => h.replace(/^["']|["']$/g, '').trim().toLowerCase());
+        if (testHeaders.includes('parkingspaceid') || testHeaders.includes('parking_space_id') || testHeaders.includes('occupancystatus')) {
+            headerIndex = i; headers = testHeaders; break;
+        }
     }
-    if (headerIndex === -1) { headerIndex = 0; headers = lines[0].split(splitRegex).map(h => h.replace(/^\uFEFF/i).replace(/^["']|["']$/g, '').trim().toLowerCase()); }
+    if (headerIndex === -1) {
+        headerIndex = 0; headers = lines[0].split(splitRegex).map(h => h.replace(/^\uFEFF/i, '').replace(/^["']|["']$/g, '').trim().toLowerCase());
+    }
     const results = [];
     for (let i = headerIndex + 1; i < lines.length; i++) {
         const currentline = lines[i].split(splitRegex); if (currentline.length < headers.length) continue;
-        const obj = {}; for (let j = 0; j < headers.length; j++) { obj[headers[j]] = currentline[j] ? currentline[j].replace(/^["']|["']$/g, '').trim() : ''; }
+        const obj = {};
+        for (let j = 0; j < headers.length; j++) {
+            obj[headers[j]] = currentline[j] ? currentline[j].replace(/^["']|["']$/g, '').trim() : '';
+        }
         results.push(obj);
     }
     return results;

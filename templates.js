@@ -55,6 +55,9 @@ function generateCardHTML(park) {
     let infoGridItems = displayAddress ? `<div class="info-label">${t.address}:</div><div><a href="${mapUrl}" target="_blank" class="map-link">${displayAddress}</a></div>` : '';
     if (heightText) infoGridItems += `<div class="info-label">${t.maxHeight}:</div><div>${heightText}</div>`;
     if (park.contactNo) infoGridItems += `<div class="info-label">${t.contact}:</div><div><a href="tel:${park.contactNo.replace(/\s+/g, '')}" class="phone-link">${park.contactNo}</a></div>`;
+    if (park.privateCarHourlyFees && park.privateCarHourlyFees.length > 0) {
+        infoGridItems += `<div class="info-label">${t.hourlyFee || '時租收費'}:</div><div>${park.privateCarHourlyFees.join('<br>')}</div>`;
+    }
     return `<div class="carpark-card ${cardStatusClass}"><div class="card-body-split"><div class="card-left"><div class="carpark-name"><span class="status-dot ${dotClass}"></span>${park.name || '---'}</div><div class="tags-row">${distHTML} ${hasEVCharging(park) ? `<span class="status-badge ev-charger">${t.evBadge}</span>` : ''}</div>${infoGridItems ? `<div class="info-grid">${infoGridItems}</div>` : ''}</div><div class="card-right"><button class="card-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${park.park_Id}')">${isFav ? t.removeFav : t.addFav}</button>${vacancyHTML}</div></div></div>`;
 }
 

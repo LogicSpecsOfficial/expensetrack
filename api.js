@@ -44,15 +44,20 @@ async function fetchTextThroughProxy(rawUrl, useJSONHeader = false) {
 }
 
 function getPrivateCarHourlyFees(park) {
-    if (!park.rents || !Array.isArray(park.rents)) return null;
-    const pcRents = park.rents.filter(r => {
-        const vType = (r.vehicleType || '').toLowerCase();
-        const rType = (r.rentType || '').toLowerCase();
-        const matchesVehicle = vType.includes('private car') || vType.includes('私家車') || vType.includes('pc');
-        const matchesRent = rType.includes('hourly') || rType.includes('時租');
-        return matchesVehicle && matchesRent && r.rate;
-    });
-    return pcRents.length > 0 ? pcRents.map(r => r.rate) : null;
+    if (!park || !park.rents || !Array.isArray(park.rents)) return null;
+    const rates = [];
+    for (let i = 0; i < park.rents.length; i++) {
+        const r = park.rents[i];
+        if (!r) continue;
+        const vType = String(r.vehicleType || '').toLowerCase();
+        const rType = String(r.rentType || '').toLowerCase();
+        const isPrivateCar = vType.includes('private car') || vType.includes('私家車') || vType.includes('pc');
+        const isHourly = rType.includes('hourly') || rType.includes('時租');
+        if (isPrivateCar && isHourly && r.rate) {
+            rates.push(r.rate);
+        }
+    }
+    return rates.length > 0 ? rates : null;
 }
 
 async function fetchCarParks(userLat, userLng) {
@@ -65,9 +70,9 @@ async function fetchCarParks(userLat, userLng) {
     (infoData.results || []).forEach(park => {
         const fees = getPrivateCarHourlyFees(park);
         if (fees && fees.length > 0) {
-            filteredParks.push({ 
-                ...park, 
-                distance: calculateDistance(userLat, userLng, park.latitude, park.longitude), 
+            filteredParks.push({
+                ...park,
+                distance: calculateDistance(userLat, userLng, park.latitude, park.longitude),
                 liveInfo: vacancyMap.get(park.park_Id),
                 privateCarHourlyFees: fees
             });
@@ -120,9 +125,9 @@ async function silentFetchData() {
             (infoData.results || []).forEach(p => {
                 const fees = getPrivateCarHourlyFees(p);
                 if (fees && fees.length > 0) {
-                    filteredParks.push({ 
-                        ...p, 
-                        distance: Infinity, 
+                    filteredParks.push({
+                        ...p,
+                        distance: Infinity,
                         liveInfo: vacancyMap.get(p.park_Id),
                         privateCarHourlyFees: fees
                     });

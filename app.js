@@ -137,30 +137,3 @@ if (backToTopBtn) backToTopBtn.addEventListener('click', () => window.scrollTo({
 initTheme(); updateUIStaticText();
 if (typeof renderSearchHistory === 'function') renderSearchHistory();
 if (typeof renderWelcomeMessage === 'function') renderWelcomeMessage();
-
-// 收費摺疊表格動畫與狀態切換控制
-window.toggleFeeTable = function(parkId, event) {
-    if (event) event.stopPropagation();
-    const container = document.getElementById(`fee-table-${parkId}`);
-    const btn = document.getElementById(`fee-btn-${parkId}`);
-    const arrow = document.getElementById(`arrow-${parkId}`);
-    if (!container || !btn) return;
-    
-    const isHidden = container.style.display === 'none';
-    if (isHidden) {
-        container.style.display = 'block';
-        container.offsetHeight; // 強制瀏覽器重繪以啟動 CSS 過渡效果
-        container.style.maxHeight = '500px';
-        btn.querySelector('span').textContent = '收起收費詳情';
-        if (arrow) arrow.style.transform = 'rotate(180deg)';
-    } else {
-        container.style.maxHeight = '0';
-        btn.querySelector('span').textContent = '顯示收費詳情';
-        if (arrow) arrow.style.transform = 'rotate(0deg)';
-        setTimeout(() => {
-            if (container.style.maxHeight === '0px' || container.style.maxHeight === '0') {
-                container.style.display = 'none';
-            }
-        }, 250);
-    }
-};

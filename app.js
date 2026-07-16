@@ -164,8 +164,12 @@ function setMeterFilter(filterValue) {
     renderActiveTabDisplay();
 }
 
+// 修正：距離篩選變更時清空快取，確保能依據新半徑即時向伺服器拉取完整數據
 function setDistanceFilter(distanceValue) {
     activeDistanceFilter = distanceValue;
+    cachedAllParks = [];
+    cachedAllMeters = [];
+    cachedAllToilets = [];
     renderFilterPills();
     renderActiveTabDisplay();
 }
@@ -458,7 +462,7 @@ showFavBtn.addEventListener('click', () => {
             renderFavorites();
         }
     } else {
-        favWrapper.style.display = 'none';
+        favWrapper.style.display === 'none';
     }
     updateUIStaticText();
 });
@@ -618,6 +622,83 @@ function generateMeterCardHTML(meterGroup) {
         </div>`;
 }
 
+function calcDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371; 
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+}
+
+async function fetchToilets(lat, lng) {
+    const targetUrl = '/api/toilet-xml';
+    const response = await fetch(targetUrl);
+    if (!response.ok) {
+        throw new Error("無法連接公廁伺服器 (狀態碼: " + response.status + ")");
+    }
+    
+    const xmlText = await response.text();
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+    
+    if (xmlDoc.querySelector('parsererror')) {
+        throw new Error("XML 語法解析失敗");
+    }
+
+    const mapNodes = xmlDoc.getElementsByTagName('map');
+    const tempToilets = [];
+
+    for (let i = 0; i < mapNodes.length; i++) {
+        const node = mapNodes[i];
+        
+        const type = node.querySelector('type')?.textContent || '';
+        const name = node.querySelector('name_c')?.textContent || '';
+        const address = node.querySelector('address_c')?.textContent || '';
+        const coordinateText = node.querySelector('map_coordinate')?.textContent || '';
+
+        const isToiletByName = name.includes('公廁') || name.includes('廁所') || name.toLowerCase().includes('toilet');
+
+        if (type === '1' || type === '2' || isToiletByName) {
+            let tLat = 0;
+            let tLng = 0;
+
+            if (coordinateText) {
+                const parts = coordinateText.split(',');
+                if (parts.length === 2) {
+                    tLat = parseFloat(parts[0].trim());
+                    tLng = parseFloat(parts[1].trim());
+                }
+            }
+
+            if (tLat !== 0 && tLng !== 0) {
+                const distance = calcDistance(lat, lng, tLat, tLng);
+                tempToilets.push({
+                    park_Id: `toilet-${tLat}-${tLng}`, 
+                    name: name,
+                    address: address,
+                    latitude: tLat,
+                    longitude: tLng,
+                    type: type === '1' ? '公廁' : (type === '2' ? '旱廁' : '設施'),
+                    distance: distance
+                });
+            }
+        }
+    }
+
+    cachedAllToilets = tempToilets;
+    
+    let filteredToilets = [...cachedAllToilets];
+    if (activeDistanceFilter !== 'all') {
+        const limit = parseFloat(activeDistanceFilter);
+        filteredToilets = filteredToilets.filter(item => item.distance <= limit);
+    }
+    filteredToilets.sort((a, b) => a.distance - b.distance);
+    displayToiletResults(filteredToilets.slice(0, 30));
+}
+
 function generateToiletCardHTML(toilet) {
     const isFav = favorites.includes(toilet.park_Id);
     const mapUrl = `https://www.google.com/maps/search/?api=1&query=${toilet.latitude},${toilet.longitude}`;
@@ -743,7 +824,6 @@ function renderWelcomeMessage() {
     `;
 }
 
-// 註冊 Home 按鈕點擊事件以返回初始歡迎頁面並清空當前狀態
 if (homeBtn) {
     homeBtn.addEventListener('click', () => {
         userCoordinates = null;

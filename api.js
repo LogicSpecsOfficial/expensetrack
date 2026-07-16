@@ -44,19 +44,23 @@ async function fetchTextThroughProxy(rawUrl, useJSONHeader = false) {
 }
 
 function getPrivateCarHourlyFees(park) {
-    if (!park || !park.rents || !Array.isArray(park.rents)) return null;
+    if (!park || !park.vehicleTypes || !Array.isArray(park.vehicleTypes)) return null;
     const rates = [];
-    for (let i = 0; i < park.rents.length; i++) {
-        const r = park.rents[i];
-        if (!r) continue;
-        const vType = String(r.vehicleType || '').toLowerCase();
-        const rType = String(r.rentType || '').toLowerCase();
-        const isPrivateCar = vType.includes('private car') || vType.includes('私家車') || vType.includes('pc');
-        const isHourly = rType.includes('hourly') || rType.includes('時租');
-        if (isPrivateCar && isHourly && r.rate) {
-            rates.push(r.rate);
+    park.vehicleTypes.forEach(vt => {
+        const typeStr = (vt.type || '').toLowerCase();
+        if (typeStr.includes('private car') || typeStr.includes('私家車') || typeStr.includes('pc')) {
+            if (vt.rents && Array.isArray(vt.rents)) {
+                vt.rents.forEach(r => {
+                    const rentTypeStr = (r.rentType || '').toLowerCase();
+                    if (rentTypeStr.includes('hourly') || rentTypeStr.includes('時租')) {
+                        if (r.rate) {
+                            rates.push(r.rate);
+                        }
+                    }
+                });
+            }
         }
-    }
+    });
     return rates.length > 0 ? rates : null;
 }
 

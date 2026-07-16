@@ -71,3 +71,15 @@ const synonymMap = {
     "太古廣場": "金鐘金鐘道88號",
     "pacificplace": "金鐘金鐘道88號"
 };
+
+// 初始化全局狀態變數
+let currentTab = 'offstreet';
+let userCoordinates = null;
+let cachedAllParks = [];
+let cachedAllMeters = [];
+let cachedAllToilets = [];
+let favorites = JSON.parse(localStorage.getItem('hk_carpark_favs')) || [];
+let searchHistory = JSON.parse(localStorage.getItem('hk_carpark_history')) || [];
+let activeMeterFilter = 'all';
+let activeDistanceFilter = '1';
+let offstreetFilters = { hideFull: false, evOnly: false, sortByVacancy: false };

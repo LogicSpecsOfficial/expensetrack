@@ -43,12 +43,37 @@ async function fetchTextThroughProxy(rawUrl, useJSONHeader = false) {
     throw new Error("Unable to fetch data through proxy connections.");
 }
 
+function getPrivateCarHourlyFees(park) {
+    if (!park.rents || !Array.isArray(park.rents)) return null;
+    const pcRents = park.rents.filter(r => {
+        const vType = (r.vehicleType || '').toLowerCase();
+        const rType = (r.rentType || '').toLowerCase();
+        const matchesVehicle = vType.includes('private car') || vType.includes('私家車') || vType.includes('pc');
+        const matchesRent = rType.includes('hourly') || rType.includes('時租');
+        return matchesVehicle && matchesRent && r.rate;
+    });
+    return pcRents.length > 0 ? pcRents.map(r => r.rate) : null;
+}
+
 async function fetchCarParks(userLat, userLng) {
     const [infoRes, vacancyRes] = await Promise.all([fetch('https://api.data.gov.hk/v1/carpark-info-vacancy?data=info&lang=zh_TW'), fetch('https://api.data.gov.hk/v1/carpark-info-vacancy?data=vacancy&lang=zh_TW')]);
     if (!infoRes.ok || !vacancyRes.ok) throw new Error("API network failure");
     const infoData = await infoRes.json(), vacancyData = await vacancyRes.json(), vacancyMap = new Map();
     (vacancyData.results || []).forEach(v => vacancyMap.set(v.park_Id, v));
-    cachedAllParks = (infoData.results || []).map(park => ({ ...park, distance: calculateDistance(userLat, userLng, park.latitude, park.longitude), liveInfo: vacancyMap.get(park.park_Id) })).sort((a, b) => a.distance - b.distance);
+    
+    const filteredParks = [];
+    (infoData.results || []).forEach(park => {
+        const fees = getPrivateCarHourlyFees(park);
+        if (fees && fees.length > 0) {
+            filteredParks.push({ 
+                ...park, 
+                distance: calculateDistance(userLat, userLng, park.latitude, park.longitude), 
+                liveInfo: vacancyMap.get(park.park_Id),
+                privateCarHourlyFees: fees
+            });
+        }
+    });
+    cachedAllParks = filteredParks.sort((a, b) => a.distance - b.distance);
     await renderActiveTabDisplay(); renderFavorites();
 }
 
@@ -90,7 +115,20 @@ async function silentFetchData() {
         if (infoRes.ok && vacancyRes.ok) {
             const infoData = await infoRes.json(), vacancyData = await vacancyRes.json(), vacancyMap = new Map();
             (vacancyData.results || []).forEach(v => vacancyMap.set(v.park_Id, v));
-            cachedAllParks = (infoData.results || []).map(p => ({ ...p, distance: Infinity, liveInfo: vacancyMap.get(p.park_Id) }));
+            
+            const filteredParks = [];
+            (infoData.results || []).forEach(p => {
+                const fees = getPrivateCarHourlyFees(p);
+                if (fees && fees.length > 0) {
+                    filteredParks.push({ 
+                        ...p, 
+                        distance: Infinity, 
+                        liveInfo: vacancyMap.get(p.park_Id),
+                        privateCarHourlyFees: fees
+                    });
+                }
+            });
+            cachedAllParks = filteredParks;
             renderFavorites();
         }
     } catch (e) {}

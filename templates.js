@@ -37,24 +37,50 @@ function groupMeteredParking(meters) {
     return Object.values(groups).sort((a, b) => a.distance - b.distance);
 }
 
-function formatCarparkFees(park) {
-    if (!park) return '';
-    let privateCar = park.privateCar;
-    if (!privateCar) return '';
-
-    // 解決政府 API 有時回傳陣列 (Array) 有時回傳對象 (Object) 的結構偏差
-    if (Array.isArray(privateCar)) {
-        if (privateCar.length > 0) {
-            privateCar = privateCar[0];
-        } else {
-            return '';
-        }
+// 歸一化解析車輛資料物件，自動對抗 API 格式鍵值大小寫與嵌套偏差
+function getVehicleData(park) {
+    if (!park) return null;
+    
+    // 若收費直接寫在頂層
+    const topHourly = park.hourlyCharges || park.hourlycharges || park.hourly_charges;
+    const topDayNight = park.dayNightParks || park.daynightparks || park.day_night_parks;
+    if ((topHourly && topHourly.length > 0) || (topDayNight && topDayNight.length > 0)) {
+        return park;
     }
 
-    if (typeof privateCar !== 'object') return '';
+    const keys = [
+        'privateCar', 'privatecar', 'private_car',
+        'LGV', 'lgv',
+        'motorCycle', 'motorcycle', 'motor_cycle',
+        'HGV', 'hgv',
+        'coach',
+        'CV', 'cv'
+    ];
+    for (let key of keys) {
+        let data = park[key];
+        if (data) {
+            if (Array.isArray(data)) {
+                if (data.length > 0) data = data[0];
+                else continue;
+            }
+            if (typeof data === 'object' && data !== null) {
+                const hourly = data.hourlyCharges || data.hourlycharges || data.hourly_charges || [];
+                const dayNight = data.dayNightParks || data.daynightparks || data.day_night_parks || data.dayNight || data.daynight || [];
+                if (hourly.length > 0 || dayNight.length > 0) {
+                    return data;
+                }
+            }
+        }
+    }
+    return null;
+}
 
-    const hourly = privateCar.hourlyCharges || [];
-    const dayNight = privateCar.dayNightParks || [];
+function formatCarparkFees(park) {
+    const vehicleData = getVehicleData(park);
+    if (!vehicleData) return '';
+
+    const hourly = vehicleData.hourlyCharges || vehicleData.hourlycharges || vehicleData.hourly_charges || [];
+    const dayNight = vehicleData.dayNightParks || vehicleData.daynightparks || vehicleData.day_night_parks || vehicleData.dayNight || vehicleData.daynight || [];
 
     if (hourly.length === 0 && dayNight.length === 0) return '';
 
@@ -71,12 +97,13 @@ function formatCarparkFees(park) {
 
     const translateWeekdays = (wd) => {
         if (!wd || wd.length === 0) return '每天';
-        if (wd.length === 8 || (wd.includes('MON') && wd.includes('SUN') && wd.length >= 7)) return '星期一至日';
-        if (wd.includes('MON') && wd.includes('FRI') && wd.length === 5 && !wd.includes('SAT') && !wd.includes('SUN')) return '星期一至五';
-        if (wd.includes('SAT') && wd.includes('SUN') && wd.length === 2) return '星期六至日';
+        const wdUpper = wd.map(w => String(w).toUpperCase());
+        if (wdUpper.length === 8 || (wdUpper.includes('MON') && wdUpper.includes('SUN') && wdUpper.length >= 7)) return '星期一至日';
+        if (wdUpper.includes('MON') && wdUpper.includes('FRI') && wdUpper.length === 5 && !wdUpper.includes('SAT') && !wdUpper.includes('SUN')) return '星期一至五';
+        if (wdUpper.includes('SAT') && wdUpper.includes('SUN') && wdUpper.length === 2) return '星期六至日';
         
         const mapping = { 'MON': '一', 'TUE': '二', 'WED': '三', 'THU': '四', 'FRI': '五', 'SAT': '六', 'SUN': '日', 'PH': '公眾假期' };
-        return wd.map(w => mapping[w] || w).join('/');
+        return wdUpper.map(w => mapping[w] || w).join('/');
     };
 
     const allRules = [];
@@ -100,13 +127,11 @@ function formatCarparkFees(park) {
 
     if (allRules.length === 0) return '';
 
-    // 單一規則直接一行字顯示[cite: 12]
     if (allRules.length === 1) {
         const rule = allRules[0];
         return `<span class="single-fee-text" style="font-weight: 500; color: var(--text-main);">${rule.type}：${rule.price} (${rule.weekdays} ${rule.time})</span>`;
     }
 
-    // 將 park_Id 強制轉為字串，徹底防止純數字 ID 呼叫 .replace 崩潰
     const safeParkId = String(park.park_Id).replace(/[^a-zA-Z0-9]/g, '_');
     const uniqueId = `fee-table-${safeParkId}`;
     const toggleBtnId = `fee-btn-${safeParkId}`;

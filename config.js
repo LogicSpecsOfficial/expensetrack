@@ -63,9 +63,9 @@ const synonymMap = {
 // 全局狀態變數
 let currentTab = 'offstreet';
 let userCoordinates = null;
-let cachedAllParks = [];
-let cachedAllMeters = [];
-let cachedAllToilets = [];
+let cachedAllParks = null;
+let cachedAllMeters = null;
+let cachedAllToilets = null;
 let favorites = JSON.parse(localStorage.getItem('hk_carpark_favs')) || [];
 let searchHistory = JSON.parse(localStorage.getItem('hk_carpark_history')) || [];
 let activeMeterFilter = 'all';

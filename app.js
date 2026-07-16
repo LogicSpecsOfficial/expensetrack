@@ -48,10 +48,27 @@ function toggleFavorite(id) {
     if (typeof renderActiveTabDisplay === 'function') renderActiveTabDisplay();
 }
 
+// 補齊先前遺漏的 API 切換中央調度協調函式
+async function refreshActiveTabData(isBackgroundRefresh = false) {
+    if (!userCoordinates) return;
+    const statusText = document.getElementById('status');
+    if (!isBackgroundRefresh && statusText) { statusText.textContent = t.apiFetching; [locateBtn, refreshBtn].forEach(b => { if (b) b.disabled = true; }); }
+    try {
+        if (currentTab === 'offstreet' && typeof fetchCarParks === 'function') await fetchCarParks(userCoordinates.lat, userCoordinates.lng);
+        else if (currentTab === 'metered' && typeof fetchMeteredParking === 'function') await fetchMeteredParking(userCoordinates.lat, userCoordinates.lng);
+        else if (currentTab === 'toilet' && typeof fetchToilets === 'function') await fetchToilets(userCoordinates.lat, userCoordinates.lng);
+    } catch (err) {
+        if (!isBackgroundRefresh && statusText) statusText.textContent = `${t.apiError}${err.message}`;
+        console.error(err);
+    } finally {
+        if (!isBackgroundRefresh) { if (statusText) statusText.textContent = ""; [locateBtn, refreshBtn].forEach(b => { if (b) b.disabled = false; }); }
+    }
+}
+
 async function triggerAddressSearch(forcedQuery = null) {
     const inputVal = typeof forcedQuery === 'string' ? forcedQuery : searchInput.value.trim(); if (!inputVal) return;
     let query = synonymMap[inputVal.toLowerCase().replace(/\s+/g, '')] || inputVal; if (typeof forcedQuery === 'string') searchInput.value = inputVal;
-    if (statusText) statusText.textContent = t.addressSearching; if (resultsDiv) resultsDiv.innerHTML = "";
+    const statusText = document.getElementById('status'); if (statusText) statusText.textContent = t.addressSearching; document.getElementById('results').innerHTML = "";
     [locateBtn, searchBtn, refreshBtn].forEach(b => { if (b) b.disabled = true; });
     try {
         const responseText = await fetchTextThroughProxy(`https://www.als.gov.hk/lookup?q=${encodeURIComponent(query)}`, true);
@@ -66,8 +83,7 @@ async function triggerAddressSearch(forcedQuery = null) {
             userCoordinates = { lat, lng }; cachedAllParks = []; cachedAllMeters = []; cachedAllToilets = [];
             saveSearch(inputVal); if (typeof renderFilterPills === 'function') renderFilterPills();
             if (searchWrapper) searchWrapper.classList.remove('open'); updateUIStaticText();
-            if (typeof refreshActiveTabData === 'function') await refreshActiveTabData(false);
-            if (document.activeElement) document.activeElement.blur();
+            await refreshActiveTabData(false);
         } else { if (statusText) statusText.textContent = t.addressError; }
     } catch (err) { if (statusText) statusText.textContent = t.addressError; console.error(err); }
     finally { [locateBtn, searchBtn, refreshBtn].forEach(b => { if (b) b.disabled = false; }); }
@@ -80,19 +96,20 @@ if (clearHistoryBtn) clearHistoryBtn.addEventListener('click', () => { searchHis
 
 if (locateBtn) {
     locateBtn.addEventListener('click', () => {
+        const statusText = document.getElementById('status');
         if (!navigator.geolocation) { if (statusText) statusText.textContent = t.noSupport; return; }
-        [locateBtn, refreshBtn].forEach(b => { if (b) b.disabled = true; }); if (statusText) statusText.textContent = t.gpsLocating; if (resultsDiv) resultsDiv.innerHTML = "";
+        [locateBtn, refreshBtn].forEach(b => { if (b) b.disabled = true; }); if (statusText) statusText.textContent = t.gpsLocating; document.getElementById('results').innerHTML = "";
         navigator.geolocation.getCurrentPosition(
-            async (pos) => { userCoordinates = { lat: pos.coords.latitude, lng: pos.coords.longitude }; cachedAllParks = []; cachedAllMeters = []; cachedAllToilets = []; if (typeof renderFilterPills === 'function') renderFilterPills(); if (typeof refreshActiveTabData === 'function') await refreshActiveTabData(false); },
-            async () => { userCoordinates = { lat: 22.3193, lng: 114.1694 }; cachedAllParks = []; cachedAllMeters = []; cachedAllToilets = []; if (typeof renderFilterPills === 'function') renderFilterPills(); if (statusText) statusText.textContent = "定位未開啟，已顯示九龍中心數據"; if (typeof refreshActiveTabData === 'function') await refreshActiveTabData(false); },
+            async (pos) => { userCoordinates = { lat: pos.coords.latitude, lng: pos.coords.longitude }; cachedAllParks = []; cachedAllMeters = []; cachedAllToilets = []; if (typeof renderFilterPills === 'function') renderFilterPills(); await refreshActiveTabData(false); },
+            async () => { userCoordinates = { lat: 22.3193, lng: 114.1694 }; cachedAllParks = []; cachedAllMeters = []; cachedAllToilets = []; if (typeof renderFilterPills === 'function') renderFilterPills(); if (statusText) statusText.textContent = "定位未開啟，已顯示九龍中心數據"; await refreshActiveTabData(false); },
             { enableHighAccuracy: true }
         );
     });
 }
-if (refreshBtn) refreshBtn.addEventListener('click', async () => { if (!userCoordinates) { if (locateBtn) locateBtn.click(); } else { if (typeof refreshActiveTabData === 'function') await refreshActiveTabData(false); } });
+if (refreshBtn) refreshBtn.addEventListener('click', async () => { if (!userCoordinates) { if (locateBtn) locateBtn.click(); } else { await refreshActiveTabData(false); } });
 if (showFavBtn) { showFavBtn.addEventListener('click', () => { if (favWrapper) favWrapper.style.display = (favWrapper.style.display === 'none') ? 'block' : 'none'; if (favWrapper && favWrapper.style.display === 'block' && cachedAllParks.length === 0) { if (typeof silentFetchData === 'function') silentFetchData(); } else { if (typeof renderFavorites === 'function') renderFavorites(); } updateUIStaticText(); }); }
 if (themeToggleBtn) themeToggleBtn.addEventListener('click', toggleTheme);
-if (homeBtn) { homeBtn.addEventListener('click', () => { userCoordinates = null; cachedAllParks = []; cachedAllMeters = []; cachedAllToilets = []; currentTab = 'offstreet'; tabOffStreet.classList.add('active'); ['tabMetered', 'tabToilet'].forEach(id => { const t = document.getElementById(id); if (t) t.classList.remove('active'); }); if (typeof renderFilterPills === 'function') renderFilterPills(); document.getElementById('ui-search-title').textContent = t.searchTitle; statusText.textContent = ""; if (typeof renderWelcomeMessage === 'function') renderWelcomeMessage(); }); }
+if (homeBtn) { homeBtn.addEventListener('click', () => { userCoordinates = null; cachedAllParks = []; cachedAllMeters = []; cachedAllToilets = []; currentTab = 'offstreet'; if (tabOffStreet) tabOffStreet.classList.add('active'); ['tabMetered', 'tabToilet'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.remove('active'); }); if (typeof renderFilterPills === 'function') renderFilterPills(); document.getElementById('ui-search-title').textContent = t.searchTitle; const statusText = document.getElementById('status'); if (statusText) statusText.textContent = ""; if (typeof renderWelcomeMessage === 'function') renderWelcomeMessage(); }); }
 
 window.addEventListener('scroll', () => { if (stickyHeader) stickyHeader.classList.toggle('scrolled', window.scrollY > 20); if (backToTopBtn) backToTopBtn.classList.toggle('visible', window.scrollY > 300); });
 if (backToTopBtn) backToTopBtn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));

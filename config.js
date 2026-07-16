@@ -1,3 +1,4 @@
+// config.js
 const t = {
     title: "最近的香港停車場",
     btnText: "GPS 定位",
@@ -72,7 +73,7 @@ const synonymMap = {
     "pacificplace": "金鐘金鐘道88號"
 };
 
-// 初始化全局狀態變數
+// 全局狀態中心
 let currentTab = 'offstreet';
 let userCoordinates = null;
 let cachedAllParks = [];

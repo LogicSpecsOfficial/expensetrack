@@ -2,7 +2,6 @@
 const filterContainer = document.getElementById('filter-container');
 const resultsDiv = document.getElementById('results');
 const favoritesList = document.getElementById('favoritesList');
-const statusText = document.getElementById('status');
 
 function renderFilterPills() {
     if (!userCoordinates) { filterContainer.style.display = 'none'; return; }
@@ -30,7 +29,6 @@ async function switchTab(tabName) {
 }
 
 function toggleOffstreetFilter(filterName) { offstreetFilters[filterName] = !offstreetFilters[filterName]; renderFilterPills(); renderActiveTabDisplay(); }
-// 修正：修正計咪錶與車位的過濾，採用高效的前端快取響應，不干擾連線
 function setMeterFilter(filterValue) { activeMeterFilter = filterValue; renderFilterPills(); renderActiveTabDisplay(); }
 function setDistanceFilter(distanceValue) { activeDistanceFilter = distanceValue; renderFilterPills(); renderActiveTabDisplay(); }
 
@@ -70,12 +68,14 @@ function renderSearchHistory() {
 }
 
 function displayResults(items, isMeter = false) {
-    statusText.textContent = ""; document.getElementById('ui-search-title').textContent = `${t.searchTitle} (${items.length})`;
+    const statusText = document.getElementById('status'); if (statusText) statusText.textContent = ""; 
+    document.getElementById('ui-search-title').textContent = `${t.searchTitle} (${items.length})`;
     resultsDiv.innerHTML = items.length === 0 ? `<div class="empty-notice">${t.noRecords}</div>` : items.map(item => isMeter ? generateMeterCardHTML(item) : generateCardHTML(item)).join('');
 }
 
 function displayToiletResults(items) {
-    statusText.textContent = ""; document.getElementById('ui-search-title').textContent = `${t.searchTitle} (${items.length})`;
+    const statusText = document.getElementById('status'); if (statusText) statusText.textContent = ""; 
+    document.getElementById('ui-search-title').textContent = `${t.searchTitle} (${items.length})`;
     resultsDiv.innerHTML = items.length === 0 ? `<div class="empty-notice">${t.noRecords}</div>` : items.map(item => generateToiletCardHTML(item)).join('');
 }
 

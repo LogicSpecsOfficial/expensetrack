@@ -35,12 +35,9 @@ function groupMeteredParking(meters) {
                 distance: m.distance, latitude: m.latitude, longitude: m.longitude, totalSpaces: 0, vacantSpaces: 0
             };
         }
-        const g = groups[key];
-        g.totalSpaces += 1;
+        const g = groups[key]; g.totalSpaces += 1;
         if (m.vacancyStatus === 'V') g.vacantSpaces += 1;
-        if (m.distance < g.distance) {
-            g.distance = m.distance; g.latitude = m.latitude; g.longitude = m.longitude;
-        }
+        if (m.distance < g.distance) { g.distance = m.distance; g.latitude = m.latitude; g.longitude = m.longitude; }
     });
     return Object.values(groups).sort((a, b) => a.distance - b.distance);
 }
@@ -60,32 +57,23 @@ function generateCardHTML(park) {
         else { cardStatusClass = 'status-empty'; boxStatusClass = 'full'; vacancyNumClass = 'none'; dotClass = 'dot-red'; }
         vacancyHTML = `<div class="vacancy-badge ${boxStatusClass}"><span class="vacancy-num ${vacancyNumClass}">${count}</span><span class="vacancy-label">${t.spaces}</span></div>`;
     }
-
-    let contactHTML = park.contactNo ? `<a href="tel:${park.contactNo.replace(/\s+/g, '')}" class="phone-link">${park.contactNo}</a>` : '';
     let distHTML = park.distance !== Infinity ? `<span class="distance">${park.distance.toFixed(2)} ${t.away}</span>${park.distance > 5 ? `<span class="distance-warning">${t.distWarning}</span>` : ''}` : '';
-    let evBadgeHTML = hasEVCharging(park) ? `<span class="status-badge ev-charger">${t.evBadge}</span>` : '';
-
-    let infoGridItems = '';
-    if (displayAddress) infoGridItems += `<div class="info-label">${t.address}:</div><div><a href="${mapUrl}" target="_blank" class="map-link">${displayAddress}</a></div>`;
-    if (park.district) infoGridItems += `<div class="info-label">${t.district}:</div><div>${park.district}</div>`;
-    if (park.carpark_Type) infoGridItems += `<div class="info-label">類型:</div><div>${park.carpark_Type}</div>`;
+    let infoGridItems = displayAddress ? `<div class="info-label">${t.address}:</div><div><a href="${mapUrl}" target="_blank" class="map-link">${displayAddress}</a></div>` : '';
     if (heightText) infoGridItems += `<div class="info-label">${t.maxHeight}:</div><div>${heightText}</div>`;
-    if (contactHTML) infoGridItems += `<div class="info-label">${t.contact}:</div><div>${contactHTML}</div>`;
+    if (park.contactNo) infoGridItems += `<div class="info-label">${t.contact}:</div><div><a href="tel:${park.contactNo.replace(/\s+/g, '')}" class="phone-link">${park.contactNo}</a></div>`;
 
-    return `<div class="carpark-card ${cardStatusClass}"><div class="card-body-split"><div class="card-left"><div class="carpark-name"><span class="status-dot ${dotClass}"></span>${park.name || '---'}</div><div class="tags-row">${distHTML} ${evBadgeHTML}</div>${infoGridItems ? `<div class="info-grid">${infoGridItems}</div>` : ''}</div><div class="card-right"><button class="card-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${park.park_Id}')">${isFav ? t.removeFav : t.addFav}</button>${vacancyHTML}</div></div></div>`;
+    return `<div class="carpark-card ${cardStatusClass}"><div class="card-body-split"><div class="card-left"><div class="carpark-name"><span class="status-dot ${dotClass}"></span>${park.name || '---'}</div><div class="tags-row">${distHTML} ${hasEVCharging(park) ? `<span class="status-badge ev-charger">${t.evBadge}</span>` : ''}</div>${infoGridItems ? `<div class="info-grid">${infoGridItems}</div>` : ''}</div><div class="card-right"><button class="card-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${park.park_Id}')">${isFav ? t.removeFav : t.addFav}</button>${vacancyHTML}</div></div></div>`;
 }
 
 function generateMeterCardHTML(meterGroup) {
     const isFav = favorites.includes(meterGroup.park_Id);
-    const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(meterGroup.address)}`;
     const isAnyVacant = meterGroup.vacantSpaces > 0;
-    return `<div class="carpark-card ${isAnyVacant ? 'status-high' : 'status-empty'}"><div class="card-body-split"><div class="card-left"><div class="carpark-name"><span class="status-dot ${isAnyVacant ? 'dot-green' : 'dot-red'}"></span>${meterGroup.name}</div><div class="tags-row"><span class="distance">${meterGroup.distance.toFixed(2)} ${t.away}</span>${meterGroup.distance > 5 ? `<span class="distance-warning">${t.distWarning}</span>` : ''}</div><div class="info-grid"><div class="info-label">${t.address}:</div><div><a href="${mapUrl}" target="_blank" class="map-link">${meterGroup.address}</a></div><div class="info-label">${t.district}:</div><div>${meterGroup.district || '---'}</div></div></div><div class="card-right"><button class="card-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${meterGroup.park_Id}')">${isFav ? t.removeFav : t.addFav}</button><div class="vacancy-badge ${isAnyVacant ? 'available' : 'full'}"><span class="vacancy-num ${!isAnyVacant ? 'none' : ''}">${meterGroup.vacantSpaces}/${meterGroup.totalSpaces}</span><span class="vacancy-label">${t.vacantMeters}</span></div></div></div></div>`;
+    return `<div class="carpark-card ${isAnyVacant ? 'status-high' : 'status-empty'}"><div class="card-body-split"><div class="card-left"><div class="carpark-name"><span class="status-dot ${isAnyVacant ? 'dot-green' : 'dot-red'}"></span>${meterGroup.name}</div><div class="tags-row"><span class="distance">${meterGroup.distance.toFixed(2)} ${t.away}</span>${meterGroup.distance > 5 ? `<span class="distance-warning">${t.distWarning}</span>` : ''}</div><div class="info-grid"><div class="info-label">${t.address}:</div><div><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(meterGroup.address)}" target="_blank" class="map-link">${meterGroup.address}</a></div><div class="info-label">${t.district}:</div><div>${meterGroup.district || '---'}</div></div></div><div class="card-right"><button class="card-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${meterGroup.park_Id}')">${isFav ? t.removeFav : t.addFav}</button><div class="vacancy-badge ${isAnyVacant ? 'available' : 'full'}"><span class="vacancy-num ${!isAnyVacant ? 'none' : ''}">${meterGroup.vacantSpaces}/${meterGroup.totalSpaces}</span><span class="vacancy-label">${t.vacantMeters}</span></div></div></div></div>`;
 }
 
 function generateToiletCardHTML(toilet) {
     const isFav = favorites.includes(toilet.park_Id);
-    const mapUrl = `https://www.google.com/maps/search/?api=1&query=${toilet.latitude},${toilet.longitude}`;
-    return `<div class="carpark-card status-high"><div class="card-body-split"><div class="card-left"><div class="carpark-name"><span class="status-dot dot-green"></span>${toilet.name}</div><div class="tags-row"><span class="distance">${toilet.distance.toFixed(2)} ${t.away}</span>${toilet.distance > 5 ? `<span class="distance-warning">${t.distWarning}</span>` : ''}</div><div class="info-grid"><div class="info-label">地址:</div><div><a href="${mapUrl}" target="_blank" class="map-link">${toilet.address}</a></div>${toilet.type !== '設施' ? `<div class="info-label">類型:</div><div>${toilet.type}</div>` : ''}</div></div><div class="card-right"><button class="card-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${toilet.park_Id}')">${isFav ? t.removeFav : t.addFav}</button><div style="height: 40px; visibility: hidden;"></div></div></div></div>`;
+    return `<div class="carpark-card status-high"><div class="card-body-split"><div class="card-left"><div class="carpark-name"><span class="status-dot dot-green"></span>${toilet.name}</div><div class="tags-row"><span class="distance">${toilet.distance.toFixed(2)} ${t.away}</span>${toilet.distance > 5 ? `<span class="distance-warning">${t.distWarning}</span>` : ''}</div><div class="info-grid"><div class="info-label">地址:</div><div><a href="https://www.google.com/maps/search/?api=1&query=${toilet.latitude},${toilet.longitude}" target="_blank" class="map-link">${toilet.address}</a></div>${toilet.type !== '設施' ? `<div class="info-label">類型:</div><div>${toilet.type}</div>` : ''}</div></div><div class="card-right"><button class="card-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${toilet.park_Id}')">${isFav ? t.removeFav : t.addFav}</button><div style="height: 40px; visibility: hidden;"></div></div></div></div>`;
 }
 
 function renderWelcomeMessage() {

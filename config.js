@@ -70,3 +70,4 @@ let searchHistory = JSON.parse(localStorage.getItem('hk_carpark_history')) || []
 let activeMeterFilter = 'all';
 let activeDistanceFilter = '1';
 let offstreetFilters = { hideFull: false, evOnly: false, sortByVacancy: false };
+let resolvedLocationName = '';

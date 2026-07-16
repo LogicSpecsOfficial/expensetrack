@@ -40,6 +40,10 @@ function groupMeteredParking(meters) {
 function generateCardHTML(park) {
     const isFav = favorites.includes(park.park_Id);
     let displayAddress = park.displayAddress || (park.address && park.address.displayAddress) || '';
+    
+    // Clean redundant double "地址：" prefix if returned in the API data
+    displayAddress = displayAddress.replace(/^(地址\s*[:：]\s*)/i, '').trim();
+    
     const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(displayAddress + " " + (park.name || ''))}`;
     let heightText = (park.heightRestrictions || []).map(h => h.height ? `${h.height}m` : '').filter(Boolean).join(', ');
     let cardStatusClass = 'status-unknown', boxStatusClass = '', vacancyNumClass = '';

@@ -48,7 +48,6 @@ function toggleFavorite(id) {
     if (typeof renderActiveTabDisplay === 'function') renderActiveTabDisplay();
 }
 
-// 補齊先前遺漏的 API 切換中央調度協調函式
 async function refreshActiveTabData(isBackgroundRefresh = false) {
     if (!userCoordinates) return;
     const statusText = document.getElementById('status');
@@ -108,8 +107,8 @@ if (locateBtn) {
 }
 if (refreshBtn) refreshBtn.addEventListener('click', async () => { if (!userCoordinates) { if (locateBtn) locateBtn.click(); } else { await refreshActiveTabData(false); } });
 if (showFavBtn) { showFavBtn.addEventListener('click', () => { if (favWrapper) favWrapper.style.display = (favWrapper.style.display === 'none') ? 'block' : 'none'; if (favWrapper && favWrapper.style.display === 'block' && cachedAllParks.length === 0) { if (typeof silentFetchData === 'function') silentFetchData(); } else { if (typeof renderFavorites === 'function') renderFavorites(); } updateUIStaticText(); }); }
-if (themeToggleBtn) themeToggleBtn.addEventListener('click', toggleTheme);
-if (homeBtn) { homeBtn.addEventListener('click', () => { userCoordinates = null; cachedAllParks = []; cachedAllMeters = []; cachedAllToilets = []; currentTab = 'offstreet'; if (tabOffStreet) tabOffStreet.classList.add('active'); ['tabMetered', 'tabToilet'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.remove('active'); }); if (typeof renderFilterPills === 'function') renderFilterPills(); document.getElementById('ui-search-title').textContent = t.searchTitle; const statusText = document.getElementById('status'); if (statusText) statusText.textContent = ""; if (typeof renderWelcomeMessage === 'function') renderWelcomeMessage(); }); }
+// 移除多餘的監聽器，直接交由 index.html 內聯的 onclick 觸發，防止重複觸發抵消
+if (homeBtn) { homeBtn.addEventListener('click', () => { userCoordinates = null; cachedAllParks = []; cachedAllMeters = []; cachedAllToilets = []; currentTab = 'offstreet'; tabOffStreet.classList.add('active'); ['tabMetered', 'tabToilet'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.remove('active'); }); if (typeof renderFilterPills === 'function') renderFilterPills(); document.getElementById('ui-search-title').textContent = t.searchTitle; const statusText = document.getElementById('status'); if (statusText) statusText.textContent = ""; if (typeof renderWelcomeMessage === 'function') renderWelcomeMessage(); }); }
 
 window.addEventListener('scroll', () => { if (stickyHeader) stickyHeader.classList.toggle('scrolled', window.scrollY > 20); if (backToTopBtn) backToTopBtn.classList.toggle('visible', window.scrollY > 300); });
 if (backToTopBtn) backToTopBtn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));

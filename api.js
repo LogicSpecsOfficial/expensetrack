@@ -20,7 +20,7 @@ function parseCSV(text) {
         }
     }
     if (headerIndex === -1) {
-        headerIndex = 0; headers = lines[0].split(splitRegex).map(h => h.replace(/^\uFEFF/i, '').replace(/^["']|["']$/g, '').trim().toLowerCase());
+        headerIndex = 0; headers = lines[0].split(splitRegex).map(h => h.replace(/^\uFEFF/i).replace(/^["']|["']$/g, '').trim().toLowerCase());
     }
     const results = [];
     for (let i = headerIndex + 1; i < lines.length; i++) {
@@ -43,46 +43,12 @@ async function fetchTextThroughProxy(rawUrl, useJSONHeader = false) {
     throw new Error("Unable to fetch data through proxy connections.");
 }
 
-function getPrivateCarHourlyFees(park) {
-    if (!park || !park.vehicleTypes || !Array.isArray(park.vehicleTypes)) return null;
-    const rates = [];
-    park.vehicleTypes.forEach(vt => {
-        const typeStr = (vt.type || '').toLowerCase();
-        if (typeStr.includes('private car') || typeStr.includes('私家車') || typeStr.includes('pc')) {
-            if (vt.rents && Array.isArray(vt.rents)) {
-                vt.rents.forEach(r => {
-                    const rentTypeStr = (r.rentType || '').toLowerCase();
-                    if (rentTypeStr.includes('hourly') || rentTypeStr.includes('時租')) {
-                        if (r.rate) {
-                            rates.push(r.rate);
-                        }
-                    }
-                });
-            }
-        }
-    });
-    return rates.length > 0 ? rates : null;
-}
-
 async function fetchCarParks(userLat, userLng) {
     const [infoRes, vacancyRes] = await Promise.all([fetch('https://api.data.gov.hk/v1/carpark-info-vacancy?data=info&lang=zh_TW'), fetch('https://api.data.gov.hk/v1/carpark-info-vacancy?data=vacancy&lang=zh_TW')]);
     if (!infoRes.ok || !vacancyRes.ok) throw new Error("API network failure");
     const infoData = await infoRes.json(), vacancyData = await vacancyRes.json(), vacancyMap = new Map();
     (vacancyData.results || []).forEach(v => vacancyMap.set(v.park_Id, v));
-    
-    const filteredParks = [];
-    (infoData.results || []).forEach(park => {
-        const fees = getPrivateCarHourlyFees(park);
-        if (fees && fees.length > 0) {
-            filteredParks.push({
-                ...park,
-                distance: calculateDistance(userLat, userLng, park.latitude, park.longitude),
-                liveInfo: vacancyMap.get(park.park_Id),
-                privateCarHourlyFees: fees
-            });
-        }
-    });
-    cachedAllParks = filteredParks.sort((a, b) => a.distance - b.distance);
+    cachedAllParks = (infoData.results || []).map(park => ({ ...park, distance: calculateDistance(userLat, userLng, park.latitude, park.longitude), liveInfo: vacancyMap.get(park.park_Id) })).sort((a, b) => a.distance - b.distance);
     await renderActiveTabDisplay(); renderFavorites();
 }
 
@@ -124,20 +90,7 @@ async function silentFetchData() {
         if (infoRes.ok && vacancyRes.ok) {
             const infoData = await infoRes.json(), vacancyData = await vacancyRes.json(), vacancyMap = new Map();
             (vacancyData.results || []).forEach(v => vacancyMap.set(v.park_Id, v));
-            
-            const filteredParks = [];
-            (infoData.results || []).forEach(p => {
-                const fees = getPrivateCarHourlyFees(p);
-                if (fees && fees.length > 0) {
-                    filteredParks.push({
-                        ...p,
-                        distance: Infinity,
-                        liveInfo: vacancyMap.get(p.park_Id),
-                        privateCarHourlyFees: fees
-                    });
-                }
-            });
-            cachedAllParks = filteredParks;
+            cachedAllParks = (infoData.results || []).map(p => ({ ...p, distance: Infinity, liveInfo: vacancyMap.get(p.park_Id) }));
             renderFavorites();
         }
     } catch (e) {}

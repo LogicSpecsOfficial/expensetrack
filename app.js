@@ -88,7 +88,7 @@ async function triggerAddressSearch(forcedQuery = null) {
             if (photonData.features?.length > 0) { [lng, lat] = photonData.features[0].geometry.coordinates; }
         }
         if (lat && lng) {
-            userCoordinates = { lat, lng }; cachedAllParks = []; cachedAllMeters = []; cachedAllToilets = [];
+            userCoordinates = { lat, lng }; cachedAllParks = null; cachedAllMeters = null; cachedAllToilets = null;
             saveSearch(inputVal); if (typeof renderFilterPills === 'function') renderFilterPills();
             if (searchWrapper) searchWrapper.classList.remove('open'); updateUIStaticText();
             await refreshActiveTabData(false);
@@ -111,14 +111,14 @@ if (locateBtn) {
             async (pos) => { 
                 userCoordinates = { lat: pos.coords.latitude, lng: pos.coords.longitude }; 
                 resolvedLocationName = "當前位置";
-                cachedAllParks = []; cachedAllMeters = []; cachedAllToilets = []; 
+                cachedAllParks = null; cachedAllMeters = null; cachedAllToilets = null; 
                 if (typeof renderFilterPills === 'function') renderFilterPills(); 
                 await refreshActiveTabData(false); 
             },
             async () => { 
                 userCoordinates = { lat: 22.3193, lng: 114.1694 }; 
                 resolvedLocationName = "九龍中心 (預設)";
-                cachedAllParks = []; cachedAllMeters = []; cachedAllToilets = []; 
+                cachedAllParks = null; cachedAllMeters = null; cachedAllToilets = null; 
                 if (typeof renderFilterPills === 'function') renderFilterPills(); 
                 if (statusText) statusText.textContent = "定位未開啟，已顯示九龍中心數據"; 
                 await refreshActiveTabData(false); 
@@ -128,8 +128,8 @@ if (locateBtn) {
     });
 }
 if (refreshBtn) refreshBtn.addEventListener('click', async () => { if (!userCoordinates) { if (locateBtn) locateBtn.click(); } else { await refreshActiveTabData(false); } });
-if (showFavBtn) { showFavBtn.addEventListener('click', () => { if (favWrapper) favWrapper.style.display = (favWrapper.style.display === 'none') ? 'block' : 'none'; if (favWrapper && favWrapper.style.display === 'block' && cachedAllParks.length === 0) { if (typeof silentFetchData === 'function') silentFetchData(); } else { if (typeof renderFavorites === 'function') renderFavorites(); } updateUIStaticText(); }); }
-if (homeBtn) { homeBtn.addEventListener('click', () => { userCoordinates = null; resolvedLocationName = ''; cachedAllParks = []; cachedAllMeters = []; cachedAllToilets = []; currentTab = 'offstreet'; tabOffStreet.classList.add('active'); ['tabMetered', 'tabToilet'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.remove('active'); }); if (typeof renderFilterPills === 'function') renderFilterPills(); document.getElementById('ui-search-title').textContent = t.searchTitle; const statusText = document.getElementById('status'); if (statusText) statusText.textContent = ""; if (typeof renderWelcomeMessage === 'function') renderWelcomeMessage(); }); }
+if (showFavBtn) { showFavBtn.addEventListener('click', () => { if (favWrapper) favWrapper.style.display = (favWrapper.style.display === 'none') ? 'block' : 'none'; if (favWrapper && favWrapper.style.display === 'block' && cachedAllParks === null) { if (typeof silentFetchData === 'function') silentFetchData(); } else { if (typeof renderFavorites === 'function') renderFavorites(); } updateUIStaticText(); }); }
+if (homeBtn) { homeBtn.addEventListener('click', () => { userCoordinates = null; resolvedLocationName = ''; cachedAllParks = null; cachedAllMeters = null; cachedAllToilets = null; currentTab = 'offstreet'; tabOffStreet.classList.add('active'); ['tabMetered', 'tabToilet'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.remove('active'); }); if (typeof renderFilterPills === 'function') renderFilterPills(); document.getElementById('ui-search-title').textContent = t.searchTitle; const statusText = document.getElementById('status'); if (statusText) statusText.textContent = ""; if (typeof renderWelcomeMessage === 'function') renderWelcomeMessage(); }); }
 
 window.addEventListener('scroll', () => { if (stickyHeader) stickyHeader.classList.toggle('scrolled', window.scrollY > 20); if (backToTopBtn) backToTopBtn.classList.toggle('visible', window.scrollY > 300); });
 if (backToTopBtn) backToTopBtn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));

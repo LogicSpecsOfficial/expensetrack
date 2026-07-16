@@ -1,64 +1,133 @@
 <!DOCTYPE html>
-<html lang="zh-HK">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HK Car Parks</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>HK Expense & Spot Tracker</title>
+    <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="style.css">
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <h1>HK Spot Finder</h1>
+            <p class="subtitle">Quickly find Parking, EV Chargers, & Toilets</p>
+        </header>
 
-    <div class="sticky-header-wrapper">
-        <div class="header-container">
-            <!-- 移除文字標題，替換為 Home 主頁圖標按鈕 -->
-            <button id="homeBtn" class="icon-btn" aria-label="主頁"></button>
-            <div class="header-actions">
-                <button id="themeToggleBtn" class="icon-btn" onclick="toggleTheme()" aria-label="切換主題"></button>
-                <button id="showFavBtn" class="icon-btn" aria-label="我的收藏"></button>
-                <button id="searchToggleBtn" class="icon-btn" aria-label="展開搜尋"></button>
-                <button id="refreshBtn" class="icon-btn" aria-label="更新數據"></button>
-                <button id="locateBtn" class="icon-btn" aria-label="GPS 定位"></button>
-            </div>
-        </div>
+        <!-- Tab Navigation -->
+        <nav class="tab-navigation">
+            <button class="tab-btn active" data-tab="expenses">
+                <i class="fa-solid fa-wallet"></i>
+                <span>Expenses</span>
+            </button>
+            <button class="tab-btn" data-tab="parking">
+                <i class="fa-solid fa-square-parking"></i>
+                <span>Metered</span>
+            </button>
+            <button class="tab-btn" data-tab="ev-charging">
+                <i class="fa-solid fa-bolt"></i>
+                <span>EV Charging</span>
+            </button>
+            <button class="tab-btn" data-tab="toilets">
+                <i class="fa-solid fa-restroom"></i>
+                <span>Toilets</span>
+            </button>
+        </nav>
 
-        <div class="tab-container">
-            <button id="tabOffStreet" class="tab-btn active" onclick="switchTab('offstreet')">室內停車場</button>
-            <button id="tabMetered" class="tab-btn" onclick="switchTab('metered')">路邊咪錶位</button>
-            <button id="tabToilet" class="tab-btn" onclick="switchTab('toilet')">公廁</button>
-        </div>
-        
-        <div id="searchWrapper" class="search-dropdown">
-            <div class="search-bar-container">
-                <input type="text" id="searchInput" placeholder="搜尋香港地址、大廈、商場或街道...">
-                <button id="searchBtn" class="search-action-btn">搜尋</button>
-            </div>
-        </div>
+        <!-- Main Content Area -->
+        <main class="tab-content-container">
+            <!-- Tab 1: Expense Tracker -->
+            <section id="expenses" class="tab-pane active">
+                <div class="expense-summary">
+                    <div class="summary-card">
+                        <h3>Total Spent</h3>
+                        <p id="total-expense">$0.00</p>
+                    </div>
+                </div>
 
-        <div id="history-wrapper" class="history-container" style="display: none;">
-            <div id="historyChips" class="chips-row"></div>
-            <button id="clearHistoryBtn" class="clear-btn">清除</button>
-        </div>
+                <div class="expense-form-container">
+                    <h3>Add New Expense</h3>
+                    <form id="expense-form">
+                        <div class="input-group">
+                            <label for="expense-title">Title</label>
+                            <input type="text" id="expense-title" placeholder="e.g. Tunnel Toll" required>
+                        </div>
+                        <div class="input-row">
+                            <div class="input-group">
+                                <label for="expense-amount">Amount ($)</label>
+                                <input type="number" step="0.1" id="expense-amount" placeholder="0.0" required>
+                            </div>
+                            <div class="input-group">
+                                <label for="expense-category">Category</label>
+                                <select id="expense-category">
+                                    <option value="Parking">Parking</option>
+                                    <option value="Charging">Charging</option>
+                                    <option value="Toll">Toll</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-primary">Add Expense</button>
+                    </form>
+                </div>
+
+                <div class="expense-list-container">
+                    <h3>Recent Transactions</h3>
+                    <ul id="expense-list" class="list-view">
+                        <!-- Dynamic content goes here -->
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Tab 2: Metered Parking -->
+            <section id="parking" class="tab-pane">
+                <div class="search-box">
+                    <input type="text" id="parking-search" placeholder="Search District (e.g. Wan Chai)...">
+                    <button id="parking-search-btn" class="search-btn"><i class="fa-solid fa-magnifying-glass"></i></button>
+                </div>
+                <div class="spot-results">
+                    <ul id="parking-list" class="list-view">
+                        <li class="info-message">Tap search or look around to fetch HK metered parking spots.</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Tab 3: EV Charging (New Tab) -->
+            <section id="ev-charging" class="tab-pane">
+                <div class="search-box">
+                    <input type="text" id="ev-search" placeholder="Search Location (e.g. Central)...">
+                    <button id="ev-search-btn" class="search-btn"><i class="fa-solid fa-magnifying-glass"></i></button>
+                </div>
+                <div class="spot-results">
+                    <ul id="ev-list" class="list-view">
+                        <li class="info-message">Search or load to fetch Electric Vehicle charging stations in HK.</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Tab 4: Public Toilets -->
+            <section id="toilets" class="tab-pane">
+                <div class="search-box">
+                    <input type="text" id="toilet-search" placeholder="Search District (e.g. Mong Kok)...">
+                    <button id="toilet-search-btn" class="search-btn"><i class="fa-solid fa-magnifying-glass"></i></button>
+                </div>
+                <div class="spot-results">
+                    <ul id="toilet-list" class="list-view">
+                        <li class="info-message">Search or load to fetch public toilets in HK.</li>
+                    </ul>
+                </div>
+            </section>
+        </main>
     </div>
 
-    <p id="status"></p>
-    
-    <div id="fav-wrapper" style="display:none;">
-        <div class="section-title" id="ui-fav-title">我的收藏夾</div>
-        <div id="favoritesList"></div>
-    </div>
-
-    <div id="filter-container" style="display: none;"></div>
-
-    <div class="section-title" id="ui-search-title">搜尋結果</div>
-    <div id="results"></div>
-
-    <button id="backToTopBtn" class="back-to-top" aria-label="回到頂部"></button>
-    
+    <!-- Scripts -->
     <script src="config.js"></script>
     <script src="templates.js"></script>
     <script src="api.js"></script>
     <script src="ui.js"></script>
     <script src="app.js"></script>
-
 </body>
 </html>

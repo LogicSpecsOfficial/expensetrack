@@ -38,8 +38,20 @@ function groupMeteredParking(meters) {
 }
 
 function formatCarparkFees(park) {
-    const privateCar = park.privateCar;
+    if (!park) return '';
+    let privateCar = park.privateCar;
     if (!privateCar) return '';
+
+    // 解決政府 API 有時回傳陣列 (Array) 有時回傳對象 (Object) 的結構偏差
+    if (Array.isArray(privateCar)) {
+        if (privateCar.length > 0) {
+            privateCar = privateCar[0];
+        } else {
+            return '';
+        }
+    }
+
+    if (typeof privateCar !== 'object') return '';
 
     const hourly = privateCar.hourlyCharges || [];
     const dayNight = privateCar.dayNightParks || [];
@@ -72,8 +84,8 @@ function formatCarparkFees(park) {
         allRules.push({
             type: translateType(h.type),
             weekdays: translateWeekdays(h.weekdays),
-            time: `${h.periodStart}-${h.periodEnd}`,
-            price: `$${h.price}/${h.type === 'half-hourly' ? '半小時' : '小時'}`
+            time: `${h.periodStart || ''}-${h.periodEnd || ''}`,
+            price: h.price !== undefined ? `$${h.price}/${h.type === 'half-hourly' ? '半小時' : '小時'}` : '未提供'
         });
     });
 
@@ -81,26 +93,29 @@ function formatCarparkFees(park) {
         allRules.push({
             type: translateType(d.type),
             weekdays: translateWeekdays(d.weekdays),
-            time: `${d.periodStart}-${d.periodEnd}`,
-            price: `$${d.price}/次`
+            time: `${d.periodStart || ''}-${d.periodEnd || ''}`,
+            price: d.price !== undefined ? `$${d.price}/次` : '未提供'
         });
     });
 
     if (allRules.length === 0) return '';
 
+    // 單一規則直接一行字顯示[cite: 12]
     if (allRules.length === 1) {
         const rule = allRules[0];
         return `<span class="single-fee-text" style="font-weight: 500; color: var(--text-main);">${rule.type}：${rule.price} (${rule.weekdays} ${rule.time})</span>`;
     }
 
-    const uniqueId = `fee-table-${park.park_Id.replace(/[^a-zA-Z0-9]/g, '_')}`;
-    const toggleBtnId = `fee-btn-${park.park_Id.replace(/[^a-zA-Z0-9]/g, '_')}`;
+    // 將 park_Id 強制轉為字串，徹底防止純數字 ID 呼叫 .replace 崩潰
+    const safeParkId = String(park.park_Id).replace(/[^a-zA-Z0-9]/g, '_');
+    const uniqueId = `fee-table-${safeParkId}`;
+    const toggleBtnId = `fee-btn-${safeParkId}`;
 
     return `
     <div class="fee-collapsible-wrapper" style="margin-top: 2px; width: 100%;">
-        <button id="${toggleBtnId}" class="fee-toggle-btn" onclick="toggleFeeTable('${park.park_Id.replace(/[^a-zA-Z0-9]/g, '_')}', event)" style="background: none; border: none; color: var(--accent); font-size: 0.75rem; font-weight: 600; padding: 0; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+        <button id="${toggleBtnId}" class="fee-toggle-btn" onclick="toggleFeeTable('${safeParkId}', event)" style="background: none; border: none; color: var(--accent); font-size: 0.75rem; font-weight: 600; padding: 0; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
             <span>顯示收費詳情</span>
-            <svg id="arrow-${park.park_Id.replace(/[^a-zA-Z0-9]/g, '_')}" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.2s; transform: rotate(0deg);"><polyline points="6 9 12 15 18 9"/></svg>
+            <svg id="arrow-${safeParkId}" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.2s; transform: rotate(0deg);"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
         <div id="${uniqueId}" style="display: none; max-height: 0; overflow: hidden; transition: max-height 0.25s ease-out; margin-top: 4px; width: 100%;">
             <table style="width: 100%; border-collapse: collapse; font-size: 0.75rem; text-align: left; color: var(--text-main); border: 1px solid var(--border-color); background-color: var(--bg-primary); border-radius: 4px; overflow: hidden;">

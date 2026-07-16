@@ -37,148 +37,11 @@ function groupMeteredParking(meters) {
     return Object.values(groups).sort((a, b) => a.distance - b.distance);
 }
 
-function getVehicleData(park) {
-    if (!park) return null;
-    
-    // 若收費直接寫在頂層
-    const topHourly = park.hourlyCharges || park.hourlycharges || park.hourly_charges;
-    const topDayNight = park.dayNightParks || park.daynightparks || park.day_night_parks;
-    if ((topHourly && topHourly.length > 0) || (topDayNight && topDayNight.length > 0)) {
-        return park;
-    }
-
-    const keys = [
-        'privateCar', 'privatecar', 'private_car',
-        'LGV', 'lgv',
-        'motorCycle', 'motorcycle', 'motor_cycle',
-        'HGV', 'hgv',
-        'coach',
-        'CV', 'cv'
-    ];
-    for (let key of keys) {
-        let data = park[key];
-        if (data) {
-            if (Array.isArray(data)) {
-                if (data.length > 0) data = data[0];
-                else continue;
-            }
-            if (typeof data === 'object' && data !== null) {
-                const hourly = data.hourlyCharges || data.hourlycharges || data.hourly_charges || [];
-                const dayNight = data.dayNightParks || data.daynightparks || data.day_night_parks || data.dayNight || data.daynight || [];
-                if (hourly.length > 0 || dayNight.length > 0) {
-                    return data;
-                }
-            }
-        }
-    }
-    return null;
-}
-
-function formatCarparkFees(park) {
-    const vehicleData = getVehicleData(park);
-    if (!vehicleData) {
-        return '';
-    }
-
-    const hourly = vehicleData.hourlyCharges || vehicleData.hourlycharges || vehicleData.hourly_charges || [];
-    const dayNight = vehicleData.dayNightParks || vehicleData.daynightparks || vehicleData.day_night_parks || vehicleData.dayNight || vehicleData.daynight || [];
-
-    if (hourly.length === 0 && dayNight.length === 0) {
-        return '';
-    }
-
-    const translateType = (type) => {
-        if (type === 'hourly') return '時租';
-        if (type === 'half-hourly') return '半時租';
-        if (type === 'day-park') return '日泊';
-        if (type === 'night-park') return '夜泊';
-        if (type === '6-hours-park') return '6小時泊';
-        if (type === '12-hours-park') return '12小時泊';
-        if (type === '24-hours-park') return '24小時泊';
-        return type;
-    };
-
-    const translateWeekdays = (wd) => {
-        if (!wd || !Array.isArray(wd) || wd.length === 0) return '每天';
-        const wdUpper = wd.map(w => String(w).toUpperCase());
-        if (wdUpper.length === 8 || (wdUpper.includes('MON') && wdUpper.includes('SUN') && wdUpper.length >= 7)) return '星期一至日';
-        if (wdUpper.includes('MON') && wdUpper.includes('FRI') && wdUpper.length === 5 && !wdUpper.includes('SAT') && !wdUpper.includes('SUN')) return '星期一至五';
-        if (wdUpper.includes('SAT') && wdUpper.includes('SUN') && wdUpper.length === 2) return '星期六至日';
-        
-        const mapping = { 'MON': '一', 'TUE': '二', 'WED': '三', 'THU': '四', 'FRI': '五', 'SAT': '六', 'SUN': '日', 'PH': '公眾假期' };
-        return wdUpper.map(w => mapping[w] || w).join('/');
-    };
-
-    const allRules = [];
-    hourly.forEach(h => {
-        if (!h) return;
-        allRules.push({
-            type: translateType(h.type || 'hourly'),
-            weekdays: translateWeekdays(h.weekdays),
-            time: `${h.periodStart || '00:00'}-${h.periodEnd || '24:00'}`,
-            price: h.price !== undefined ? `$${h.price}/${h.type === 'half-hourly' ? '半小時' : '小時'}` : '未提供'
-        });
-    });
-
-    dayNight.forEach(d => {
-        if (!d) return;
-        allRules.push({
-            type: translateType(d.type || 'day-park'),
-            weekdays: translateWeekdays(d.weekdays),
-            time: `${d.periodStart || '00:00'}-${d.periodEnd || '24:00'}`,
-            price: d.price !== undefined ? `$${d.price}/次` : '未提供'
-        });
-    });
-
-    if (allRules.length === 0) return '';
-
-    // 日誌除錯：在 F12 console 中直接列印出解析成果
-    console.log(`[Fee Debug] ${park.name} (${park.park_Id}) 成功解析收費規則數: ${allRules.length}`);
-
-    if (allRules.length === 1) {
-        const rule = allRules[0];
-        return `<span class="single-fee-text" style="font-weight: 500; color: var(--text-main);">${rule.type}：${rule.price} (${rule.weekdays} ${rule.time})</span>`;
-    }
-
-    const safeParkId = String(park.park_Id).replace(/[^a-zA-Z0-9]/g, '_');
-    const uniqueId = `fee-table-${safeParkId}`;
-    const toggleBtnId = `fee-btn-${safeParkId}`;
-
-    return `
-    <div class="fee-collapsible-wrapper" style="margin-top: 2px; width: 100%;">
-        <button id="${toggleBtnId}" class="fee-toggle-btn" onclick="toggleFeeTable('${safeParkId}', event)" style="background: none; border: none; color: var(--accent); font-size: 0.75rem; font-weight: 600; padding: 0; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
-            <span>顯示收費詳情</span>
-            <svg id="arrow-${safeParkId}" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.2s; transform: rotate(0deg);"><polyline points="6 9 12 15 18 9"/></svg>
-        </button>
-        <div id="${uniqueId}" style="display: none; max-height: 0; overflow: hidden; transition: max-height 0.25s ease-out; margin-top: 4px; width: 100%;">
-            <table style="width: 100%; border-collapse: collapse; font-size: 0.75rem; text-align: left; color: var(--text-main); border: 1px solid var(--border-color); background-color: var(--bg-primary); border-radius: 4px; overflow: hidden;">
-                <thead>
-                    <tr style="border-bottom: 1px solid var(--border-color); background-color: rgba(128,128,128,0.06);">
-                        <th style="padding: 4px 6px; font-weight: 600;">類型</th>
-                        <th style="padding: 4px 6px; font-weight: 600;">適用日子</th>
-                        <th style="padding: 4px 6px; font-weight: 600;">時段</th>
-                        <th style="padding: 4px 6px; font-weight: 600;">收費</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${allRules.map(r => `
-                        <tr style="border-bottom: 1px solid var(--border-color);">
-                            <td style="padding: 4px 6px; font-weight: 500;">${r.type}</td>
-                            <td style="padding: 4px 6px; opacity: 0.8;">${r.weekdays}</td>
-                            <td style="padding: 4px 6px; opacity: 0.8; white-space: nowrap;">${r.time}</td>
-                            <td style="padding: 4px 6px; font-weight: 600; color: var(--accent);">${r.price}</td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-        </div>
-    </div>`;
-}
-
 function generateCardHTML(park) {
     const isFav = favorites.includes(park.park_Id);
     let displayAddress = park.displayAddress || (park.address && park.address.displayAddress) || '';
     
+    // Clean redundant double "地址：" prefix if returned in the API data
     displayAddress = displayAddress.replace(/^(地址\s*[:：]\s*)/i, '').trim();
     
     const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(displayAddress + " " + (park.name || ''))}`;
@@ -197,11 +60,6 @@ function generateCardHTML(park) {
     if (heightText) infoGridItems += `<div class="info-label">${t.maxHeight}:</div><div>${heightText}</div>`;
     if (park.contactNo) infoGridItems += `<div class="info-label">${t.contact}:</div><div><a href="tel:${park.contactNo.replace(/\s+/g, '')}" class="phone-link">${park.contactNo}</a></div>`;
     
-    const feeHTML = formatCarparkFees(park);
-    if (feeHTML) {
-        infoGridItems += `<div class="info-label">${t.feeTitle}:</div><div>${feeHTML}</div>`;
-    }
-
     const favBtnHTML = `<button class="card-fav-btn inline-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${park.park_Id}')" aria-label="${isFav ? t.removeFav : t.addFav}">${isFav ? svgStarFilled : svgStarOutline}</button>`;
     
     return `<div class="carpark-card ${cardStatusClass}"><div class="card-body-split"><div class="card-left"><div class="carpark-name">${favBtnHTML}${park.name || '---'}</div><div class="tags-row">${distHTML} ${hasEVCharging(park) ? `<span class="status-badge ev-charger">${t.evBadge}</span>` : ''}</div>${infoGridItems ? `<div class="info-grid">${infoGridItems}</div>` : ''}</div><div class="card-right">${vacancyHTML}</div></div></div>`;

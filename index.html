@@ -10,7 +10,8 @@
 
     <div class="sticky-header-wrapper">
         <div class="header-container">
-            <h1 id="ui-title">最近的香港停車場</h1>
+            <!-- 移除文字名稱，替換為 Home 主頁圖標按鈕 -->
+            <button id="homeBtn" class="icon-btn" aria-label="主頁"></button>
             <div class="header-actions">
                 <button id="themeToggleBtn" class="icon-btn" onclick="toggleTheme()" aria-label="切換主題"></button>
                 <button id="showFavBtn" class="icon-btn" aria-label="我的收藏"></button>
@@ -20,7 +21,6 @@
             </div>
         </div>
 
-        <!-- 補上公廁分頁按鈕 -->
         <div class="tab-container">
             <button id="tabOffStreet" class="tab-btn active" onclick="switchTab('offstreet')">室內停車場</button>
             <button id="tabMetered" class="tab-btn" onclick="switchTab('metered')">路邊咪錶位</button>
@@ -54,11 +54,9 @@
 
     <button id="backToTopBtn" class="back-to-top" aria-label="回到頂部"></button>
 
- <script src="config.js"></script>>
-<script src="api.js"></script>
-<script src="app.js"></script>
+    <script src="config.js"></script>
+    <script src="api.js"></script>
+    <script src="app.js"></script>
 
-</body>
-</html>
 </body>
 </html>

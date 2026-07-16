@@ -1,16 +1,13 @@
 // api.js
 function calculateDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371; 
-    const dLat = (lat2 - lat1) * Math.PI / 180; const dLon = (lon2 - lon1) * Math.PI / 180;
+    const R = 6371; const dLat = (lat2 - lat1) * Math.PI / 180; const dLon = (lon2 - lon1) * Math.PI / 180;
     const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
     return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
 }
 
 function parseCSV(text) {
-    const lines = text.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
-    if (lines.length === 0) return [];
-    const splitRegex = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/;
-    let headerIndex = -1, headers = [];
+    const lines = text.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0); if (lines.length === 0) return [];
+    const splitRegex = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/; let headerIndex = -1, headers = [];
     for (let i = 0; i < lines.length; i++) {
         const cleanLine = lines[i].replace(/^\uFEFF/i, '').trim();
         if (cleanLine.includes('parkingspaceid') || cleanLine.includes('parking_space_id') || cleanLine.includes('occupancystatus')) { headerIndex = i; headers = cleanLine.split(splitRegex).map(h => h.replace(/^["']|["']$/g, '').trim().toLowerCase()); break; }

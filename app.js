@@ -34,6 +34,7 @@ function updateUIStaticText() {
     if (typeof renderFilterPills === 'function') renderFilterPills();
 }
 
+// 滾動時啟用陰影與底線
 function saveSearch(query) {
     searchHistory = searchHistory.filter(item => item.toLowerCase() !== query.toLowerCase()); searchHistory.unshift(query);
     if (searchHistory.length > 5) searchHistory = searchHistory.slice(0, 5);

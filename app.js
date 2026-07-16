@@ -164,7 +164,6 @@ function setMeterFilter(filterValue) {
     renderActiveTabDisplay();
 }
 
-// 修正：距離篩選變更時清空快取，確保能依據新半徑即時向伺服器拉取完整數據
 function setDistanceFilter(distanceValue) {
     activeDistanceFilter = distanceValue;
     cachedAllParks = [];
@@ -462,7 +461,7 @@ showFavBtn.addEventListener('click', () => {
             renderFavorites();
         }
     } else {
-        favWrapper.style.display === 'none';
+        favWrapper.style.display = 'none';
     }
     updateUIStaticText();
 });
@@ -582,45 +581,7 @@ function generateCardHTML(park) {
         </div>`;
 }
 
-function generateMeterCardHTML(meterGroup) {
-    const isFav = favorites.includes(meterGroup.park_Id);
-    const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(meterGroup.address)}`;
-    const vacantCount = meterGroup.vacantSpaces;
-    const totalCount = meterGroup.totalSpaces;
-    const isAnyVacant = vacantCount > 0;
-    const cardStatusClass = isAnyVacant ? 'status-high' : 'status-empty';
-    const boxStatusClass = isAnyVacant ? 'available' : 'full';
-    const dotClass = isAnyVacant ? 'dot-green' : 'dot-red';
-
-    let distWarningHTML = meterGroup.distance > 5 ? `<span class="distance-warning">${t.distWarning}</span>` : '';
-    const distHTML = meterGroup.distance !== Infinity ? `<span class="distance">${meterGroup.distance.toFixed(2)} ${t.away}</span>${distWarningHTML}` : '';
-
-    const vacancyLabel = `${vacantCount}/${totalCount}`;
-
-    return `
-        <div class="carpark-card ${cardStatusClass}">
-            <div class="card-body-split">
-                <div class="card-left">
-                    <div class="carpark-name">
-                        <span class="status-dot ${dotClass}"></span>
-                        ${meterGroup.name}
-                    </div>
-                    <div class="tags-row">${distHTML}</div>
-                    <div class="info-grid">
-                        <div class="info-label">${t.address}:</div><div><a href="${mapUrl}" target="_blank" class="map-link">${meterGroup.address}</a></div>
-                        <div class="info-label">${t.district}:</div><div>${meterGroup.district || '---'}</div>
-                    </div>
-                </div>
-                <div class="card-right">
-                    <button class="card-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${meterGroup.park_Id}')">${isFav ? t.removeFav : t.addFav}</button>
-                    <div class="vacancy-badge ${boxStatusClass}">
-                        <span class="vacancy-num ${!isAnyVacant ? 'none' : ''}">${vacancyLabel}</span>
-                        <span class="vacancy-label">${t.vacantMeters}</span>
-                    </div>
-                </div>
-            </div>
-        </div>`;
-}
+// === 下方為新增的公廁 API 抓取、解析、測量與渲染邏輯 ===
 
 function calcDistance(lat1, lon1, lat2, lon2) {
     const R = 6371; 
@@ -735,16 +696,6 @@ function generateToiletCardHTML(toilet) {
         </div>`;
 }
 
-function displayResults(items, isMeter = false) {
-    statusText.textContent = "";
-    uiSearchTitle.textContent = `${t.searchTitle} (${items.length})`;
-    if (items.length === 0) {
-        resultsDiv.innerHTML = `<div class="empty-notice">${t.noRecords}</div>`;
-        return;
-    }
-    resultsDiv.innerHTML = items.map(item => isMeter ? generateMeterCardHTML(item) : generateCardHTML(item)).join('');
-}
-
 function displayToiletResults(items) {
     statusText.textContent = ""; 
     uiSearchTitle.textContent = `${t.searchTitle} (${items.length})`; 
@@ -755,6 +706,8 @@ function displayToiletResults(items) {
     }
     resultsDiv.innerHTML = items.map(item => generateToiletCardHTML(item)).join('');
 }
+
+// === 上方為新增的公廁邏輯 ===
 
 function renderFavorites() {
     if (favorites.length === 0) {
@@ -776,6 +729,7 @@ function renderFavorites() {
     favoritesList.innerHTML = html ? html : `<div class="empty-notice">${t.noFavs}</div>`;
 }
 
+// 修正內嵌樣式以防止 iOS 瀏覽器中的 SVG 自動壓縮坍塌
 function renderWelcomeMessage() {
     resultsDiv.innerHTML = `
         <div class="welcome-box" style="text-align: center; padding: 15px 10px;">

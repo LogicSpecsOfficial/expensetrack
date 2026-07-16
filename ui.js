@@ -35,7 +35,7 @@ function setDistanceFilter(distanceValue) { activeDistanceFilter = distanceValue
 async function renderActiveTabDisplay() {
     if (!userCoordinates) return;
     if (currentTab === 'offstreet') {
-        if (cachedAllParks.length > 0) {
+        if (cachedAllParks !== null) {
             let filtered = [...cachedAllParks];
             if (activeDistanceFilter !== 'all') filtered = filtered.filter(p => p.distance <= parseFloat(activeDistanceFilter));
             if (offstreetFilters.hideFull) filtered = filtered.filter(p => getVacancyCount(p) !== 0);
@@ -44,7 +44,7 @@ async function renderActiveTabDisplay() {
             displayResults(filtered.slice(0, 30), false);
         } else { await refreshActiveTabData(false); }
     } else if (currentTab === 'metered') {
-        if (cachedAllMeters.length > 0) {
+        if (cachedAllMeters !== null) {
             let grouped = groupMeteredParking(cachedAllMeters);
             if (activeDistanceFilter !== 'all') grouped = grouped.filter(m => m.distance <= parseFloat(activeDistanceFilter));
             if (activeMeterFilter === 'vacant') grouped = grouped.filter(m => m.vacantSpaces > 0);
@@ -52,7 +52,7 @@ async function renderActiveTabDisplay() {
             displayResults(grouped.slice(0, 30), true);
         } else { await refreshActiveTabData(false); }
     } else if (currentTab === 'toilet') {
-        if (cachedAllToilets.length > 0) {
+        if (cachedAllToilets !== null) {
             let filtered = [...cachedAllToilets];
             if (activeDistanceFilter !== 'all') filtered = filtered.filter(item => item.distance <= parseFloat(activeDistanceFilter));
             filtered.sort((a, b) => a.distance - b.distance);
@@ -84,8 +84,8 @@ function displayToiletResults(items) {
 function renderFavorites() {
     if (favorites.length === 0) { favoritesList.innerHTML = `<div class="empty-notice">${t.noFavs}</div>`; return; }
     let html = '';
-    if (currentTab === 'offstreet') cachedAllParks.filter(p => favorites.includes(p.park_Id)).forEach(p => html += generateCardHTML(p));
-    else if (currentTab === 'metered') groupMeteredParking(cachedAllMeters).filter(m => favorites.includes(m.park_Id)).forEach(m => html += generateMeterCardHTML(m));
-    else if (currentTab === 'toilet') cachedAllToilets.filter(item => favorites.includes(item.park_Id)).forEach(item => html += generateToiletCardHTML(item));
+    if (currentTab === 'offstreet' && cachedAllParks) cachedAllParks.filter(p => favorites.includes(p.park_Id)).forEach(p => html += generateCardHTML(p));
+    else if (currentTab === 'metered' && cachedAllMeters) groupMeteredParking(cachedAllMeters).filter(m => favorites.includes(m.park_Id)).forEach(m => html += generateMeterCardHTML(m));
+    else if (currentTab === 'toilet' && cachedAllToilets) cachedAllToilets.filter(item => favorites.includes(item.park_Id)).forEach(item => html += generateToiletCardHTML(item));
     favoritesList.innerHTML = html ? html : `<div class="empty-notice">${t.noFavs}</div>`;
 }

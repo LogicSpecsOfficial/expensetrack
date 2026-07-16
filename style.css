@@ -324,7 +324,6 @@ body.dark-theme .clear-btn:active {
     border: 1px solid var(--border-color);
     border-left: 4px solid var(--border-color);
     transition: border-color 0.15s, background-color 0.2s;
-    position: relative;
 }
 
 .carpark-card.status-high { border-left-color: var(--success); }
@@ -402,50 +401,44 @@ body.dark-theme .card-fav-btn {
     border-color: var(--danger);
 }
 
-/* Floating overlay bookmark styles */
-.card-fav-btn.floating-fav-btn {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background-color: var(--surface);
-    border: 1px solid var(--border-color);
-    color: var(--text-muted);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    cursor: pointer;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    transition: transform 0.1s ease, background-color 0.2s, border-color 0.2s, color 0.2s;
-    z-index: 10;
+/* Inline Favorite Button Styles */
+.card-fav-btn.inline-fav-btn {
+    background-color: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    width: 20px !important;
+    height: 20px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    color: var(--text-muted) !important;
+    transition: transform 0.1s ease, color 0.2s !important;
+    flex-shrink: 0 !important;
 }
 
-body.dark-theme .card-fav-btn.floating-fav-btn {
-    background-color: #2d2d2d;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+body.dark-theme .card-fav-btn.inline-fav-btn {
+    background-color: transparent !important;
 }
 
-.card-fav-btn.floating-fav-btn:active {
-    transform: scale(0.9);
+.card-fav-btn.inline-fav-btn:active {
+    transform: scale(0.85) !important;
 }
 
-.card-fav-btn.floating-fav-btn svg {
-    width: 16px;
-    height: 16px;
-    display: block;
+.card-fav-btn.inline-fav-btn svg {
+    width: 18px !important;
+    height: 18px !important;
+    display: block !important;
 }
 
-.card-fav-btn.floating-fav-btn.active {
-    background-color: var(--surface);
-    border-color: #ff9f43;
-    color: #ff9f43;
+.card-fav-btn.inline-fav-btn.active {
+    background-color: transparent !important;
+    border-color: transparent !important;
+    color: #ff9f43 !important;
 }
 
-body.dark-theme .card-fav-btn.floating-fav-btn.active {
-    background-color: #2d2d2d;
+body.dark-theme .card-fav-btn.inline-fav-btn.active {
+    background-color: transparent !important;
 }
 
 .tags-row {

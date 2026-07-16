@@ -37,7 +37,6 @@ function groupMeteredParking(meters) {
     return Object.values(groups).sort((a, b) => a.distance - b.distance);
 }
 
-// 歸一化解析車輛資料物件，自動對抗 API 格式鍵值大小寫與嵌套偏差
 function getVehicleData(park) {
     if (!park) return null;
     
@@ -77,12 +76,16 @@ function getVehicleData(park) {
 
 function formatCarparkFees(park) {
     const vehicleData = getVehicleData(park);
-    if (!vehicleData) return '';
+    if (!vehicleData) {
+        return '';
+    }
 
     const hourly = vehicleData.hourlyCharges || vehicleData.hourlycharges || vehicleData.hourly_charges || [];
     const dayNight = vehicleData.dayNightParks || vehicleData.daynightparks || vehicleData.day_night_parks || vehicleData.dayNight || vehicleData.daynight || [];
 
-    if (hourly.length === 0 && dayNight.length === 0) return '';
+    if (hourly.length === 0 && dayNight.length === 0) {
+        return '';
+    }
 
     const translateType = (type) => {
         if (type === 'hourly') return '時租';
@@ -96,7 +99,7 @@ function formatCarparkFees(park) {
     };
 
     const translateWeekdays = (wd) => {
-        if (!wd || wd.length === 0) return '每天';
+        if (!wd || !Array.isArray(wd) || wd.length === 0) return '每天';
         const wdUpper = wd.map(w => String(w).toUpperCase());
         if (wdUpper.length === 8 || (wdUpper.includes('MON') && wdUpper.includes('SUN') && wdUpper.length >= 7)) return '星期一至日';
         if (wdUpper.includes('MON') && wdUpper.includes('FRI') && wdUpper.length === 5 && !wdUpper.includes('SAT') && !wdUpper.includes('SUN')) return '星期一至五';
@@ -108,24 +111,29 @@ function formatCarparkFees(park) {
 
     const allRules = [];
     hourly.forEach(h => {
+        if (!h) return;
         allRules.push({
-            type: translateType(h.type),
+            type: translateType(h.type || 'hourly'),
             weekdays: translateWeekdays(h.weekdays),
-            time: `${h.periodStart || ''}-${h.periodEnd || ''}`,
+            time: `${h.periodStart || '00:00'}-${h.periodEnd || '24:00'}`,
             price: h.price !== undefined ? `$${h.price}/${h.type === 'half-hourly' ? '半小時' : '小時'}` : '未提供'
         });
     });
 
     dayNight.forEach(d => {
+        if (!d) return;
         allRules.push({
-            type: translateType(d.type),
+            type: translateType(d.type || 'day-park'),
             weekdays: translateWeekdays(d.weekdays),
-            time: `${d.periodStart || ''}-${d.periodEnd || ''}`,
+            time: `${d.periodStart || '00:00'}-${d.periodEnd || '24:00'}`,
             price: d.price !== undefined ? `$${d.price}/次` : '未提供'
         });
     });
 
     if (allRules.length === 0) return '';
+
+    // 日誌除錯：在 F12 console 中直接列印出解析成果
+    console.log(`[Fee Debug] ${park.name} (${park.park_Id}) 成功解析收費規則數: ${allRules.length}`);
 
     if (allRules.length === 1) {
         const rule = allRules[0];

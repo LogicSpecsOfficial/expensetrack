@@ -45,8 +45,7 @@ const t = {
     distAll: "不限距離",
     vacantMeters: "空置咪錶",
     welcomeTitle: "歡迎使用香港停車場搜尋",
-    welcomeDesc: "請點擊上方的「GPS 定位」按鈕以尋找附近的停車場，或在搜尋框中直接輸入地址進行搜尋。",
-    feeTitle: "收費"
+    welcomeDesc: "請點擊上方的「GPS 定位」按鈕以尋找附近的停車場，或在搜尋框中直接輸入地址進行搜尋。"
 };
 
 const sunIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>`;

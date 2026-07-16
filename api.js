@@ -49,6 +49,12 @@ async function fetchCarParks(userLat, userLng) {
     const infoData = await infoRes.json(), vacancyData = await vacancyRes.json(), vacancyMap = new Map();
     (vacancyData.results || []).forEach(v => vacancyMap.set(v.park_Id, v));
     cachedAllParks = (infoData.results || []).map(park => ({ ...park, distance: calculateDistance(userLat, userLng, park.latitude, park.longitude), liveInfo: vacancyMap.get(park.park_Id) })).sort((a, b) => a.distance - b.distance);
+    
+    // 將政府原始 API 回傳結果傳遞給診斷面板
+    if (typeof window.analyzeRawApiData === 'function') {
+        window.analyzeRawApiData(infoData.results);
+    }
+    
     await renderActiveTabDisplay(); renderFavorites();
 }
 

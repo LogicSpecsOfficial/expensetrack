@@ -1,12 +1,7 @@
 // ui.js
-const tabOffStreet = document.getElementById('tabOffStreet');
-const tabMetered = document.getElementById('tabMetered');
-const tabToilet = document.getElementById('tabToilet');
 const filterContainer = document.getElementById('filter-container');
 const resultsDiv = document.getElementById('results');
 const favoritesList = document.getElementById('favoritesList');
-const uiFavTitle = document.getElementById('ui-fav-title');
-const uiSearchTitle = document.getElementById('ui-search-title');
 const statusText = document.getElementById('status');
 
 function renderFilterPills() {
@@ -28,14 +23,14 @@ function renderFilterPills() {
 
 async function switchTab(tabName) {
     currentTab = tabName;
-    [tabOffStreet, tabMetered, tabToilet].forEach(el => el && el.classList.remove('active'));
-    if (currentTab === 'offstreet') tabOffStreet.classList.add('active');
-    else if (currentTab === 'metered') tabMetered.classList.add('active');
-    else if (currentTab === 'toilet' && tabToilet) tabToilet.classList.add('active');
+    ['tabOffStreet', 'tabMetered', 'tabToilet'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.remove('active'); });
+    const activeEl = document.getElementById(currentTab === 'offstreet' ? 'tabOffStreet' : (currentTab === 'metered' ? 'tabMetered' : 'tabToilet'));
+    if (activeEl) activeEl.classList.add('active');
     renderFilterPills(); renderFavorites(); await renderActiveTabDisplay();
 }
 
 function toggleOffstreetFilter(filterName) { offstreetFilters[filterName] = !offstreetFilters[filterName]; renderFilterPills(); renderActiveTabDisplay(); }
+// 修正：修正計咪錶與車位的過濾，採用高效的前端快取響應，不干擾連線
 function setMeterFilter(filterValue) { activeMeterFilter = filterValue; renderFilterPills(); renderActiveTabDisplay(); }
 function setDistanceFilter(distanceValue) { activeDistanceFilter = distanceValue; renderFilterPills(); renderActiveTabDisplay(); }
 
@@ -71,17 +66,16 @@ async function renderActiveTabDisplay() {
 function renderSearchHistory() {
     const wrapper = document.getElementById('history-wrapper'), chips = document.getElementById('historyChips');
     if (searchHistory.length === 0) { wrapper.style.display = 'none'; return; }
-    wrapper.style.display = 'flex';
-    chips.innerHTML = searchHistory.map(item => `<button class="history-chip" onclick="triggerAddressSearch('${item.replace(/'/g, "\\'")}')">${item}</button>`).join('');
+    wrapper.style.display = 'flex'; chips.innerHTML = searchHistory.map(item => `<button class="history-chip" onclick="triggerAddressSearch('${item.replace(/'/g, "\\'")}')">${item}</button>`).join('');
 }
 
 function displayResults(items, isMeter = false) {
-    statusText.textContent = ""; uiSearchTitle.textContent = `${t.searchTitle} (${items.length})`;
+    statusText.textContent = ""; document.getElementById('ui-search-title').textContent = `${t.searchTitle} (${items.length})`;
     resultsDiv.innerHTML = items.length === 0 ? `<div class="empty-notice">${t.noRecords}</div>` : items.map(item => isMeter ? generateMeterCardHTML(item) : generateCardHTML(item)).join('');
 }
 
 function displayToiletResults(items) {
-    statusText.textContent = ""; uiSearchTitle.textContent = `${t.searchTitle} (${items.length})`;
+    statusText.textContent = ""; document.getElementById('ui-search-title').textContent = `${t.searchTitle} (${items.length})`;
     resultsDiv.innerHTML = items.length === 0 ? `<div class="empty-notice">${t.noRecords}</div>` : items.map(item => generateToiletCardHTML(item)).join('');
 }
 

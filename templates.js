@@ -19,8 +19,7 @@ function hasEVCharging(park) {
 
 function getVacancyCount(park) {
     if (park.liveInfo && park.liveInfo.privateCar && park.liveInfo.privateCar.length > 0) {
-        const count = park.liveInfo.privateCar[0].vacancy;
-        return (count !== undefined && count !== null && count >= 0) ? count : -1;
+        const count = park.liveInfo.privateCar[0].vacancy; return (count !== undefined && count !== null && count >= 0) ? count : -1;
     }
     return -1;
 }
@@ -30,13 +29,9 @@ function groupMeteredParking(meters) {
     meters.forEach(m => {
         const key = m.address;
         if (!groups[key]) {
-            groups[key] = {
-                park_Id: m.address, name: m.rawStreet, address: m.address, district: m.district,
-                distance: m.distance, latitude: m.latitude, longitude: m.longitude, totalSpaces: 0, vacantSpaces: 0
-            };
+            groups[key] = { park_Id: m.address, name: m.rawStreet, address: m.address, district: m.district, distance: m.distance, latitude: m.latitude, longitude: m.longitude, totalSpaces: 0, vacantSpaces: 0 };
         }
-        const g = groups[key]; g.totalSpaces += 1;
-        if (m.vacancyStatus === 'V') g.vacantSpaces += 1;
+        const g = groups[key]; g.totalSpaces += 1; if (m.vacancyStatus === 'V') g.vacantSpaces += 1;
         if (m.distance < g.distance) { g.distance = m.distance; g.latitude = m.latitude; g.longitude = m.longitude; }
     });
     return Object.values(groups).sort((a, b) => a.distance - b.distance);
@@ -49,7 +44,6 @@ function generateCardHTML(park) {
     let heightText = (park.heightRestrictions || []).map(h => h.height ? `${h.height}m` : '').filter(Boolean).join(', ');
     let cardStatusClass = 'status-unknown', boxStatusClass = '', vacancyNumClass = '', dotClass = 'dot-grey';
     let vacancyHTML = `<div class="vacancy-badge unknown"><span class="vacancy-num">--</span><span class="vacancy-label">${t.noVacancyData}</span></div>`;
-
     const count = getVacancyCount(park);
     if (count >= 0) {
         if (count >= 10) { cardStatusClass = 'status-high'; boxStatusClass = 'available'; dotClass = 'dot-green'; }
@@ -61,13 +55,11 @@ function generateCardHTML(park) {
     let infoGridItems = displayAddress ? `<div class="info-label">${t.address}:</div><div><a href="${mapUrl}" target="_blank" class="map-link">${displayAddress}</a></div>` : '';
     if (heightText) infoGridItems += `<div class="info-label">${t.maxHeight}:</div><div>${heightText}</div>`;
     if (park.contactNo) infoGridItems += `<div class="info-label">${t.contact}:</div><div><a href="tel:${park.contactNo.replace(/\s+/g, '')}" class="phone-link">${park.contactNo}</a></div>`;
-
     return `<div class="carpark-card ${cardStatusClass}"><div class="card-body-split"><div class="card-left"><div class="carpark-name"><span class="status-dot ${dotClass}"></span>${park.name || '---'}</div><div class="tags-row">${distHTML} ${hasEVCharging(park) ? `<span class="status-badge ev-charger">${t.evBadge}</span>` : ''}</div>${infoGridItems ? `<div class="info-grid">${infoGridItems}</div>` : ''}</div><div class="card-right"><button class="card-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${park.park_Id}')">${isFav ? t.removeFav : t.addFav}</button>${vacancyHTML}</div></div></div>`;
 }
 
 function generateMeterCardHTML(meterGroup) {
-    const isFav = favorites.includes(meterGroup.park_Id);
-    const isAnyVacant = meterGroup.vacantSpaces > 0;
+    const isFav = favorites.includes(meterGroup.park_Id); const isAnyVacant = meterGroup.vacantSpaces > 0;
     return `<div class="carpark-card ${isAnyVacant ? 'status-high' : 'status-empty'}"><div class="card-body-split"><div class="card-left"><div class="carpark-name"><span class="status-dot ${isAnyVacant ? 'dot-green' : 'dot-red'}"></span>${meterGroup.name}</div><div class="tags-row"><span class="distance">${meterGroup.distance.toFixed(2)} ${t.away}</span>${meterGroup.distance > 5 ? `<span class="distance-warning">${t.distWarning}</span>` : ''}</div><div class="info-grid"><div class="info-label">${t.address}:</div><div><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(meterGroup.address)}" target="_blank" class="map-link">${meterGroup.address}</a></div><div class="info-label">${t.district}:</div><div>${meterGroup.district || '---'}</div></div></div><div class="card-right"><button class="card-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${meterGroup.park_Id}')">${isFav ? t.removeFav : t.addFav}</button><div class="vacancy-badge ${isAnyVacant ? 'available' : 'full'}"><span class="vacancy-num ${!isAnyVacant ? 'none' : ''}">${meterGroup.vacantSpaces}/${meterGroup.totalSpaces}</span><span class="vacancy-label">${t.vacantMeters}</span></div></div></div></div>`;
 }
 

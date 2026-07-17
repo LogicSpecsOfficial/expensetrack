@@ -8,12 +8,14 @@ class MobileParkingTracker {
     this.swInstance = null;
     this.observerInstance = null;
     this.isSimulatingCardClick = false;
+    this.forcedHideForMap = false;
   }
 
   async startup() {
     await this.connectServiceWorker();
     this.initDynamicObserver();
     this.attachInterfaceInterceptors();
+    this.startLayoutVisibilityLoop();
     this.refreshControlOverlay();
   }
 
@@ -21,19 +23,10 @@ class MobileParkingTracker {
     if ('serviceWorker' in navigator) {
       try {
         this.swInstance = await navigator.serviceWorker.register('/sw.js');
-        console.log('Background worker linked');
       } catch (err) {
-        console.error('Worker allocation error:', err);
+        console.error('Worker link error:', err);
       }
     }
-  }
-
-  async requestAlertPermission() {
-    if ('Notification' in window) {
-      const status = await Notification.requestPermission();
-      return status === 'granted';
-    }
-    return false;
   }
 
   initDynamicObserver() {
@@ -46,7 +39,6 @@ class MobileParkingTracker {
         this.injectTrackingTriggers();
       }
     });
-
     this.observerInstance.observe(targetNode, { childList: true, subtree: true });
   }
 
@@ -57,53 +49,43 @@ class MobileParkingTracker {
     const cards = container.children;
     for (let i = 0; i < cards.length; i++) {
       const card = cards[i];
-      if (card.nodeType !== 1) continue;
+      if (card.nodeType !== 1 || card.querySelector('.parking-tracker-btn-container')) continue;
 
-      if (!card.querySelector('.parking-tracker-btn-container')) {
-        const uniqueId = card.getAttribute('data-id') || `generated-id-${i}`;
-        if (!card.getAttribute('data-id')) {
-          card.setAttribute('data-id', uniqueId);
-        }
+      const uniqueId = card.getAttribute('data-id') || `generated-id-${i}`;
+      if (!card.getAttribute('data-id')) card.setAttribute('data-id', uniqueId);
 
-        // 建立整合式下層按鈕容器（完全不使用任何分割線樣式）
-        const actionArea = document.createElement('div');
-        actionArea.className = 'parking-tracker-btn-container';
-        
-        // 建立左側「查看地圖」按鈕與純向量 SVG 圖標
-        const mapBtn = document.createElement('button');
-        mapBtn.className = 'parking-action-btn parking-map-view-btn';
-        mapBtn.innerHTML = `
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-          查看地圖
-        `;
+      const currentSpaces = this.parseCurrentSpaces(card);
+      const actionArea = document.createElement('div');
+      actionArea.className = 'parking-tracker-btn-container';
+      
+      const mapBtn = document.createElement('button');
+      mapBtn.className = 'parking-action-btn parking-map-view-btn';
+      mapBtn.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px; display:inline-block; vertical-align:middle;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>查看地圖`;
 
-        // 建立右側「追蹤車位」按鈕與純向量 SVG 雷達圖標
-        const actionBtn = document.createElement('button');
-        actionBtn.className = 'parking-action-btn parking-tracker-toggle-btn';
-        
-        if (this.activeTrackedItems.has(uniqueId)) {
-          actionBtn.classList.add('tracking-active');
-          actionBtn.textContent = '正在追蹤';
-        } else {
-          actionBtn.innerHTML = `
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="2"></circle><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path></svg>
-            追蹤車位
-          `;
-        }
-
-        actionArea.appendChild(mapBtn);
-        actionArea.appendChild(actionBtn);
-        card.appendChild(actionArea);
+      const actionBtn = document.createElement('button');
+      actionBtn.className = 'parking-action-btn parking-tracker-toggle-btn';
+      
+      if (currentSpaces > 0) {
+        actionBtn.classList.add('tracking-disabled');
+        actionBtn.disabled = true;
+        actionBtn.textContent = '目前有空位';
+      } else if (this.activeTrackedItems.has(uniqueId)) {
+        actionBtn.classList.add('tracking-active');
+        actionBtn.textContent = '正在追蹤';
+      } else {
+        actionBtn.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px; display:inline-block; vertical-align:middle;"><circle cx="12" cy="12" r="2"></circle><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path></svg>追蹤車位`;
       }
+
+      actionArea.appendChild(mapBtn);
+      actionArea.appendChild(actionBtn);
+      card.appendChild(actionArea);
     }
   }
 
   async toggleTrackingState(cardElement, buttonElement) {
     const carparkId = cardElement.getAttribute('data-id');
-    if (!carparkId) return;
-
-    if (this.activeTrackedItems.has(carparkId)) {
-      this.cancelSingleTracker(carparkId);
+    if (!carparkId || this.activeTrackedItems.has(carparkId)) {
+      if (carparkId) this.cancelSingleTracker(carparkId);
       return;
     }
 
@@ -112,22 +94,21 @@ class MobileParkingTracker {
       return;
     }
 
-    const permitted = await this.requestAlertPermission();
-    if (!permitted) {
-      alert('請允許此應用程式發送通知，以便在有空置車位時即時提示您。');
-      return;
+    if ('Notification' in window && Notification.permission !== 'granted') {
+      const status = await Notification.requestPermission();
+      if (status !== 'granted') {
+        alert('請允許此應用程式發送通知，以便在有空置車位時即時提示您。');
+        return;
+      }
     }
 
     const nameNode = cardElement.querySelector('h2, h3, h4, .title, .name') || cardElement;
     const carparkName = nameNode.textContent.trim().split('\n')[0];
-    const initialSpaces = this.parseCurrentSpaces(cardElement);
 
-    // 啟動 4 秒鐘直觀式背景更新機制提示
     buttonElement.classList.add('tracking-confirming');
     buttonElement.textContent = '已啟動背景追蹤。您可以關閉瀏覽器，有車位時將發送通知。';
 
     setTimeout(() => {
-      // 確保使用者中途沒有提早點擊取消
       if (this.activeTrackedItems.has(carparkId)) {
         buttonElement.classList.remove('tracking-confirming');
         buttonElement.classList.add('tracking-active');
@@ -137,7 +118,7 @@ class MobileParkingTracker {
 
     this.activeTrackedItems.set(carparkId, {
       title: carparkName,
-      previousCount: initialSpaces,
+      previousCount: 0,
       startedAt: Date.now()
     });
 
@@ -147,17 +128,12 @@ class MobileParkingTracker {
   cancelSingleTracker(carparkId) {
     if (this.activeTrackedItems.has(carparkId)) {
       this.activeTrackedItems.delete(carparkId);
-      
       const card = document.querySelector(`[data-id="${carparkId}"]`);
       if (card) {
         const btn = card.querySelector('.parking-tracker-toggle-btn');
-        if (btn) {
-          btn.classList.remove('tracking-active');
-          btn.classList.remove('tracking-confirming');
-          btn.innerHTML = `
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="2"></circle><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path></svg>
-            追蹤車位
-          `;
+        if (btn && !btn.disabled) {
+          btn.className = 'parking-action-btn parking-tracker-toggle-btn';
+          btn.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px; display:inline-block; vertical-align:middle;"><circle cx="12" cy="12" r="2"></circle><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path></svg>追蹤車位`;
         }
       }
       this.synchronizeExecutionLoop();
@@ -166,15 +142,12 @@ class MobileParkingTracker {
 
   synchronizeExecutionLoop() {
     this.refreshControlOverlay();
-
     if (this.activeTrackedItems.size > 0) {
       if (!this.pollTimerId) {
         this.pollTimerId = setInterval(() => {
-          const nativeRefresh = document.getElementById('refreshBtn');
-          if (nativeRefresh) {
-            nativeRefresh.click(); 
-          }
-          setTimeout(() => this.evaluateTrackedMetrics(), 1500); 
+          const btn = document.getElementById('refreshBtn');
+          if (btn) btn.click();
+          setTimeout(() => this.evaluateTrackedMetrics(), 1500);
         }, this.loopInterval);
       }
       if (!this.shutdownTimerId) {
@@ -184,43 +157,23 @@ class MobileParkingTracker {
         }, this.expiryPeriod);
       }
     } else {
-      this.disableActiveTimers();
+      if (this.pollTimerId) { clearInterval(this.pollTimerId); this.pollTimerId = null; }
+      if (this.shutdownTimerId) { clearTimeout(this.shutdownTimerId); this.shutdownTimerId = null; }
     }
   }
 
   cancelAllTrackers() {
-    const activeKeys = Array.from(this.activeTrackedItems.keys());
-    activeKeys.forEach(key => this.cancelSingleTracker(key));
-  }
-
-  disableActiveTimers() {
-    if (this.pollTimerId) {
-      clearInterval(this.pollTimerId);
-      this.pollTimerId = null;
-    }
-    if (this.shutdownTimerId) {
-      clearTimeout(this.shutdownTimerId);
-      this.shutdownTimerId = null;
-    }
+    Array.from(this.activeTrackedItems.keys()).forEach(key => this.cancelSingleTracker(key));
   }
 
   evaluateTrackedMetrics() {
     for (const [id, data] of this.activeTrackedItems.entries()) {
       const card = document.querySelector(`[data-id="${id}"]`);
       if (!card) continue;
-
       const currentCount = this.parseCurrentSpaces(card);
-
       if (data.previousCount === 0 && currentCount >= 1) {
-        this.dispatchSystemAlert(
-          '車位可用通知',
-          `${data.title} 現已有 ${currentCount} 個空置車位可用。`,
-          `alert-${id}`
-        );
+        this.dispatchSystemAlert('車位可用通知', `${data.title} 現已有 ${currentCount} 個空置車位可用。`, `alert-${id}`);
         this.cancelSingleTracker(id);
-      } else {
-        data.previousCount = currentCount;
-        this.activeTrackedItems.set(id, data);
       }
     }
   }
@@ -229,30 +182,40 @@ class MobileParkingTracker {
     const clone = cardElement.cloneNode(true);
     const btnContainer = clone.querySelector('.parking-tracker-btn-container');
     if (btnContainer) btnContainer.remove();
-
-    const badgeText = clone.textContent.replace(/[\r\n\t]/g, ' ');
-    const digits = badgeText.match(/\d+/);
+    const digits = clone.textContent.replace(/[\r\n\t]/g, ' ').match(/\d+/);
     return digits ? parseInt(digits[0], 10) : 0;
   }
 
   dispatchSystemAlert(title, message, identifier) {
     if (this.swInstance && this.swInstance.active) {
-      this.swInstance.active.postMessage({
-        action: 'TRIGGER_PUSH_NOTIFICATION',
-        title: title,
-        message: message,
-        identifier: identifier
-      });
+      this.swInstance.active.postMessage({ action: 'TRIGGER_PUSH_NOTIFICATION', title, message, identifier });
     } else if ('Notification' in window && Notification.permission === 'granted') {
       new Notification(title, { body: message, tag: identifier });
     }
+  }
+
+  startLayoutVisibilityLoop() {
+    // 智慧檢測列表是否被地圖組件遮擋隱藏，高強度防禦誤觸
+    setInterval(() => {
+      const resultsEl = document.getElementById('results');
+      if (resultsEl) {
+        const rect = resultsEl.getBoundingClientRect();
+        const isHidden = rect.height === 0 || window.getComputedStyle(resultsEl).display === 'none';
+        if (isHidden && !this.forcedHideForMap) {
+          this.forcedHideForMap = true;
+          this.refreshControlOverlay();
+        } else if (!isHidden && this.forcedHideForMap) {
+          this.forcedHideForMap = false;
+          this.refreshControlOverlay();
+        }
+      }
+    }, 400);
   }
 
   attachInterfaceInterceptors() {
     const resultsArea = document.getElementById('results');
     if (!resultsArea) return;
 
-    // 擷取階段監聽（Capture Phase）：完全杜絕誤觸地圖行為，只在點擊「查看地圖」時允許卡片行為
     resultsArea.addEventListener('click', (e) => {
       const meteredTab = document.getElementById('tabMetered');
       if (!meteredTab || !meteredTab.classList.contains('active')) return;
@@ -262,43 +225,44 @@ class MobileParkingTracker {
       const card = e.target.closest('#results > *');
 
       if (toggleBtn) {
-        e.stopPropagation();
-        e.preventDefault();
+        e.stopPropagation(); e.preventDefault();
         if (card) this.toggleTrackingState(card, toggleBtn);
         return;
       }
-
       if (mapViewBtn) {
-        e.stopPropagation();
-        e.preventDefault();
+        e.stopPropagation(); e.preventDefault();
         if (card) {
           this.isSimulatingCardClick = true;
-          card.click(); // 完美調用並觸發原網站內建的地圖點擊監聽邏輯
+          this.forcedHideForMap = true;
+          this.refreshControlOverlay();
+          card.click();
           this.isSimulatingCardClick = false;
         }
         return;
       }
-
-      // 如果點擊卡片內的其他空白區域，則完全進行攔截阻斷，防止跳出地圖彈窗
       if (card && !this.isSimulatingCardClick) {
-        e.stopPropagation();
-        e.preventDefault();
+        e.stopPropagation(); e.preventDefault();
       }
     }, true);
   }
 
   refreshControlOverlay() {
-    let island = document.getElementById('mobile-top-tracker-island');
-
+    let island = document.getElementById('mobile-bottom-tracker-island');
     if (this.activeTrackedItems.size === 0) {
       if (island) island.remove();
       return;
     }
-
     if (!island) {
       island = document.createElement('div');
-      island.id = 'mobile-top-tracker-island';
+      island.id = 'mobile-bottom-tracker-island';
       document.body.appendChild(island);
+    }
+
+    if (this.forcedHideForMap) {
+      island.classList.add('island-hidden');
+      return;
+    } else {
+      island.classList.remove('island-hidden');
     }
 
     let rowsHtml = '';
@@ -307,31 +271,20 @@ class MobileParkingTracker {
         <div class="island-row">
           <span class="island-carpark-name">${data.title}</span>
           <button class="island-cancel-btn" data-cancel-id="${id}">取消</button>
-        </div>
-      `;
+        </div>`;
     }
 
     island.innerHTML = `
-      <div class="island-header">
-        <span class="island-pulse"></span>
-        <span>智慧背景車位監察中</span>
-      </div>
-      <div class="island-list-container">
-        ${rowsHtml}
-      </div>
-    `;
+      <div class="island-header"><span class="island-pulse"></span><span>智慧背景車位監察中</span></div>
+      <div class="island-list-container">${rowsHtml}</div>`;
 
-    // 綁定獨立的取消按鈕事件
     island.querySelectorAll('.island-cancel-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
-        const targetId = e.target.getAttribute('data-cancel-id');
-        this.cancelSingleTracker(targetId);
+        this.cancelSingleTracker(e.target.getAttribute('data-cancel-id'));
       });
     });
   }
 }
 
 window.mobileParkingTrackerReference = new MobileParkingTracker();
-document.addEventListener('DOMContentLoaded', () => {
-  window.mobileParkingTrackerReference.startup();
-});
+document.addEventListener('DOMContentLoaded', () => window.mobileParkingTrackerReference.startup());

@@ -678,47 +678,73 @@ body.dark-theme .back-to-top:active {
     line-height: 1.4;
 }
 
-/* Meter Card Expand Feature additions */
+/* Full-Screen Map Overlay Styles */
 .carpark-card.meter-card {
     cursor: pointer;
 }
-.meter-expand-container {
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1px dashed var(--border-color);
+
+.map-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 2000;
+    background-color: var(--bg-primary);
+    display: none;
 }
-.meter-strip-title {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    margin-bottom: 8px;
-    font-weight: 600;
+
+.map-canvas {
+    width: 100%;
+    height: 100%;
+}
+
+.close-map-btn {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background-color: var(--surface);
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    cursor: pointer;
     display: flex;
-    justify-content: space-between;
-}
-.meter-blocks-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-}
-.meter-block {
-    width: 24px;
-    height: 24px;
-    border-radius: 4px;
-    display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.65rem;
-    font-weight: 700;
-    color: white;
-    user-select: none;
-    transition: transform 0.1s ease;
+    z-index: 2100;
+    transition: transform 0.1s ease, background-color 0.2s;
 }
-.meter-block.vacant {
-    background-color: var(--success);
+
+body.dark-theme .close-map-btn {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
-.meter-block.occupied {
-    background-color: var(--text-muted);
+
+.close-map-btn:active {
+    transform: scale(0.92);
+    background-color: #e9ecef;
 }
-.meter-block:active {
-    transform: scale(0.9);
+
+body.dark-theme .close-map-btn:active {
+    background-color: #2d2d2d;
+}
+
+.close-map-btn svg {
+    width: 24px;
+    height: 24px;
+    display: block;
+}
+
+/* Leaflet theme overrides for clean integration */
+.leaflet-popup-content-wrapper {
+    background-color: var(--surface) !important;
+    color: var(--text-main) !important;
+    border-radius: var(--radius) !important;
+    font-family: inherit !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
+}
+.leaflet-popup-tip {
+    background-color: var(--surface) !important;
 }

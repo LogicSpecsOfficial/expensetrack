@@ -45,6 +45,7 @@ class MobileParkingTracker {
   }
 
   cleanSearchTitleText() {
+    // 自動抹除動態生成的點擊提示文字
     const titleEl = document.getElementById('ui-search-title');
     if (titleEl && titleEl.textContent) {
       const targets = ['（點擊卡片查看地圖位置）', '(點擊卡片查看地圖位置)'];
@@ -82,6 +83,7 @@ class MobileParkingTracker {
       actionBtn.setAttribute('aria-label', '追蹤車位');
       
       if (currentSpaces > 0) {
+        // 如果目前有空位，強制切換為停用樣式
         actionBtn.classList.add('tracking-disabled');
         actionBtn.disabled = true;
         actionBtn.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>`;
@@ -207,6 +209,7 @@ class MobileParkingTracker {
   }
 
   parseCurrentSpaces(cardElement) {
+    // 修正 Bug：精準定位包含「空置咪錶」的子節點，徹底過濾公里數數字
     const subElements = cardElement.querySelectorAll('*');
     for (let i = 0; i < subElements.length; i++) {
       const el = subElements[i];
@@ -229,6 +232,7 @@ class MobileParkingTracker {
   }
 
   startLayoutVisibilityLoop() {
+    // 精準視圖監聽：當結果列表完全隱藏（即進入地圖模式），瞬間強制隱藏追蹤狀態島
     setInterval(() => {
       const resultsEl = document.getElementById('results');
       if (resultsEl) {
@@ -242,7 +246,7 @@ class MobileParkingTracker {
           this.refreshControlOverlay();
         }
       }
-    }, 400);
+    }, 300);
   }
 
   attachInterfaceInterceptors() {

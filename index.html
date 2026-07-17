@@ -5,6 +5,114 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HK Car Parks</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        /* Modern 2026 Mobile Parking Tracker Style Extensions */
+        .parking-tracker-btn-container {
+            display: flex;
+            justify-content: flex-end;
+            padding-top: 8px;
+            margin-top: 8px;
+            border-top: 1px dashed #e2e8f0;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .parking-tracker-toggle-btn {
+            font-size: 13px;
+            font-weight: 600;
+            color: #475569;
+            background-color: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            padding: 6px 14px;
+            border-radius: 20px;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.2s ease-in-out;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .parking-tracker-toggle-btn.tracking-active {
+            color: #ffffff;
+            background-color: #2563eb;
+            border-color: #1d4ed8;
+            box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+        }
+
+        /* Floating Controls Panel Setup */
+        #mobile-tracking-overlay-panel {
+            position: fixed;
+            bottom: calc(16px + env(safe-area-inset-bottom));
+            left: 50%;
+            transform: translateX(-50%);
+            width: calc(100% - 32px);
+            max-width: 440px;
+            background-color: #0f172a;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
+            border-radius: 24px;
+            padding: 14px 20px;
+            z-index: 99999;
+            box-sizing: border-box;
+            animation: trackerSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .tracker-panel-layout {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+
+        .tracker-panel-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .tracker-pulse-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #3b82f6;
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.6);
+            animation: trackerPulseGlow 2s infinite;
+        }
+
+        .tracker-panel-text {
+            color: #f8fafc;
+            font-size: 14px;
+            font-weight: 500;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+
+        .tracker-panel-clear-btn {
+            background-color: #ef4444;
+            color: #ffffff;
+            border: none;
+            padding: 7px 14px;
+            font-size: 12px;
+            font-weight: 600;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .tracker-panel-clear-btn:active {
+            background-color: #dc2626;
+        }
+
+        @keyframes trackerSlideIn {
+            from { transform: translate(-50%, 80px); opacity: 0; }
+            to { transform: translate(-50%, 0); opacity: 1; }
+        }
+
+        @keyframes trackerPulseGlow {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.6); }
+            70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(59, 130, 246, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+        }
+    </style>
 </head>
 <body>
 
@@ -59,6 +167,7 @@
     <script src="api.js"></script>
     <script src="ui.js"></script>
     <script src="map.js"></script>
+    <script src="parkingTracker.js"></script>
     <script src="app.js"></script>
 
 </body>

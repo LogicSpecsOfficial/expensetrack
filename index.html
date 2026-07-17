@@ -6,24 +6,32 @@
     <title>HK Car Parks</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        /* 2026 行動端輕量化圖標按鈕與自適應深色模式樣式 */
+        /* 2026 行動端超緊湊正方形按鈕與自適應佈局樣式 */
+        #results > * {
+            position: relative !important;
+            padding: 12px 12px 12px 12px !important; /* 全面縮減卡片內邊距，極致壓縮高度 */
+            min-height: 105px !important; /* 確保右側有足夠空間容納直向組合 */
+            box-sizing: border-box !important;
+        }
+
+        /* 將按鈕群精準定位於右上角空置咪錶盒子的正下方 */
         .parking-tracker-btn-container {
+            position: absolute !important;
+            right: 12px;
+            top: 64px; /* 完美緊貼於上方空置率數值盒子下方 */
             display: flex;
-            gap: 10px;
-            justify-content: flex-end;
-            margin-top: 12px;
-            width: 100%;
-            box-sizing: border-box;
+            gap: 8px;
             background: transparent;
+            z-index: 10;
         }
 
         .parking-action-btn {
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 42px;
-            height: 42px;
-            border-radius: 50%;
+            width: 38px;
+            height: 38px;
+            border-radius: 8px; /* 改為正方形外框，與頂部導航按鈕風格完全一致 */
             background-color: rgba(148, 163, 184, 0.1);
             border: 1px solid rgba(148, 163, 184, 0.2);
             color: inherit;
@@ -31,6 +39,7 @@
             transition: all 0.2s ease-in-out;
             outline: none;
             -webkit-tap-highlight-color: transparent;
+            box-sizing: border-box;
         }
 
         .parking-action-btn:active {
@@ -41,12 +50,14 @@
             color: #3b82f6;
         }
 
+        /* 正在追蹤時的反色高亮方框 */
         .parking-tracker-toggle-btn.tracking-active {
             background-color: #2563eb;
             border-color: #1d4ed8;
             color: #ffffff;
         }
 
+        /* 目前有空位時的完全停用狀態 */
         .parking-tracker-toggle-btn.tracking-disabled {
             color: #94a3b8 !important;
             opacity: 0.25 !important;
@@ -55,7 +66,7 @@
             border-color: rgba(148, 163, 184, 0.1) !important;
         }
 
-        /* 智慧提示橫幅樣式 */
+        /* 頂部智慧提示橫幅 */
         #parking-toast-notice {
             position: fixed;
             top: 24px;
@@ -76,7 +87,7 @@
             transition: opacity 0.3s ease;
         }
 
-        /* 底部智慧狀態島 UI 佈局 */
+        /* 底部智慧狀態島（完美支援隱形避讓） */
         #mobile-bottom-tracker-island {
             position: fixed;
             bottom: calc(16px + env(safe-area-inset-bottom));
@@ -92,14 +103,14 @@
             box-sizing: border-box;
             color: #f8fafc;
             font-family: system-ui, -apple-system, sans-serif;
-            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+            transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
             animation: islandSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
         #mobile-bottom-tracker-island.island-hidden {
-            transform: translate(-50%, 120px);
-            opacity: 0;
-            pointer-events: none;
+            transform: translate(-50%, 120px) !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
         }
 
         .island-header {

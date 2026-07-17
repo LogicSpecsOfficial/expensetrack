@@ -63,10 +63,10 @@ function withTimeout(promise, ms, errorMsg) {
     });
 }
 
-function extractChineseAddress(text) {
-    let resolved = "";
-    
-    // 1. Try parsing as JSON first
+function extractAddressData(text) {
+    let buildingName = "";
+    let streetAddress = "";
+
     try {
         const data = JSON.parse(text);
         const suggested = data?.SuggestedAddress || data?.AddressLookupResult?.SuggestedAddress;
@@ -74,50 +74,57 @@ function extractChineseAddress(text) {
             const premises = suggested[0]?.Address?.PremisesAddress;
             if (premises && premises.ChiPremisesAddress) {
                 const chi = premises.ChiPremisesAddress;
+                buildingName = chi.BuildingName ? decodeUnicode(chi.BuildingName).trim() : "";
                 
-                // Try pre-constructed brief address if available
-                if (chi.BriefAddressOfChi) {
-                    return decodeUnicode(chi.BriefAddressOfChi);
-                }
-                
-                // Reconstruct from granular parts
+                const region = chi.Region ? decodeUnicode(chi.Region).trim() : "";
                 const district = typeof chi.District === 'object' ? (chi.District.DistrictName || '') : (chi.District || '');
-                const streetName = chi.Street?.StreetName || '';
-                const buildingNo = chi.Street?.BuildingNoFrom || '';
-                const buildingName = chi.BuildingName || '';
+                const cleanDistrict = district ? decodeUnicode(district).trim() : "";
                 
-                resolved = `${district}${streetName}${buildingNo ? buildingNo + '號' : ''}${buildingName}`;
-                if (resolved.trim()) return decodeUnicode(resolved.trim());
+                const streetName = chi.Street?.StreetName ? decodeUnicode(chi.Street.StreetName).trim() : "";
+                const buildingNo = chi.Street?.BuildingNoFrom ? decodeUnicode(chi.Street.BuildingNoFrom).trim() : "";
+                
+                const distPart = (cleanDistrict.startsWith(region) || !region) ? cleanDistrict : (region + cleanDistrict);
+                const streetPart = streetName + (buildingNo ? buildingNo + '號' : '');
+                
+                streetAddress = (distPart + streetPart).trim();
             }
         }
-    } catch (e) {
-        // Fall back to regex parsing if JSON fails or XML is returned
+    } catch (e) {}
+
+    if (!buildingName || !streetAddress) {
+        const regionMatch = text.match(/<Region>([^<]+)<\/Region>/i) || text.match(/"Region"\s*:\s*"([^"]+)"/i);
+        const districtMatch = text.match(/<District[^>]*>([^<]+)<\/District>/i) || text.match(/"DistrictName"\s*:\s*"([^"]+)"/i);
+        const streetMatch = text.match(/<StreetName>([^<]+)<\/StreetName>/i) || text.match(/"StreetName"\s*:\s*"([^"]+)"/i);
+        const noMatch = text.match(/<BuildingNoFrom>([^<]+)<\/BuildingNoFrom>/i) || text.match(/"BuildingNoFrom"\s*:\s*"([^"]+)"/i);
+        const bldMatch = text.match(/<BuildingName>([^<]+)<\/BuildingName>/i) || text.match(/"BuildingName"\s*:\s*"([^"]+)"/i);
+
+        const region = regionMatch ? decodeUnicode(regionMatch[1].trim()) : "";
+        const district = districtMatch ? decodeUnicode(districtMatch[1].trim()) : "";
+        const street = streetMatch ? decodeUnicode(streetMatch[1].trim()) : "";
+        const no = noMatch ? decodeUnicode(noMatch[1].trim()) : "";
+        const bld = bldMatch ? decodeUnicode(bldMatch[1].trim()) : "";
+
+        if (bld) buildingName = bld;
+        
+        const distPart = (district.startsWith(region) || !region) ? district : (region + district);
+        const streetPart = street + (no ? no + '號' : '');
+        streetAddress = (distPart + streetPart).trim();
     }
 
-    // 2. Try XML or JSON string Regex extraction for flat brief formats
-    const briefMatch = text.match(/<BriefAddressOfChi>([^<]+)<\/BriefAddressOfChi>/i) ||
-                        text.match(/"BriefAddressOfChi"\s*:\s*"([^"]+)"/i) ||
-                        text.match(/<AddressInChinese>([^<]+)<\/AddressInChinese>/i) ||
-                        text.match(/"AddressInChinese"\s*:\s*"([^"]+)"/i);
-                        
-    if (briefMatch) {
-        return decodeUnicode(briefMatch[1].replace(/<\/?[^>]+(>|$)/g, "").trim());
+    return { buildingName, streetAddress };
+}
+
+function getFormattedAddress(addrData) {
+    const bld = addrData.buildingName;
+    const str = addrData.streetAddress;
+    if (bld && str) {
+        return `${bld}，${str}`;
+    } else if (str) {
+        return str;
+    } else if (bld) {
+        return bld;
     }
-
-    // 3. Fallback: Parse distinct XML/JSON structural parts and reconstruct
-    const districtMatch = text.match(/<District[^>]*>([^<]+)<\/District>/i) || text.match(/"DistrictName"\s*:\s*"([^"]+)"/i);
-    const streetMatch = text.match(/<StreetName>([^<]+)<\/StreetName>/i) || text.match(/"StreetName"\s*:\s*"([^"]+)"/i);
-    const noMatch = text.match(/<BuildingNoFrom>([^<]+)<\/BuildingNoFrom>/i) || text.match(/"BuildingNoFrom"\s*:\s*"([^"]+)"/i);
-    const buildingMatch = text.match(/<BuildingName>([^<]+)<\/BuildingName>/i) || text.match(/"BuildingName"\s*:\s*"([^"]+)"/i);
-
-    const district = districtMatch ? districtMatch[1].trim() : "";
-    const street = streetMatch ? streetMatch[1].trim() : "";
-    const no = noMatch ? noMatch[1].trim() : "";
-    const building = buildingMatch ? buildingMatch[1].trim() : "";
-
-    resolved = `${district}${street}${no ? no + '號' : ''}${building}`;
-    
-    return decodeUnicode(resolved.trim());
+    return "";
 }
 
 async function refreshActiveTabData(isBackgroundRefresh = false) {
@@ -167,7 +174,8 @@ async function triggerAddressSearch(forcedQuery = null) {
             if (synonymMap[inputVal.toLowerCase().replace(/\s+/g, '')]) {
                 resolvedLocationName = synonymMap[inputVal.toLowerCase().replace(/\s+/g, '')];
             } else {
-                resolvedLocationName = extractChineseAddress(responseText);
+                const addrData = extractAddressData(responseText);
+                resolvedLocationName = getFormattedAddress(addrData);
                 if (!resolvedLocationName) {
                     resolvedLocationName = inputVal;
                 }

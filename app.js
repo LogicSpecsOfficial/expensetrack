@@ -48,10 +48,31 @@ function toggleFavorite(id) {
     if (typeof renderActiveTabDisplay === 'function') renderActiveTabDisplay();
 }
 
+function decodeUnicode(str) {
+    if (!str) return '';
+    return str.replace(/\\u([0-9a-fA-F]{4})/g, (match, grp) => String.fromCharCode(parseInt(grp, 16)));
+}
+
+function withTimeout(promise, ms, errorMsg) {
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error(errorMsg)), ms);
+        promise.then(
+            res => { clearTimeout(timer); resolve(res); },
+            err => { clearTimeout(timer); reject(err); }
+        );
+    });
+}
+
 async function refreshActiveTabData(isBackgroundRefresh = false) {
     if (!userCoordinates) return;
     const statusText = document.getElementById('status');
-    if (!isBackgroundRefresh && statusText) { statusText.textContent = t.apiFetching; [locateBtn, refreshBtn].forEach(b => { if (b) b.disabled = true; }); }
+    if (!isBackgroundRefresh && statusText) { 
+        let loadingMsg = t.apiFetching;
+        if (currentTab === 'metered') loadingMsg = t.meterFetching;
+        else if (currentTab === 'toilet') loadingMsg = t.toiletFetching;
+        statusText.innerHTML = `<span class="loading-container">${loadingMsg}<span class="loading-dots"><span></span><span></span><span></span></span></span>`;
+        [locateBtn, refreshBtn].forEach(b => { if (b) b.disabled = true; }); 
+    }
     try {
         if (currentTab === 'offstreet' && typeof fetchCarParks === 'function') await fetchCarParks(userCoordinates.lat, userCoordinates.lng);
         else if (currentTab === 'metered' && typeof fetchMeteredParking === 'function') await fetchMeteredParking(userCoordinates.lat, userCoordinates.lng);
@@ -60,41 +81,105 @@ async function refreshActiveTabData(isBackgroundRefresh = false) {
         if (!isBackgroundRefresh && statusText) statusText.textContent = `${t.apiError}${err.message}`;
         console.error(err);
     } finally {
-        if (!isBackgroundRefresh) { if (statusText) statusText.textContent = ""; [locateBtn, refreshBtn].forEach(b => { if (b) b.disabled = false; }); }
+        if (!isBackgroundRefresh) { if (statusText) statusText.innerHTML = ""; [locateBtn, refreshBtn].forEach(b => { if (b) b.disabled = false; }); }
     }
 }
 
 async function triggerAddressSearch(forcedQuery = null) {
     const inputVal = typeof forcedQuery === 'string' ? forcedQuery : searchInput.value.trim(); if (!inputVal) return;
     let query = synonymMap[inputVal.toLowerCase().replace(/\s+/g, '')] || inputVal; if (typeof forcedQuery === 'string') searchInput.value = inputVal;
-    const statusText = document.getElementById('status'); if (statusText) statusText.textContent = t.addressSearching; document.getElementById('results').innerHTML = "";
+    const statusText = document.getElementById('status'); 
+    if (statusText) {
+        statusText.innerHTML = `<span class="loading-container">${t.addressSearching}<span class="loading-dots"><span></span><span></span><span></span></span></span>`;
+    }
+    document.getElementById('results').innerHTML = "";
     [locateBtn, searchBtn, refreshBtn].forEach(b => { if (b) b.disabled = true; });
+    
+    let lat = null, lng = null;
+    resolvedLocationName = '';
+    
     try {
-        const responseText = await fetchTextThroughProxy(`https://www.als.gov.hk/lookup?q=${encodeURIComponent(query)}`, true);
-        let latMatch = responseText.match(/"Latitude"\s*:\s*"?([0-9.]+)"?/i) || responseText.match(/<Latitude>([0-9.]+)<\/Latitude>/i);
-        let lngMatch = responseText.match(/"Longitude"\s*:\s*"?([0-9.]+)"?/i) || responseText.match(/<Longitude>([0-9.]+)<\/Longitude>/i);
-        let lat = latMatch ? parseFloat(latMatch[1]) : null, lng = lngMatch ? parseFloat(lngMatch[1]) : null;
-        
-        if (synonymMap[inputVal.toLowerCase().replace(/\s+/g, '')]) {
-            resolvedLocationName = synonymMap[inputVal.toLowerCase().replace(/\s+/g, '')];
-        } else {
-            let chiAddrMatch = responseText.match(/"AddressInChinese"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/i) || 
-                               responseText.match(/<AddressInChinese>([\s\S]*?)<\/AddressInChinese>/i);
-            resolvedLocationName = chiAddrMatch ? chiAddrMatch[1].replace(/<\/?[^>]+(>|$)/g, "").trim() : inputVal;
-        }
+        await withTimeout((async () => {
+            const responseText = await fetchTextThroughProxy(`https://www.als.gov.hk/lookup?q=${encodeURIComponent(query)}`, true);
+            let foundChiAddress = "";
+            
+            try {
+                const data = JSON.parse(responseText);
+                const suggested = data?.SuggestedAddress || data?.AddressLookupResult?.SuggestedAddress;
+                if (Array.isArray(suggested) && suggested.length > 0) {
+                    for (const item of suggested) {
+                        const premises = item?.Address?.PremisesAddress;
+                        if (premises) {
+                            const tempLat = parseFloat(premises.GeographicCoordinates?.Latitude);
+                            const tempLng = parseFloat(premises.GeographicCoordinates?.Longitude);
+                            if (tempLat && tempLng) {
+                                lat = tempLat;
+                                lng = tempLng;
+                                const chiAddr = premises.ChiPremisesAddress;
+                                if (chiAddr) {
+                                    foundChiAddress = chiAddr.BriefAddressOfChi || "";
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn("JSON parse failed, relying on fallback matching:", e);
+            }
 
-        if (!lat || !lng) {
-            const photonRes = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=1`); const photonData = await photonRes.json();
-            if (photonData.features?.length > 0) { [lng, lat] = photonData.features[0].geometry.coordinates; }
-        }
+            if (!lat || !lng) {
+                let latMatch = responseText.match(/"Latitude"\s*:\s*"?([0-9.]+)"?/i) || responseText.match(/<Latitude>([0-9.]+)<\/Latitude>/i);
+                let lngMatch = responseText.match(/"Longitude"\s*:\s*"?([0-9.]+)"?/i) || responseText.match(/<Longitude>([0-9.]+)<\/Longitude>/i);
+                lat = latMatch ? parseFloat(latMatch[1]) : null;
+                lng = lngMatch ? parseFloat(lngMatch[1]) : null;
+            }
+
+            if (synonymMap[inputVal.toLowerCase().replace(/\s+/g, '')]) {
+                resolvedLocationName = synonymMap[inputVal.toLowerCase().replace(/\s+/g, '')];
+            } else {
+                if (foundChiAddress) {
+                    resolvedLocationName = foundChiAddress;
+                } else {
+                    let addrMatch = responseText.match(/"BriefAddressOfChi"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/i) ||
+                                    responseText.match(/"AddressInChinese"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/i) || 
+                                    responseText.match(/<AddressInChinese>([\s\S]*?)<\/AddressInChinese>/i) ||
+                                    responseText.match(/<BriefAddressOfChi>([\s\S]*?)<\/BriefAddressOfChi>/i);
+                    if (addrMatch) {
+                        let rawAddr = addrMatch[1].replace(/<\/?[^>]+(>|$)/g, "").trim();
+                        resolvedLocationName = decodeUnicode(rawAddr);
+                    } else {
+                        resolvedLocationName = inputVal;
+                    }
+                }
+            }
+
+            if (!lat || !lng) {
+                const photonRes = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=1`); 
+                const photonData = await photonRes.json();
+                if (photonData.features?.length > 0) { 
+                    [lng, lat] = photonData.features[0].geometry.coordinates; 
+                    if (photonData.features[0].properties?.name) {
+                        resolvedLocationName = photonData.features[0].properties.name;
+                    }
+                }
+            }
+        })(), 2000, "Timeout");
+
         if (lat && lng) {
             userCoordinates = { lat, lng }; cachedAllParks = []; cachedAllMeters = []; cachedAllToilets = [];
             saveSearch(inputVal); if (typeof renderFilterPills === 'function') renderFilterPills();
             if (searchWrapper) searchWrapper.classList.remove('open'); updateUIStaticText();
             await refreshActiveTabData(false);
-        } else { if (statusText) statusText.textContent = t.addressError; }
-    } catch (err) { if (statusText) statusText.textContent = t.addressError; console.error(err); }
-    finally { [locateBtn, searchBtn, refreshBtn].forEach(b => { if (b) b.disabled = false; }); }
+        } else { 
+            if (statusText) statusText.textContent = t.addressError; 
+        }
+    } catch (err) { 
+        if (statusText) statusText.textContent = t.addressError; 
+        console.error(err); 
+    } finally { 
+        [locateBtn, searchBtn, refreshBtn].forEach(b => { if (b) b.disabled = false; }); 
+    }
 }
 
 if (searchToggleBtn && searchWrapper) { searchToggleBtn.addEventListener('click', () => { searchWrapper.classList.toggle('open'); searchToggleBtn.innerHTML = searchWrapper.classList.contains('open') ? svgClose : svgSearch; if (searchWrapper.classList.contains('open') && searchInput) searchInput.focus(); }); }
@@ -106,7 +191,11 @@ if (locateBtn) {
     locateBtn.addEventListener('click', () => {
         const statusText = document.getElementById('status');
         if (!navigator.geolocation) { if (statusText) statusText.textContent = t.noSupport; return; }
-        [locateBtn, refreshBtn].forEach(b => { if (b) b.disabled = true; }); if (statusText) statusText.textContent = t.gpsLocating; document.getElementById('results').innerHTML = "";
+        [locateBtn, refreshBtn].forEach(b => { if (b) b.disabled = true; }); 
+        if (statusText) {
+            statusText.innerHTML = `<span class="loading-container">${t.gpsLocating}<span class="loading-dots"><span></span><span></span><span></span></span></span>`;
+        }
+        document.getElementById('results').innerHTML = "";
         navigator.geolocation.getCurrentPosition(
             async (pos) => { 
                 userCoordinates = { lat: pos.coords.latitude, lng: pos.coords.longitude }; 

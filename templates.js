@@ -29,43 +29,11 @@ function groupMeteredParking(meters) {
     meters.forEach(m => {
         const key = m.address;
         if (!groups[key]) {
-            groups[key] = { park_Id: m.address, name: m.rawStreet, address: m.address, district: m.district, distance: m.distance, latitude: m.latitude, longitude: m.longitude, totalSpaces: 0, vacantSpaces: 0, spacesList: [] };
+            groups[key] = { park_Id: m.address, name: m.rawStreet, address: m.address, district: m.district, distance: m.distance, latitude: m.latitude, longitude: m.longitude, totalSpaces: 0, vacantSpaces: 0 };
         }
         const g = groups[key]; g.totalSpaces += 1; if (m.vacancyStatus === 'V') g.vacantSpaces += 1;
-        g.spacesList.push(m);
         if (m.distance < g.distance) { g.distance = m.distance; g.latitude = m.latitude; g.longitude = m.longitude; }
     });
-
-    // Geographically sort spaces sequentially from one physical end of the street segment to the other end
-    Object.values(groups).forEach(g => {
-        if (g.spacesList.length <= 1) return;
-        let maxDist = -1;
-        let startIdx = 0;
-        for (let i = 0; i < g.spacesList.length; i++) {
-            for (let j = i + 1; j < g.spacesList.length; j++) {
-                let d = 0;
-                if (typeof calculateDistance === 'function') {
-                    d = calculateDistance(g.spacesList[i].latitude, g.spacesList[i].longitude, g.spacesList[j].latitude, g.spacesList[j].longitude);
-                } else {
-                    d = Math.hypot(g.spacesList[i].latitude - g.spacesList[j].latitude, g.spacesList[i].longitude - g.spacesList[j].longitude);
-                }
-                if (d > maxDist) {
-                    maxDist = d;
-                    startIdx = i;
-                }
-            }
-        }
-        const anchor = g.spacesList[startIdx];
-        g.spacesList.forEach(m => {
-            if (typeof calculateDistance === 'function') {
-                m._distFromAnchor = calculateDistance(anchor.latitude, anchor.longitude, m.latitude, m.longitude);
-            } else {
-                m._distFromAnchor = Math.hypot(anchor.latitude - m.latitude, anchor.longitude - m.longitude);
-            }
-        });
-        g.spacesList.sort((a, b) => a._distFromAnchor - b._distFromAnchor);
-    });
-
     return Object.values(groups).sort((a, b) => a.distance - b.distance);
 }
 
@@ -100,28 +68,16 @@ function generateMeterCardHTML(meterGroup) {
     const isFav = favorites.includes(meterGroup.park_Id); const isAnyVacant = meterGroup.vacantSpaces > 0;
     const favBtnHTML = `<button class="card-fav-btn inline-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${meterGroup.park_Id}')" aria-label="${isFav ? t.removeFav : t.addFav}">${isFav ? svgStarFilled : svgStarOutline}</button>`;
     
-    let blocksHTML = '';
-    if (meterGroup.spacesList && meterGroup.spacesList.length > 0) {
-        blocksHTML = meterGroup.spacesList.map(m => {
-            const isV = m.vacancyStatus === 'V';
-            const displayChar = m.park_Id ? m.park_Id.slice(-1) : '';
-            return `<div class="meter-block ${isV ? 'vacant' : 'occupied'}" title="${m.park_Id}">${displayChar}</div>`;
-        }).join('');
-    }
+    return `<div class="carpark-card meter-card ${isAnyVacant ? 'status-high' : 'status-empty'}" onclick="handleMeterCardClick(event, '${meterGroup.park_Id.replace(/'/g, "\\'")}')"><div class="card-body-split"><div class="card-left"><div class="carpark-name">${favBtnHTML}${meterGroup.name}</div><div class="tags-row"><span class="distance">${meterGroup.distance.toFixed(2)} ${t.away}</span>${meterGroup.distance > 5 ? `<span class="distance-warning">${t.distWarning}</span>` : ''}</div><div class="info-grid"><div class="info-label">${t.address}:</div><div><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(meterGroup.address)}" target="_blank" class="map-link" onclick="event.stopPropagation();">${meterGroup.address}</a></div><div class="info-label">${t.district}:</div><div>${meterGroup.district || '---'}</div></div></div><div class="card-right"><div class="vacancy-badge ${isAnyVacant ? 'available' : 'full'}"><span class="vacancy-num ${!isAnyVacant ? 'none' : ''}">${meterGroup.vacantSpaces}/${meterGroup.totalSpaces}</span><span class="vacancy-label">${t.vacantMeters}</span></div></div></div></div>`;
+}
 
-    const expandContainerHTML = blocksHTML ? `
-        <div class="meter-expand-container" style="display: none;">
-            <div class="meter-strip-title">
-                <span>📍 路段起點 (Start)</span>
-                <span>終點 (End) 🏁</span>
-            </div>
-            <div class="meter-blocks-row">
-                ${blocksHTML}
-            </div>
-        </div>
-    ` : '';
-    
-    return `<div class="carpark-card meter-card ${isAnyVacant ? 'status-high' : 'status-empty'}" onclick="toggleMeterCard(event, this)"><div class="card-body-split"><div class="card-left"><div class="carpark-name">${favBtnHTML}${meterGroup.name}</div><div class="tags-row"><span class="distance">${meterGroup.distance.toFixed(2)} ${t.away}</span>${meterGroup.distance > 5 ? `<span class="distance-warning">${t.distWarning}</span>` : ''}</div><div class="info-grid"><div class="info-label">${t.address}:</div><div><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(meterGroup.address)}" target="_blank" class="map-link">${meterGroup.address}</a></div><div class="info-label">${t.district}:</div><div>${meterGroup.district || '---'}</div></div></div><div class="card-right"><div class="vacancy-badge ${isAnyVacant ? 'available' : 'full'}"><span class="vacancy-num ${!isAnyVacant ? 'none' : ''}">${meterGroup.vacantSpaces}/${meterGroup.totalSpaces}</span><span class="vacancy-label">${t.vacantMeters}</span></div></div></div>${expandContainerHTML}</div>`;
+function handleMeterCardClick(event, address) {
+    if (event.target.closest('.card-fav-btn') || event.target.closest('a')) {
+        return;
+    }
+    if (typeof openMeterMap === 'function') {
+        openMeterMap(address);
+    }
 }
 
 function generateToiletCardHTML(toilet) {
@@ -132,15 +88,5 @@ function generateToiletCardHTML(toilet) {
 }
 
 function renderWelcomeMessage() {
-    document.getElementById('results').innerHTML = `<div class="welcome-box" style="text-align: center; padding: 15px 10px;"><style>.welcome-box-item svg { width: 20px !important; height: 20px !important; display: block !important; }</style><h3 style="margin-bottom: 8px;">歡迎使用香港車位及公廁搜尋</h3><p style="opacity: 0.8; font-size: 14px; margin-bottom: 20px;">功能圖擺說明如下：</p><div style="max-width: 420px; margin: 0 auto; text-align: left; font-size: 14px;"><div class="welcome-box-item" style="display: flex; align-items: center; margin-bottom: 14px;"><div style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: rgba(128,128,128,0.12); border-radius: 6px; margin-right: 14px; flex-shrink: 0; color: inherit;">${sunIcon}</div><div><strong>主題按鈕：</strong>切換深色或淺色視覺模式</div></div><div class="welcome-box-item" style="display: flex; align-items: center; margin-bottom: 14px;"><div style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: rgba(128,128,128,0.12); border-radius: 6px; margin-right: 14px; flex-shrink: 0; color: inherit;">${svgStarOutline}</div><div><strong>收藏按鈕：</strong>切換顯示或隱藏已收藏的清單</div></div><div class="welcome-box-item" style="display: flex; align-items: center; margin-bottom: 14px;"><div style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: rgba(128,128,128,0.12); border-radius: 6px; margin-right: 14px; flex-shrink: 0; color: inherit;">${svgSearch}</div><div><strong>搜尋按鈕：</strong>展開或關閉地址搜尋欄</div></div><div class="welcome-box-item" style="display: flex; align-items: center; margin-bottom: 14px;"><div style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: rgba(128,128,128,0.12); border-radius: 6px; margin-right: 14px; flex-shrink: 0; color: inherit;">${svgRefresh}</div><div><strong>更新按鈕：</strong>刷新並獲取最新的即時數據</div></div><div class="welcome-box-item" style="display: flex; align-items: center; margin-bottom: 14px;"><div style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: rgba(128,128,128,0.12); border-radius: 6px; margin-right: 14px; flex-shrink: 0; color: inherit;">${svgGps}</div><div><strong>定位按鈕：</strong>尋找當前位置附近的車位與公廁</div></div></div></div>`;
-}
-
-function toggleMeterCard(event, cardElement) {
-    if (event.target.closest('.card-fav-btn') || event.target.closest('a') || event.target.closest('.meter-block')) {
-        return;
-    }
-    const expandContainer = cardElement.querySelector('.meter-expand-container');
-    if (!expandContainer) return;
-    const isHidden = expandContainer.style.display === 'none';
-    expandContainer.style.display = isHidden ? 'block' : 'none';
+    document.getElementById('results').innerHTML = `<div class="welcome-box" style="text-align: center; padding: 15px 10px;"><style>.welcome-box-item svg { width: 20px !important; height: 20px !important; display: block !important; }</style><h3 style="margin-bottom: 8px;">歡迎使用香港車位及公廁搜尋</h3><p style="opacity: 0.8; font-size: 14px; margin-bottom: 20px;">功能圖標說明如下：</p><div style="max-width: 420px; margin: 0 auto; text-align: left; font-size: 14px;"><div class="welcome-box-item" style="display: flex; align-items: center; margin-bottom: 14px;"><div style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: rgba(128,128,128,0.12); border-radius: 6px; margin-right: 14px; flex-shrink: 0; color: inherit;">${sunIcon}</div><div><strong>主題按鈕：</strong>切換深色或淺色視覺模式</div></div><div class="welcome-box-item" style="display: flex; align-items: center; margin-bottom: 14px;"><div style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: rgba(128,128,128,0.12); border-radius: 6px; margin-right: 14px; flex-shrink: 0; color: inherit;">${svgStarOutline}</div><div><strong>收藏按鈕：</strong>切換顯示或隱藏已收藏的清單</div></div><div class="welcome-box-item" style="display: flex; align-items: center; margin-bottom: 14px;"><div style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: rgba(128,128,128,0.12); border-radius: 6px; margin-right: 14px; flex-shrink: 0; color: inherit;">${svgSearch}</div><div><strong>搜尋按鈕：</strong>展開或關閉地址搜尋欄</div></div><div class="welcome-box-item" style="display: flex; align-items: center; margin-bottom: 14px;"><div style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: rgba(128,128,128,0.12); border-radius: 6px; margin-right: 14px; flex-shrink: 0; color: inherit;">${svgRefresh}</div><div><strong>更新按鈕：</strong>刷新並獲取最新的即時數據</div></div><div class="welcome-box-item" style="display: flex; align-items: center; margin-bottom: 14px;"><div style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: rgba(128,128,128,0.12); border-radius: 6px; margin-right: 14px; flex-shrink: 0; color: inherit;">${svgGps}</div><div><strong>定位按鈕：</strong>尋找當前位置附近的車位與公廁</div></div></div></div>`;
 }

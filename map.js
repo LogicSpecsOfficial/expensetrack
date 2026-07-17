@@ -72,9 +72,8 @@ async function openMeterMap(address) {
             meterMap.setView([target.latitude, target.longitude], 18);
         }
 
-        const isDark = document.body.classList.contains('dark-theme');
         const vacantColor = '#198754';
-        const occupiedColor = isDark ? '#a0a0a0' : '#6c757d';
+        const occupiedColor = '#dc3545';
 
         spaces.forEach(m => {
             const isVacant = m.vacancyStatus === 'V';

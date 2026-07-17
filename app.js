@@ -63,6 +63,63 @@ function withTimeout(promise, ms, errorMsg) {
     });
 }
 
+function extractChineseAddress(text) {
+    let resolved = "";
+    
+    // 1. Try parsing as JSON first
+    try {
+        const data = JSON.parse(text);
+        const suggested = data?.SuggestedAddress || data?.AddressLookupResult?.SuggestedAddress;
+        if (Array.isArray(suggested) && suggested.length > 0) {
+            const premises = suggested[0]?.Address?.PremisesAddress;
+            if (premises && premises.ChiPremisesAddress) {
+                const chi = premises.ChiPremisesAddress;
+                
+                // Try pre-constructed brief address if available
+                if (chi.BriefAddressOfChi) {
+                    return decodeUnicode(chi.BriefAddressOfChi);
+                }
+                
+                // Reconstruct from granular parts
+                const district = typeof chi.District === 'object' ? (chi.District.DistrictName || '') : (chi.District || '');
+                const streetName = chi.Street?.StreetName || '';
+                const buildingNo = chi.Street?.BuildingNoFrom || '';
+                const buildingName = chi.BuildingName || '';
+                
+                resolved = `${district}${streetName}${buildingNo ? buildingNo + '號' : ''}${buildingName}`;
+                if (resolved.trim()) return decodeUnicode(resolved.trim());
+            }
+        }
+    } catch (e) {
+        // Fall back to regex parsing if JSON fails or XML is returned
+    }
+
+    // 2. Try XML or JSON string Regex extraction for flat brief formats
+    const briefMatch = text.match(/<BriefAddressOfChi>([^<]+)<\/BriefAddressOfChi>/i) ||
+                        text.match(/"BriefAddressOfChi"\s*:\s*"([^"]+)"/i) ||
+                        text.match(/<AddressInChinese>([^<]+)<\/AddressInChinese>/i) ||
+                        text.match(/"AddressInChinese"\s*:\s*"([^"]+)"/i);
+                        
+    if (briefMatch) {
+        return decodeUnicode(briefMatch[1].replace(/<\/?[^>]+(>|$)/g, "").trim());
+    }
+
+    // 3. Fallback: Parse distinct XML/JSON structural parts and reconstruct
+    const districtMatch = text.match(/<District[^>]*>([^<]+)<\/District>/i) || text.match(/"DistrictName"\s*:\s*"([^"]+)"/i);
+    const streetMatch = text.match(/<StreetName>([^<]+)<\/StreetName>/i) || text.match(/"StreetName"\s*:\s*"([^"]+)"/i);
+    const noMatch = text.match(/<BuildingNoFrom>([^<]+)<\/BuildingNoFrom>/i) || text.match(/"BuildingNoFrom"\s*:\s*"([^"]+)"/i);
+    const buildingMatch = text.match(/<BuildingName>([^<]+)<\/BuildingName>/i) || text.match(/"BuildingName"\s*:\s*"([^"]+)"/i);
+
+    const district = districtMatch ? districtMatch[1].trim() : "";
+    const street = streetMatch ? streetMatch[1].trim() : "";
+    const no = noMatch ? noMatch[1].trim() : "";
+    const building = buildingMatch ? buildingMatch[1].trim() : "";
+
+    resolved = `${district}${street}${no ? no + '號' : ''}${building}`;
+    
+    return decodeUnicode(resolved.trim());
+}
+
 async function refreshActiveTabData(isBackgroundRefresh = false) {
     if (!userCoordinates) return;
     const statusText = document.getElementById('status');
@@ -101,56 +158,18 @@ async function triggerAddressSearch(forcedQuery = null) {
     try {
         await withTimeout((async () => {
             const responseText = await fetchTextThroughProxy(`https://www.als.gov.hk/lookup?q=${encodeURIComponent(query)}`, true);
-            let foundChiAddress = "";
             
-            try {
-                const data = JSON.parse(responseText);
-                const suggested = data?.SuggestedAddress || data?.AddressLookupResult?.SuggestedAddress;
-                if (Array.isArray(suggested) && suggested.length > 0) {
-                    for (const item of suggested) {
-                        const premises = item?.Address?.PremisesAddress;
-                        if (premises) {
-                            const tempLat = parseFloat(premises.GeographicCoordinates?.Latitude);
-                            const tempLng = parseFloat(premises.GeographicCoordinates?.Longitude);
-                            if (tempLat && tempLng) {
-                                lat = tempLat;
-                                lng = tempLng;
-                                const chiAddr = premises.ChiPremisesAddress;
-                                if (chiAddr) {
-                                    foundChiAddress = chiAddr.BriefAddressOfChi || "";
-                                }
-                                break;
-                            }
-                        }
-                    }
-                }
-            } catch (e) {
-                console.warn("JSON parse failed, relying on fallback matching:", e);
-            }
-
-            if (!lat || !lng) {
-                let latMatch = responseText.match(/"Latitude"\s*:\s*"?([0-9.]+)"?/i) || responseText.match(/<Latitude>([0-9.]+)<\/Latitude>/i);
-                let lngMatch = responseText.match(/"Longitude"\s*:\s*"?([0-9.]+)"?/i) || responseText.match(/<Longitude>([0-9.]+)<\/Longitude>/i);
-                lat = latMatch ? parseFloat(latMatch[1]) : null;
-                lng = lngMatch ? parseFloat(lngMatch[1]) : null;
-            }
+            let latMatch = responseText.match(/"Latitude"\s*:\s*"?([0-9.]+)"?/i) || responseText.match(/<Latitude>([0-9.]+)<\/Latitude>/i);
+            let lngMatch = responseText.match(/"Longitude"\s*:\s*"?([0-9.]+)"?/i) || responseText.match(/<Longitude>([0-9.]+)<\/Longitude>/i);
+            lat = latMatch ? parseFloat(latMatch[1]) : null;
+            lng = lngMatch ? parseFloat(lngMatch[1]) : null;
 
             if (synonymMap[inputVal.toLowerCase().replace(/\s+/g, '')]) {
                 resolvedLocationName = synonymMap[inputVal.toLowerCase().replace(/\s+/g, '')];
             } else {
-                if (foundChiAddress) {
-                    resolvedLocationName = foundChiAddress;
-                } else {
-                    let addrMatch = responseText.match(/"BriefAddressOfChi"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/i) ||
-                                    responseText.match(/"AddressInChinese"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/i) || 
-                                    responseText.match(/<AddressInChinese>([\s\S]*?)<\/AddressInChinese>/i) ||
-                                    responseText.match(/<BriefAddressOfChi>([\s\S]*?)<\/BriefAddressOfChi>/i);
-                    if (addrMatch) {
-                        let rawAddr = addrMatch[1].replace(/<\/?[^>]+(>|$)/g, "").trim();
-                        resolvedLocationName = decodeUnicode(rawAddr);
-                    } else {
-                        resolvedLocationName = inputVal;
-                    }
+                resolvedLocationName = extractChineseAddress(responseText);
+                if (!resolvedLocationName) {
+                    resolvedLocationName = inputVal;
                 }
             }
 

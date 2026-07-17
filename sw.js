@@ -6,7 +6,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim());
 });
 
-// Process background dispatch requests from the primary execution runtime
+// 監聽並接收主線程傳遞而來的車位狀態變更請求
 self.addEventListener('message', (event) => {
   if (event.data && event.data.action === 'TRIGGER_PUSH_NOTIFICATION') {
     const payloadTitle = event.data.title;
@@ -24,7 +24,7 @@ self.addEventListener('message', (event) => {
   }
 });
 
-// Bring website tab interface back into user focus when banner is selected
+// 當使用者點擊手機的橫幅通知時，自動將網頁帶回畫面焦點
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 

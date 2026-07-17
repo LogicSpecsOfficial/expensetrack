@@ -346,7 +346,7 @@ body.dark-theme .clear-btn:active {
 .card-right {
     display: flex;
     flex-direction: column;
-    justify-content: center !important; /* Forces vertical centering relative to card height */
+    justify-content: center !important; 
     align-items: flex-end;
     width: 80px;
     flex-shrink: 0;
@@ -676,4 +676,49 @@ body.dark-theme .back-to-top:active {
     margin: -4px 0 12px 0;
     font-weight: 500;
     line-height: 1.4;
+}
+
+/* Meter Card Expand Feature additions */
+.carpark-card.meter-card {
+    cursor: pointer;
+}
+.meter-expand-container {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--border-color);
+}
+.meter-strip-title {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    font-weight: 600;
+    display: flex;
+    justify-content: space-between;
+}
+.meter-blocks-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.meter-block {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: white;
+    user-select: none;
+    transition: transform 0.1s ease;
+}
+.meter-block.vacant {
+    background-color: var(--success);
+}
+.meter-block.occupied {
+    background-color: var(--text-muted);
+}
+.meter-block:active {
+    transform: scale(0.9);
 }

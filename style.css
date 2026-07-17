@@ -669,3 +669,11 @@ body.dark-theme .back-to-top:active {
     0%, 80%, 100% { transform: scale(0); opacity: 0.3; }
     40% { transform: scale(1); opacity: 1; }
 }
+
+.search-subtitle {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin: -4px 0 12px 0;
+    font-weight: 500;
+    line-height: 1.4;
+}

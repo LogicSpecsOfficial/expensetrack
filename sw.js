@@ -1,4 +1,4 @@
-self.addEventListener('install', (event) => {
+self.addEventListener('install', () => {
   self.skipWaiting();
 });
 
@@ -6,33 +6,33 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim());
 });
 
-// Handle local notification requests from the main application thread
+// Process background dispatch requests from the primary execution runtime
 self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SHOW_NOTIFICATION') {
-    const title = event.data.title;
-    const options = {
-      body: event.data.body,
-      tag: event.data.tag,
+  if (event.data && event.data.action === 'TRIGGER_PUSH_NOTIFICATION') {
+    const payloadTitle = event.data.title;
+    const configurations = {
+      body: event.data.message,
+      tag: event.data.identifier,
       renotify: true,
       requireInteraction: true,
       vibrate: [200, 100, 200]
     };
-    
+
     event.waitUntil(
-      self.registration.showNotification(title, options)
+      self.registration.showNotification(payloadTitle, configurations)
     );
   }
 });
 
-// Open or focus the web app when the user taps the notification
+// Bring website tab interface back into user focus when banner is selected
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  
+
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      for (const client of clientList) {
-        if ('focus' in client) {
-          return client.focus();
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((tabsList) => {
+      for (const clientTab of tabsList) {
+        if ('focus' in clientTab) {
+          return clientTab.focus();
         }
       }
       if (self.clients.openWindow) {

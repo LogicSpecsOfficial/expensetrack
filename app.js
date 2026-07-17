@@ -77,39 +77,56 @@ function extractAddressData(text) {
                 buildingName = chi.BuildingName ? decodeUnicode(chi.BuildingName).trim() : "";
                 
                 const region = chi.Region ? decodeUnicode(chi.Region).trim() : "";
-                const district = typeof chi.District === 'object' ? (chi.District.DistrictName || '') : (chi.District || '');
-                const cleanDistrict = district ? decodeUnicode(district).trim() : "";
+                const district = chi.ChiDistrict || chi.District || "";
+                let cleanDistrict = "";
+                if (district && typeof district === 'object') {
+                    cleanDistrict = district.content || district.DistrictName || "";
+                } else {
+                    cleanDistrict = district;
+                }
+                cleanDistrict = cleanDistrict ? decodeUnicode(cleanDistrict).trim() : "";
                 
-                const streetName = chi.Street?.StreetName ? decodeUnicode(chi.Street.StreetName).trim() : "";
-                const buildingNo = chi.Street?.BuildingNoFrom ? decodeUnicode(chi.Street.BuildingNoFrom).trim() : "";
+                const streetObj = chi.ChiStreet || chi.Street || {};
+                let streetName = "";
+                let buildingNo = "";
+                if (streetObj && typeof streetObj === 'object') {
+                    streetName = streetObj.StreetName ? decodeUnicode(streetObj.StreetName).trim() : "";
+                    buildingNo = streetObj.BuildingNoFrom ? decodeUnicode(streetObj.BuildingNoFrom).trim() : "";
+                }
                 
                 const distPart = (cleanDistrict.startsWith(region) || !region) ? cleanDistrict : (region + cleanDistrict);
                 const streetPart = streetName + (buildingNo ? buildingNo + '號' : '');
                 
                 streetAddress = (distPart + streetPart).trim();
+                if (buildingName || streetAddress) {
+                    return { buildingName, streetAddress };
+                }
             }
         }
-    } catch (e) {}
-
-    if (!buildingName || !streetAddress) {
-        const regionMatch = text.match(/<Region>([^<]+)<\/Region>/i) || text.match(/"Region"\s*:\s*"([^"]+)"/i);
-        const districtMatch = text.match(/<District[^>]*>([^<]+)<\/District>/i) || text.match(/"DistrictName"\s*:\s*"([^"]+)"/i);
-        const streetMatch = text.match(/<StreetName>([^<]+)<\/StreetName>/i) || text.match(/"StreetName"\s*:\s*"([^"]+)"/i);
-        const noMatch = text.match(/<BuildingNoFrom>([^<]+)<\/BuildingNoFrom>/i) || text.match(/"BuildingNoFrom"\s*:\s*"([^"]+)"/i);
-        const bldMatch = text.match(/<BuildingName>([^<]+)<\/BuildingName>/i) || text.match(/"BuildingName"\s*:\s*"([^"]+)"/i);
-
-        const region = regionMatch ? decodeUnicode(regionMatch[1].trim()) : "";
-        const district = districtMatch ? decodeUnicode(districtMatch[1].trim()) : "";
-        const street = streetMatch ? decodeUnicode(streetMatch[1].trim()) : "";
-        const no = noMatch ? decodeUnicode(noMatch[1].trim()) : "";
-        const bld = bldMatch ? decodeUnicode(bldMatch[1].trim()) : "";
-
-        if (bld) buildingName = bld;
-        
-        const distPart = (district.startsWith(region) || !region) ? district : (region + district);
-        const streetPart = street + (no ? no + '號' : '');
-        streetAddress = (distPart + streetPart).trim();
+    } catch (e) {
+        console.warn("JSON parse failed, falling back to regex:", e);
     }
+
+    const regionMatch = text.match(/<Region>([^<]+)<\/Region>/i) || text.match(/"Region"\s*:\s*"([^"]+)"/i);
+    const districtMatch = text.match(/<District[^>]*>([^<]+)<\/District>/i) || 
+                         text.match(/"ChiDistrict"\s*:\s*"([^"]+)"/i) || 
+                         text.match(/"DistrictName"\s*:\s*"([^"]+)"/i) || 
+                         text.match(/"District"\s*:\s*"([^"]+)"/i);
+    const streetMatch = text.match(/<StreetName>([^<]+)<\/StreetName>/i) || text.match(/"StreetName"\s*:\s*"([^"]+)"/i);
+    const noMatch = text.match(/<BuildingNoFrom>([^<]+)<\/BuildingNoFrom>/i) || text.match(/"BuildingNoFrom"\s*:\s*"([^"]+)"/i);
+    const bldMatch = text.match(/<BuildingName>([^<]+)<\/BuildingName>/i) || text.match(/"BuildingName"\s*:\s*"([^"]+)"/i);
+
+    const region = regionMatch ? decodeUnicode(regionMatch[1].trim()) : "";
+    const district = districtMatch ? decodeUnicode(districtMatch[1].trim()) : "";
+    const street = streetMatch ? decodeUnicode(streetMatch[1].trim()) : "";
+    const no = noMatch ? decodeUnicode(noMatch[1].trim()) : "";
+    const bld = bldMatch ? decodeUnicode(bldMatch[1].trim()) : "";
+
+    if (bld) buildingName = bld;
+    
+    const distPart = (district.startsWith(region) || !region) ? district : (region + district);
+    const streetPart = street + (no ? no + '號' : '');
+    streetAddress = (distPart + streetPart).trim();
 
     return { buildingName, streetAddress };
 }

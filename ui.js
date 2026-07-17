@@ -69,15 +69,31 @@ function renderSearchHistory() {
 
 function displayResults(items, isMeter = false) {
     const statusText = document.getElementById('status'); if (statusText) statusText.textContent = ""; 
-    const locationSuffix = resolvedLocationName ? ` (${resolvedLocationName})` : "";
-    document.getElementById('ui-search-title').textContent = `${t.searchTitle}${locationSuffix} (${items.length})`;
+    document.getElementById('ui-search-title').textContent = `${t.searchTitle} (${items.length})`;
+    const subtitleEl = document.getElementById('searchSubtitle');
+    if (subtitleEl) {
+        if (resolvedLocationName) {
+            subtitleEl.textContent = resolvedLocationName;
+            subtitleEl.style.display = 'block';
+        } else {
+            subtitleEl.style.display = 'none';
+        }
+    }
     resultsDiv.innerHTML = items.length === 0 ? `<div class="empty-notice">${t.noRecords}</div>` : items.map(item => isMeter ? generateMeterCardHTML(item) : generateCardHTML(item)).join('');
 }
 
 function displayToiletResults(items) {
     const statusText = document.getElementById('status'); if (statusText) statusText.textContent = ""; 
-    const locationSuffix = resolvedLocationName ? ` (${resolvedLocationName})` : "";
-    document.getElementById('ui-search-title').textContent = `${t.searchTitle}${locationSuffix} (${items.length})`;
+    document.getElementById('ui-search-title').textContent = `${t.searchTitle} (${items.length})`;
+    const subtitleEl = document.getElementById('searchSubtitle');
+    if (subtitleEl) {
+        if (resolvedLocationName) {
+            subtitleEl.textContent = resolvedLocationName;
+            subtitleEl.style.display = 'block';
+        } else {
+            subtitleEl.style.display = 'none';
+        }
+    }
     resultsDiv.innerHTML = items.length === 0 ? `<div class="empty-notice">${t.noRecords}</div>` : items.map(item => generateToiletCardHTML(item)).join('');
 }
 

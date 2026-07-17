@@ -6,72 +6,77 @@
     <title>HK Car Parks</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        /* 2026 行動端無縫自適應主題雙按鈕與底部智慧狀態島樣式 */
+        /* 2026 行動端輕量化圖標按鈕與自適應深色模式樣式 */
         .parking-tracker-btn-container {
             display: flex;
-            width: 100%;
-            border-top: 1px solid rgba(148, 163, 184, 0.15);
+            gap: 10px;
+            justify-content: flex-end;
             margin-top: 12px;
+            width: 100%;
             box-sizing: border-box;
-            background: transparent; /* 移除固定白色，自動透出原本卡片的深色或淺色背景 */
-            overflow: hidden;
+            background: transparent;
         }
 
         .parking-action-btn {
-            flex: 1;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 12px 8px;
-            font-size: 14px;
-            font-weight: 600;
-            background: transparent;
-            border: none;
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background-color: rgba(148, 163, 184, 0.1);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            color: inherit;
             cursor: pointer;
-            color: inherit; /* 自動繼承原有主題的文字顏色 */
-            opacity: 0.9;
             transition: all 0.2s ease-in-out;
             outline: none;
             -webkit-tap-highlight-color: transparent;
         }
 
-        .parking-map-view-btn {
-            border-right: 1px solid rgba(148, 163, 184, 0.15);
-        }
-
         .parking-action-btn:active {
-            background-color: rgba(148, 163, 184, 0.12);
+            background-color: rgba(148, 163, 184, 0.25);
         }
 
         .parking-tracker-toggle-btn {
-            color: #3b82f6; /* 保留高對比藍色引導點擊 */
-        }
-
-        /* 當目前有空位時的灰色停用樣式 */
-        .parking-tracker-toggle-btn.tracking-disabled {
-            color: #94a3b8 !important;
-            opacity: 0.5 !important;
-            cursor: not-allowed;
-            background-color: transparent !important;
-        }
-
-        .parking-tracker-toggle-btn.tracking-confirming {
-            background-color: rgba(59, 130, 246, 0.1);
             color: #3b82f6;
-            font-size: 11px;
-            line-height: 1.3;
-            padding: 6px 8px;
-            pointer-events: none;
-            text-align: center;
         }
 
         .parking-tracker-toggle-btn.tracking-active {
             background-color: #2563eb;
+            border-color: #1d4ed8;
             color: #ffffff;
-            opacity: 1;
         }
 
-        /* 底部浮動智慧狀態島 UI 佈局 */
+        .parking-tracker-toggle-btn.tracking-disabled {
+            color: #94a3b8 !important;
+            opacity: 0.25 !important;
+            cursor: not-allowed;
+            background-color: transparent !important;
+            border-color: rgba(148, 163, 184, 0.1) !important;
+        }
+
+        /* 智慧提示橫幅樣式 */
+        #parking-toast-notice {
+            position: fixed;
+            top: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #1e293b;
+            color: #f8fafc;
+            padding: 12px 20px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 500;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+            z-index: 1000000;
+            width: calc(100% - 32px);
+            max-width: 360px;
+            text-align: center;
+            animation: toastFadeIn 0.3s ease-out;
+            transition: opacity 0.3s ease;
+        }
+
+        /* 底部智慧狀態島 UI 佈局 */
         #mobile-bottom-tracker-island {
             position: fixed;
             bottom: calc(16px + env(safe-area-inset-bottom));
@@ -153,8 +158,9 @@
             -webkit-tap-highlight-color: transparent;
         }
 
-        .island-cancel-btn:active {
-            background-color: #475569;
+        @keyframes toastFadeIn {
+            from { top: 0; opacity: 0; }
+            to { top: 24px; opacity: 1; }
         }
 
         @keyframes islandSlideUp {

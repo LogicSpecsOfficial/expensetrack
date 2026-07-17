@@ -69,7 +69,13 @@ function renderSearchHistory() {
 
 function displayResults(items, isMeter = false) {
     const statusText = document.getElementById('status'); if (statusText) statusText.textContent = ""; 
-    document.getElementById('ui-search-title').textContent = `${t.searchTitle} (${items.length})`;
+    
+    if (isMeter) {
+        document.getElementById('ui-search-title').innerHTML = `${t.searchTitle} (${items.length}) <span class="title-hint" style="font-size: 0.8rem; font-weight: normal; color: var(--text-muted); margin-left: 6px;">（點擊卡片查看地圖位置）</span>`;
+    } else {
+        document.getElementById('ui-search-title').textContent = `${t.searchTitle} (${items.length})`;
+    }
+
     const subtitleEl = document.getElementById('searchSubtitle');
     if (subtitleEl) {
         if (resolvedLocationName) {

@@ -16,6 +16,7 @@ class MobileParkingTracker {
     this.initDynamicObserver();
     this.attachInterfaceInterceptors();
     this.startLayoutVisibilityLoop();
+    this.cleanSearchTitleText();
     this.refreshControlOverlay();
   }
 
@@ -34,12 +35,25 @@ class MobileParkingTracker {
     if (!targetNode) return;
 
     this.observerInstance = new MutationObserver(() => {
+      this.cleanSearchTitleText();
       const meteredTab = document.getElementById('tabMetered');
       if (meteredTab && meteredTab.classList.contains('active')) {
         this.injectTrackingTriggers();
       }
     });
     this.observerInstance.observe(targetNode, { childList: true, subtree: true });
+  }
+
+  cleanSearchTitleText() {
+    const titleEl = document.getElementById('ui-search-title');
+    if (titleEl && titleEl.textContent) {
+      const targets = ['（點擊卡片查看地圖位置）', '(點擊卡片查看地圖位置)'];
+      targets.forEach(str => {
+        if (titleEl.textContent.includes(str)) {
+          titleEl.textContent = titleEl.textContent.replace(str, '');
+        }
+      });
+    }
   }
 
   injectTrackingTriggers() {
@@ -60,20 +74,22 @@ class MobileParkingTracker {
       
       const mapBtn = document.createElement('button');
       mapBtn.className = 'parking-action-btn parking-map-view-btn';
-      mapBtn.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px; display:inline-block; vertical-align:middle;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>查看地圖`;
+      mapBtn.setAttribute('aria-label', '查看地圖');
+      mapBtn.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>`;
 
       const actionBtn = document.createElement('button');
       actionBtn.className = 'parking-action-btn parking-tracker-toggle-btn';
+      actionBtn.setAttribute('aria-label', '追蹤車位');
       
       if (currentSpaces > 0) {
         actionBtn.classList.add('tracking-disabled');
         actionBtn.disabled = true;
-        actionBtn.textContent = '目前有空位';
+        actionBtn.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>`;
       } else if (this.activeTrackedItems.has(uniqueId)) {
         actionBtn.classList.add('tracking-active');
-        actionBtn.textContent = '正在追蹤';
+        actionBtn.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`;
       } else {
-        actionBtn.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px; display:inline-block; vertical-align:middle;"><circle cx="12" cy="12" r="2"></circle><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path></svg>追蹤車位`;
+        actionBtn.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"></circle><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path></svg>`;
       }
 
       actionArea.appendChild(mapBtn);
@@ -82,10 +98,29 @@ class MobileParkingTracker {
     }
   }
 
+  showFloatingToast() {
+    let toast = document.getElementById('parking-toast-notice');
+    if (toast) toast.remove();
+
+    toast = document.createElement('div');
+    toast.id = 'parking-toast-notice';
+    toast.textContent = '已啟動背景追蹤。您可以關閉瀏覽器，有車位時將發送通知。';
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+      if (toast) {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+      }
+    }, 4000);
+  }
+
   async toggleTrackingState(cardElement, buttonElement) {
     const carparkId = cardElement.getAttribute('data-id');
-    if (!carparkId || this.activeTrackedItems.has(carparkId)) {
-      if (carparkId) this.cancelSingleTracker(carparkId);
+    if (!carparkId) return;
+
+    if (this.activeTrackedItems.has(carparkId)) {
+      this.cancelSingleTracker(carparkId);
       return;
     }
 
@@ -105,16 +140,9 @@ class MobileParkingTracker {
     const nameNode = cardElement.querySelector('h2, h3, h4, .title, .name') || cardElement;
     const carparkName = nameNode.textContent.trim().split('\n')[0];
 
-    buttonElement.classList.add('tracking-confirming');
-    buttonElement.textContent = '已啟動背景追蹤。您可以關閉瀏覽器，有車位時將發送通知。';
-
-    setTimeout(() => {
-      if (this.activeTrackedItems.has(carparkId)) {
-        buttonElement.classList.remove('tracking-confirming');
-        buttonElement.classList.add('tracking-active');
-        buttonElement.textContent = '正在追蹤';
-      }
-    }, 4000);
+    this.showFloatingToast();
+    buttonElement.classList.add('tracking-active');
+    buttonElement.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`;
 
     this.activeTrackedItems.set(carparkId, {
       title: carparkName,
@@ -133,7 +161,7 @@ class MobileParkingTracker {
         const btn = card.querySelector('.parking-tracker-toggle-btn');
         if (btn && !btn.disabled) {
           btn.className = 'parking-action-btn parking-tracker-toggle-btn';
-          btn.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px; display:inline-block; vertical-align:middle;"><circle cx="12" cy="12" r="2"></circle><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path></svg>追蹤車位`;
+          btn.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"></circle><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path></svg>`;
         }
       }
       this.synchronizeExecutionLoop();
@@ -179,11 +207,17 @@ class MobileParkingTracker {
   }
 
   parseCurrentSpaces(cardElement) {
-    const clone = cardElement.cloneNode(true);
-    const btnContainer = clone.querySelector('.parking-tracker-btn-container');
-    if (btnContainer) btnContainer.remove();
-    const digits = clone.textContent.replace(/[\r\n\t]/g, ' ').match(/\d+/);
-    return digits ? parseInt(digits[0], 10) : 0;
+    const subElements = cardElement.querySelectorAll('*');
+    for (let i = 0; i < subElements.length; i++) {
+      const el = subElements[i];
+      if (el.textContent && el.textContent.includes('空置咪錶')) {
+        const fractionMatch = el.textContent.match(/(\d+)\s*\/\s*\d+/);
+        if (fractionMatch) return parseInt(fractionMatch[1], 10);
+        const integerMatch = el.textContent.match(/\d+/);
+        if (integerMatch) return parseInt(integerMatch[0], 10);
+      }
+    }
+    return 0;
   }
 
   dispatchSystemAlert(title, message, identifier) {
@@ -195,7 +229,6 @@ class MobileParkingTracker {
   }
 
   startLayoutVisibilityLoop() {
-    // 智慧檢測列表是否被地圖組件遮擋隱藏，高強度防禦誤觸
     setInterval(() => {
       const resultsEl = document.getElementById('results');
       if (resultsEl) {

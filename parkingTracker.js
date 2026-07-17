@@ -1,232 +1,264 @@
-class ParkingTracker {
+class MobileParkingTracker {
   constructor() {
-    this.trackedCarparks = new Map();
-    this.pollingIntervalId = null;
-    this.expiryTimeoutId = null;
-    this.pollDuration = 10000; // 10 seconds
-    this.maxTrackingTime = 1800000; // 30 minutes auto-expiry
-    this.swRegistration = null;
+    this.activeTrackedItems = new Map();
+    this.pollTimerId = null;
+    this.shutdownTimerId = null;
+    this.loopInterval = 10000; 
+    this.expiryPeriod = 1800000; 
+    this.swInstance = null;
+    this.observerInstance = null;
   }
 
-  async init() {
-    await this.registerServiceWorker();
-    this.setupUIListeners();
-    this.renderControlPanel();
+  async startup() {
+    await this.connectServiceWorker();
+    this.initDynamicObserver();
+    this.attachInterfaceInterceptors();
+    this.refreshControlOverlay();
   }
 
-  async registerServiceWorker() {
-    if ('serviceWorker' in navigator && 'PushManager' in window) {
+  async connectServiceWorker() {
+    if ('serviceWorker' in navigator) {
       try {
-        this.swRegistration = await navigator.serviceWorker.register('/sw.js');
-        console.log('Service Worker registered successfully');
-      } catch (error) {
-        console.error('Service Worker registration failed:', error);
+        this.swInstance = await navigator.serviceWorker.register('/sw.js');
+        console.log('Background worker linked');
+      } catch (err) {
+        console.error('Worker allocation error:', err);
       }
     }
   }
 
-  async requestNotificationPermission() {
+  async requestAlertPermission() {
     if ('Notification' in window) {
-      const permission = await Notification.requestPermission();
-      return permission === 'granted';
+      const status = await Notification.requestPermission();
+      return status === 'granted';
     }
     return false;
   }
 
-  async toggleTracking(carparkId, carparkName, currentSpaces) {
-    if (this.trackedCarparks.has(carparkId)) {
-      this.stopTrackingSingle(carparkId);
-      return;
-    }
+  initDynamicObserver() {
+    const targetNode = document.getElementById('results');
+    if (!targetNode) return;
 
-    const hasPermission = await this.requestNotificationPermission();
-    if (!hasPermission) {
-      alert('Notification permissions are required to alert you when a space opens up.');
-      return;
-    }
-
-    // Initialize tracking state for this specific carpark
-    this.trackedCarparks.set(carparkId, {
-      name: carparkName,
-      lastKnownSpaces: parseInt(currentSpaces, 10) || 0,
-      timestamp: Date.now()
+    this.observerInstance = new MutationObserver(() => {
+      const meteredTab = document.getElementById('tabMetered');
+      if (meteredTab && meteredTab.classList.contains('active')) {
+        this.injectTrackingTriggers();
+      }
     });
 
-    this.updateCardUIState(carparkId, true);
-    this.managePollingLifecycle();
+    this.observerInstance.observe(targetNode, { childList: true, subtree: true });
   }
 
-  stopTrackingSingle(carparkId) {
-    if (this.trackedCarparks.has(carparkId)) {
-      this.trackedCarparks.delete(carparkId);
-      this.updateCardUIState(carparkId, false);
-      this.managePollingLifecycle();
-    }
-  }
-
-  stopAllTracking() {
-    const trackedIds = Array.from(this.trackedCarparks.keys());
-    trackedIds.forEach((id) => {
-      this.updateCardUIState(id, false);
-    });
-    this.trackedCarparks.clear();
-    this.managePollingLifecycle();
-  }
-
-  managePollingLifecycle() {
-    this.renderControlPanel();
-
-    if (this.trackedCarparks.size > 0) {
-      if (!this.pollingIntervalId) {
-        this.pollingIntervalId = setInterval(() => this.pollCarparkData(), this.pollDuration);
-      }
-      if (!this.expiryTimeoutId) {
-        this.expiryTimeoutId = setTimeout(() => {
-          this.stopAllTracking();
-          this.sendLocalNotification('Tracking Expired', 'Tracking stopped automatically after 30 minutes to save battery power.', 'expiry-alert');
-        }, this.maxTrackingTime);
-      }
-    } else {
-      this.clearTimers();
-    }
-  }
-
-  clearTimers() {
-    if (this.pollingIntervalId) {
-      clearInterval(this.pollingIntervalId);
-      this.pollingIntervalId = null;
-    }
-    if (this.expiryTimeoutId) {
-      clearTimeout(this.expiryTimeoutId);
-      this.expiryTimeoutId = null;
-    }
-  }
-
-  async pollCarparkData() {
-    // This loops through all active trackers and evaluates current spaces.
-    // In production, replace this mock iteration with your actual system fetch call.
-    for (const [carparkId, data] of this.trackedCarparks.entries()) {
-      try {
-        const currentSpaces = await this.fetchLiveSpaces(carparkId);
-        
-        if (data.lastKnownSpaces === 0 && currentSpaces >= 1) {
-          this.sendLocalNotification(
-            'Parking Space Available',
-            `${data.name} now has ${currentSpaces} space available.`,
-            `carpark-${carparkId}`
-          );
-          this.stopTrackingSingle(carparkId);
-        } else {
-          data.lastKnownSpaces = currentSpaces;
-          this.trackedCarparks.set(carparkId, data);
-        }
-      } catch (error) {
-        console.error(`Error polling data for carpark ${carparkId}:`, error);
-      }
-    }
-  }
-
-  async fetchLiveSpaces(carparkId) {
-    // Simulated live lookup matching your backend data structure.
-    // Replace with your real live data API object reading logic if necessary.
-    const badgeElement = document.querySelector(`[data-id="${carparkId}"] .space-badge`);
-    if (badgeElement) {
-      return parseInt(badgeElement.textContent, 10) || 0;
-    }
-    return 0;
-  }
-
-  sendLocalNotification(title, body, tag) {
-    if (this.swRegistration && 'showNotification' in this.swRegistration) {
-      this.swRegistration.active.postMessage({
-        type: 'SHOW_NOTIFICATION',
-        title: title,
-        body: body,
-        tag: tag
-      });
-    } else if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification(title, { body: body, tag: tag });
-    }
-  }
-
-  updateCardUIState(carparkId, isTracking) {
-    const card = document.querySelector(`[data-id="${carparkId}"]`);
-    if (!card) return;
-
-    const bellBtn = card.querySelector('.notification-bell-btn');
-    if (!bellBtn) return;
-
-    if (isTracking) {
-      card.classList.add('tracking-active');
-      bellBtn.classList.add('active');
-      bellBtn.textContent = 'Tracking On';
-    } else {
-      card.classList.remove('tracking-active');
-      bellBtn.classList.remove('active');
-      bellBtn.textContent = 'Track Spaces';
-    }
-  }
-
-  setupUIListeners() {
-    const container = document.getElementById('carpark-list-container');
+  injectTrackingTriggers() {
+    const container = document.getElementById('results');
     if (!container) return;
 
-    container.addEventListener('click', (event) => {
-      const bellBtn = event.target.closest('.notification-bell-btn');
-      if (bellBtn) {
-        event.stopPropagation(); // Prevents the map popup from opening
-        const card = bellBtn.closest('.carpark-card');
-        const id = card.getAttribute('data-id');
-        const name = card.querySelector('.carpark-name').textContent;
-        const spaces = card.querySelector('.space-badge').textContent;
-        
-        this.toggleTracking(id, name, spaces);
-        return;
-      }
+    // Identify all direct card nodes rendered inside results
+    const cards = container.children;
+    for (let i = 0; i < cards.length; i++) {
+      const card = cards[i];
+      if (card.nodeType !== 1) continue;
 
-      const card = event.target.closest('.carpark-card');
+      if (!card.querySelector('.parking-tracker-btn-container')) {
+        const uniqueId = card.getAttribute('data-id') || `generated-id-${i}`;
+        if (!card.getAttribute('data-id')) {
+          card.setAttribute('data-id', uniqueId);
+        }
+
+        const actionArea = document.createElement('div');
+        actionArea.className = 'parking-tracker-btn-container';
+        
+        const actionBtn = document.createElement('button');
+        actionBtn.className = 'parking-tracker-toggle-btn';
+        
+        if (this.activeTrackedItems.has(uniqueId)) {
+          actionBtn.classList.add('tracking-active');
+          actionBtn.textContent = '正在追蹤';
+        } else {
+          actionBtn.textContent = '追蹤車位';
+        }
+
+        actionArea.appendChild(actionBtn);
+        card.appendChild(actionArea);
+      }
+    }
+  }
+
+  async toggleTrackingState(cardElement, buttonElement) {
+    const carparkId = cardElement.getAttribute('data-id');
+    if (!carparkId) return;
+
+    if (this.activeTrackedItems.has(carparkId)) {
+      this.cancelSingleTracker(carparkId);
+      return;
+    }
+
+    const permitted = await this.requestAlertPermission();
+    if (!permitted) {
+      alert('請允許此應用程式發送通知，以便在有空置車位時即時提示您。');
+      return;
+    }
+
+    const nameNode = cardElement.querySelector('h2, h3, h4, .title, .name') || cardElement;
+    const carparkName = nameNode.textContent.trim().split('\n')[0];
+    const initialSpaces = this.parseCurrentSpaces(cardElement);
+
+    this.activeTrackedItems.set(carparkId, {
+      title: carparkName,
+      previousCount: initialSpaces,
+      startedAt: Date.now()
+    });
+
+    buttonElement.classList.add('tracking-active');
+    buttonElement.textContent = '正在追蹤';
+
+    this.synchronizeExecutionLoop();
+  }
+
+  cancelSingleTracker(carparkId) {
+    if (this.activeTrackedItems.has(carparkId)) {
+      this.activeTrackedItems.delete(carparkId);
+      
+      const card = document.querySelector(`[data-id="${carparkId}"]`);
       if (card) {
-        const lat = card.getAttribute('data-lat');
-        const lng = card.getAttribute('data-lng');
-        if (typeof window.openMapPopup === 'function') {
-          window.openMapPopup(lat, lng);
+        const btn = card.querySelector('.parking-tracker-toggle-btn');
+        if (btn) {
+          btn.classList.remove('tracking-active');
+          btn.textContent = '追蹤車位';
+        }
+      }
+      this.synchronizeExecutionLoop();
+    }
+  }
+
+  cancelAllTrackers() {
+    const activeKeys = Array.from(this.activeTrackedItems.keys());
+    activeKeys.forEach(key => this.cancelSingleTracker(key));
+  }
+
+  synchronizeExecutionLoop() {
+    this.refreshControlOverlay();
+
+    if (this.activeTrackedItems.size > 0) {
+      if (!this.pollTimerId) {
+        this.pollTimerId = setInterval(() => {
+          const nativeRefresh = document.getElementById('refreshBtn');
+          if (nativeRefresh) {
+            nativeRefresh.click(); 
+          }
+          setTimeout(() => this.evaluateTrackedMetrics(), 1500); 
+        }, this.loopInterval);
+      }
+      if (!this.shutdownTimerId) {
+        this.shutdownTimerId = setTimeout(() => {
+          this.cancelAllTrackers();
+          this.dispatchSystemAlert('追蹤超時安全結束', '系統已自動停止向背景請求數據以節省手機電力。', 'timeout-event');
+        }, this.expiryPeriod);
+      }
+    } else {
+      this.disableActiveTimers();
+    }
+  }
+
+  disableActiveTimers() {
+    if (this.pollTimerId) {
+      clearInterval(this.pollTimerId);
+      this.pollTimerId = null;
+    }
+    if (this.shutdownTimerId) {
+      clearTimeout(this.shutdownTimerId);
+      this.shutdownTimerId = null;
+    }
+  }
+
+  evaluateTrackedMetrics() {
+    for (const [id, data] of this.activeTrackedItems.entries()) {
+      const card = document.querySelector(`[data-id="${id}"]`);
+      if (!card) continue;
+
+      const currentCount = this.parseCurrentSpaces(card);
+
+      if (data.previousCount === 0 && currentCount >= 1) {
+        this.dispatchSystemAlert(
+          '車位可用通知',
+          `${data.title} 現已有 ${currentCount} 個空置車位可用。`,
+          `alert-${id}`
+        );
+        this.cancelSingleTracker(id);
+      } else {
+        data.previousCount = currentCount;
+        this.activeTrackedItems.set(id, data);
+      }
+    }
+  }
+
+  parseCurrentSpaces(cardElement) {
+    const badgeText = cardElement.textContent.replace(/[\r\n\t]/g, ' ');
+    const digits = badgeText.match(/\d+/);
+    return digits ? parseInt(digits[0], 10) : 0;
+  }
+
+  dispatchSystemAlert(title, message, identifier) {
+    if (this.swInstance && this.swInstance.active) {
+      this.swInstance.active.postMessage({
+        action: 'TRIGGER_PUSH_NOTIFICATION',
+        title: title,
+        message: message,
+        identifier: identifier
+      });
+    } else if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification(title, { body: message, tag: identifier });
+    }
+  }
+
+  attachInterfaceInterceptors() {
+    const resultsArea = document.getElementById('results');
+    if (!resultsArea) return;
+
+    resultsArea.addEventListener('click', (e) => {
+      const toggleBtn = e.target.closest('.parking-tracker-toggle-btn');
+      if (toggleBtn) {
+        e.stopPropagation();
+        const card = toggleBtn.closest('[data-id]');
+        if (card) {
+          this.toggleTrackingState(card, toggleBtn);
         }
       }
     });
   }
 
-  renderControlPanel() {
-    let panel = document.getElementById('tracking-control-panel');
-    
-    if (this.trackedCarparks.size === 0) {
+  refreshControlOverlay() {
+    let panel = document.getElementById('mobile-tracking-overlay-panel');
+
+    if (this.activeTrackedItems.size === 0) {
       if (panel) panel.remove();
       return;
     }
 
     if (!panel) {
       panel = document.createElement('div');
-      panel.id = 'tracking-control-panel';
+      panel.id = 'mobile-tracking-overlay-panel';
       document.body.appendChild(panel);
     }
 
-    const count = this.trackedCarparks.size;
+    const currentActiveSize = this.activeTrackedItems.size;
     panel.innerHTML = `
-      <div class="panel-content">
-        <div class="panel-status">
-          <span class="pulse-indicator"></span>
-          <span class="status-text">Monitoring ${count} carpark${count > 1 ? 's' : ''}</span>
+      <div class="tracker-panel-layout">
+        <div class="tracker-panel-info">
+          <span class="tracker-pulse-dot"></span>
+          <span class="tracker-panel-text">正在監察 ${currentActiveSize} 個車位</span>
         </div>
-        <button id="stop-all-tracking-btn" class="stop-panel-btn">Stop All Alerts</button>
+        <button id="tracker-panel-kill-switch" class="tracker-panel-clear-btn">停止所有通知</button>
       </div>
     `;
 
-    document.getElementById('stop-all-tracking-btn').addEventListener('click', () => {
-      this.stopAllTracking();
+    document.getElementById('tracker-panel-kill-switch').addEventListener('click', () => {
+      this.cancelAllTrackers();
     });
   }
 }
 
-window.parkingTrackerInstance = new ParkingTracker();
+window.mobileParkingTrackerReference = new MobileParkingTracker();
 document.addEventListener('DOMContentLoaded', () => {
-  window.parkingTrackerInstance.init();
+  window.mobileParkingTrackerReference.startup();
 });

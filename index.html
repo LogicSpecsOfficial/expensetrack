@@ -6,67 +6,74 @@
     <title>HK Car Parks</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        /* 2026 行動端超緊湊正方形按鈕與自適應佈局樣式 */
+        /* 2026 行動端自適應緊湊佈局與正方形圖標按鈕樣式 */
         #results > * {
             position: relative !important;
-            padding: 12px 12px 12px 12px !important; /* 全面縮減卡片內邊距，極致壓縮高度 */
-            min-height: 105px !important; /* 確保右側有足夠空間容納直向組合 */
+            padding: 12px 110px 12px 12px !important; /* 縮減上下內邊距，並在右側留出固定空間 */
+            min-height: 110px !important;
             box-sizing: border-box !important;
         }
 
-        /* 將按鈕群精準定位於右上角空置咪錶盒子的正下方 */
+        /* 強制將空置率盒子定位於右上角，與車位名稱對齊 */
+        .custom-vacancy-box {
+            position: absolute !important;
+            top: 12px !important;
+            right: 12px !important;
+            margin: 0 !important;
+        }
+
+        /* 將正方形按鈕置於空置率盒子正下方 */
         .parking-tracker-btn-container {
             position: absolute !important;
-            right: 12px;
-            top: 64px; /* 完美緊貼於上方空置率數值盒子下方 */
-            display: flex;
-            gap: 8px;
-            background: transparent;
-            z-index: 10;
+            right: 12px !important;
+            top: 64px !important; 
+            display: flex !important;
+            gap: 8px !important;
+            background: transparent !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            z-index: 10 !important;
         }
 
         .parking-action-btn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 38px;
-            height: 38px;
-            border-radius: 8px; /* 改為正方形外框，與頂部導航按鈕風格完全一致 */
-            background-color: rgba(148, 163, 184, 0.1);
-            border: 1px solid rgba(148, 163, 184, 0.2);
-            color: inherit;
-            cursor: pointer;
-            transition: all 0.2s ease-in-out;
-            outline: none;
-            -webkit-tap-highlight-color: transparent;
-            box-sizing: border-box;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            width: 36px !important;
+            height: 36px !important;
+            border-radius: 8px !important; /* 正方形外框，帶有與導航欄一致的微圓角 */
+            background-color: rgba(148, 163, 184, 0.1) !important;
+            border: 1px solid rgba(148, 163, 184, 0.2) !important;
+            color: inherit !important;
+            cursor: pointer !important;
+            transition: all 0.2s ease-in-out !important;
+            outline: none !important;
+            -webkit-tap-highlight-color: transparent !important;
         }
 
         .parking-action-btn:active {
-            background-color: rgba(148, 163, 184, 0.25);
+            background-color: rgba(148, 163, 184, 0.25) !important;
         }
 
         .parking-tracker-toggle-btn {
-            color: #3b82f6;
+            color: #3b82f6 !important;
         }
 
-        /* 正在追蹤時的反色高亮方框 */
         .parking-tracker-toggle-btn.tracking-active {
-            background-color: #2563eb;
-            border-color: #1d4ed8;
-            color: #ffffff;
+            background-color: #2563eb !important;
+            border-color: #1d4ed8 !important;
+            color: #ffffff !important;
         }
 
-        /* 目前有空位時的完全停用狀態 */
         .parking-tracker-toggle-btn.tracking-disabled {
             color: #94a3b8 !important;
             opacity: 0.25 !important;
-            cursor: not-allowed;
+            cursor: not-allowed !important;
             background-color: transparent !important;
             border-color: rgba(148, 163, 184, 0.1) !important;
         }
 
-        /* 頂部智慧提示橫幅 */
+        /* 頂部輕量化提示通知 */
         #parking-toast-notice {
             position: fixed;
             top: 24px;
@@ -87,7 +94,7 @@
             transition: opacity 0.3s ease;
         }
 
-        /* 底部智慧狀態島（完美支援隱形避讓） */
+        /* 底部智慧狀態島 */
         #mobile-bottom-tracker-island {
             position: fixed;
             bottom: calc(16px + env(safe-area-inset-bottom));
@@ -107,8 +114,10 @@
             animation: islandSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
+        /* 當地圖開啟、列表完全隱藏時，強制移除狀態島 */
         #mobile-bottom-tracker-island.island-hidden {
-            transform: translate(-50%, 120px) !important;
+            display: none !important;
+            visibility: hidden !important;
             opacity: 0 !important;
             pointer-events: none !important;
         }

@@ -6,42 +6,56 @@
     <title>HK Car Parks</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        /* 2026 行動端自適應緊湊佈局與正方形圖標按鈕樣式 */
-        #results > * {
+        /* 僅針對路邊咪錶位卡片進行版面壓縮與右側重組 */
+        .carpark-card.meter-card {
             position: relative !important;
-            padding: 12px 110px 12px 12px !important; /* 縮減上下內邊距，並在右側留出固定空間 */
-            min-height: 110px !important;
+            padding: 12px 110px 12px 12px !important; /* 壓縮上下內邊距，並在右側騰出固定寬度 */
+            min-height: 105px !important; /* 顯著降低卡片高度 */
             box-sizing: border-box !important;
         }
 
-        /* 強制將空置率盒子定位於右上角，與車位名稱對齊 */
-        .custom-vacancy-box {
+        /* 破除原本的 flex 限制，允許右側元件獨立進行絕對定位 */
+        .carpark-card.meter-card .card-body-split {
+            display: block !important;
+        }
+
+        .carpark-card.meter-card .card-right {
+            position: static !important;
+        }
+
+        /* 強制將路邊咪錶的空置率盒子固定於右上角，與標題文字對齊 */
+        .carpark-card.meter-card .vacancy-badge {
             position: absolute !important;
             top: 12px !important;
             right: 12px !important;
             margin: 0 !important;
+            width: 84px !important; /* 固定的方框寬度，利於下方按鈕精準對齊 */
+            box-sizing: border-box !important;
         }
 
-        /* 將正方形按鈕置於空置率盒子正下方 */
-        .parking-tracker-btn-container {
+        /* 將正方形按鈕群水平排列，精準置於空置率盒子的正下方 */
+        .carpark-card.meter-card .parking-tracker-btn-container {
             position: absolute !important;
             right: 12px !important;
-            top: 64px !important; 
+            top: 58px !important; /* 緊貼在空置盒子下方 */
             display: flex !important;
             gap: 8px !important;
+            width: 84px !important;
+            justify-content: space-between !important;
             background: transparent !important;
             margin: 0 !important;
             padding: 0 !important;
             z-index: 10 !important;
         }
 
+        /* 正方形功能按鈕基礎樣式 */
         .parking-action-btn {
             display: flex !important;
             align-items: center !important;
             justify-content: center !important;
-            width: 36px !important;
-            height: 36px !important;
-            border-radius: 8px !important; /* 正方形外框，帶有與導航欄一致的微圓角 */
+            width: 38px !important;
+            height: 38px !important;
+            border-radius: 8px !important; /* 正方形外框與微圓角 */
             background-color: rgba(148, 163, 184, 0.1) !important;
             border: 1px solid rgba(148, 163, 184, 0.2) !important;
             color: inherit !important;
@@ -49,6 +63,7 @@
             transition: all 0.2s ease-in-out !important;
             outline: none !important;
             -webkit-tap-highlight-color: transparent !important;
+            box-sizing: border-box !important;
         }
 
         .parking-action-btn:active {
@@ -114,7 +129,7 @@
             animation: islandSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
-        /* 當地圖開啟、列表完全隱藏時，強制移除狀態島 */
+        /* 地圖開啟時完全移除 DOM 渲染與物理佔位 */
         #mobile-bottom-tracker-island.island-hidden {
             display: none !important;
             visibility: hidden !important;
